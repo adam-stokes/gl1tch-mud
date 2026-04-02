@@ -101,6 +101,13 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: silent-collective
+    name: Silent Collective
+    desc: A distributed network of signal-blackout specialists who believe that total electromagnetic silence is the only true freedom. They build dead zones, operate shielded chambers, and traffic in RF-blocking technology. Paranoid, obsessive, effective.
+    agenda: Eliminate all mandatory signal sources and create a network of untraceable safe zones across the sprawl.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -386,6 +393,17 @@ crafting_recipes:
       id: routing-bypass
       name: Routing Bypass
       desc: Compiled sequence that lets you slip through surveillance nets before the algorithms adapt. Single use only.
+    skill_req: 2
+  - id: recipe-signal-cloak
+    name: Signal Cloak Assembly
+    ingredients:
+      - {id: response-dampener, count: 1}
+      - {id: cascade-resonator, count: 1}
+      - {id: copper-wire, count: 2}
+    output:
+      id: signal-cloak-mk2
+      name: Signal Cloak Mark II
+      desc: A wearable Faraday vest that scrambles tracking signatures within a three-meter radius. Hums softly. Smells like ozone.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -860,6 +878,26 @@ loot_tables:
         name: Override Module
         desc: Custom firmware chip designed to bypass relay station lockdowns.
         probability: 0.25
+        count_min: 1
+        count_max: 1
+  - id: signal-null-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: cascade-resonator
+        name: Cascade Resonator
+        desc: A signal-shaping device, resonates at frequencies that disrupt RF tracking.
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: shielded-datapad
+        name: Shielded Datapad
+        desc: A portable terminal wrapped in grounded wire, still locked with a passphrase.
+        probability: 0.2
         count_min: 1
         count_max: 1
 rooms:
@@ -1462,6 +1500,47 @@ rooms:
         desc: A sealed data packet with timestamps and route coordinates burned into its header.
         readable: true
         content: "ECLIPSE RUNNERS - PRIORITY EXTRACT\nTO: All Safe Houses\nDATE: 2026-04-02\n\nAxiom Security sweeping the dead zones. All nodes south of cascade line \ncompromised. Reroute through relay stations. Signal degradation expected. \nSpike holding position at gen-4f2c8e7a until 0400 UTC. No left-behinds.\n"
+    systems: []
+    locks: []
+  - id: gen-73f4e9ac
+    name: Null Broadcast Chamber
+    desc: The walls hum with a low electromagnetic frequency that makes your teeth ache. Faraday mesh lines every surface, copper strips grounding to industrial floor ports. No signal reaches here—no cellular, no broadcast, no stray RF. The air itself feels dead.
+    exits: {}
+    npcs:
+      - id: signal-null
+        name: Null
+        desc: A gaunt figure in a grease-stained silver bodysuit, eyes hidden behind reflective HUD goggles, fingers twitching with habitual antenna-checking.
+        hostile: false
+        loot_table_id: signal-null-loot
+        trades:
+          - id: trade-signal-null-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: response-dampener
+            receive_item_name: Response Dampener
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: You're here because the noise won't stop. I get it. They all get it. Nobody clears a chamber like this unless they're running from something loud.
+          - trigger: skill_gte:hacking:2
+            text: Your jack hums different. You've been inside the network. Listen—we're building a dead zone mesh, offline nodes nobody can touch. You could help. Or stay quiet. Either way, there's no signal here to betray you.
+    items:
+      - id: faraday-grid
+        name: Faraday Grid Panel
+        desc: A section of interlocked copper mesh, grounding clips still warm.
+      - id: silenced-transmission
+        name: Silenced Transmission Log
+        desc: A hardcopy printout, signal-burned at the edges, text barely legible.
+        readable: true
+        content: |
+          ORIGIN: Phantom Collective Safe House Seven
+          DATE: 2089-03-28
+          PRIORITY: Burn-on-sight
+
+          Axiom Security has deployed new tracking algorithms in the main grid. Any unshielded transmission leaves a signature detectable across three city sectors. Silent Collective is offering asylum in shielded chambers—temporary, mobile, built into dead zones.
+
+          Rendezvous: Null Broadcast Chamber. Recognition: hum frequency 7.3 kHz.
     systems: []
     locks: []
 quests:
