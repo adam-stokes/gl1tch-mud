@@ -599,6 +599,14 @@ rooms:
         desc: "A technical schematic for crafting tiered ICE Pick tools. Decode to unlock the recipe."
         is_blueprint: true
         unlocks_recipe: ice-pick
+      - id: axiom-vendor-cache
+        name: Encrypted Transmission
+        desc: A truncated packet fragment bearing Axiom Security registry markers, timestamp metadata partially decrypted.
+        readable: true
+        content: |-
+          [AX-PRIORITY-VECTOR] 2026-03-29 14:47Z
+          Package integrity compromised across broker distribution tier. Authentication handshake layer inverted via poisoned vendor certificate injected 2026-03-27. Asset in Meridian infrastructure confirmed payload delivery and broker network contamination. All competing feeds now propagating corrupted data without detection window. Third-party supply chain fully mapped.
+          Liquidate Meridian asset on 2026-04-06. Begin acquisition of their downstream clients while they hemorrhage credibility.
   - id: net-2
     name: "Trace Corridor"
     desc: |
