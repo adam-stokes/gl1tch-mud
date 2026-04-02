@@ -23,7 +23,16 @@ steps:
           "corporate black site, deniable assets, illegal interrogation tech"
         )
         IDX=$(( $(date +%s) % 8 ))
+
+        STATE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+        BIBLE=~/Projects/gl1tch-mud/worlds/cyberspace/story-bible.md
+        CHAPTER=$(yq '.chapter' "$STATE" 2>/dev/null || echo "pre-broadcast")
+        EXISTING_ROOMS=$(yq '.existing_room_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
+        EXISTING_ITEMS=$(yq '.existing_item_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
+        STORY=$(cat "$BIBLE" 2>/dev/null || echo "")
+
         echo "content_type=${TYPES[$IDX]}, theme: ${THEMES[$IDX]}"
+        printf "STORY BIBLE:\n%s\n\nCHAPTER: %s\n\nEXISTING ROOM IDs (DO NOT DUPLICATE):\n%s\n\nEXISTING ITEM IDs (DO NOT DUPLICATE):\n%s\n\n" "$STORY" "$CHAPTER" "$EXISTING_ROOMS" "$EXISTING_ITEMS"
 
   # ── 2. Research: faction intelligence briefing (Claude Haiku) ──────────────
   - id: research
@@ -39,10 +48,13 @@ steps:
       Neal Stephenson's Cryptonomicon tradecraft sections. PG-13.
 
       Cover ALL of the following in 6-8 total bullet points:
-      - 2 active hacker factions (faction name in ALL-CAPS, their current operation, signature technique)
+      - 2 active hacker factions from the canonical list (faction name, their current operation, signature technique)
       - 1 corporate security division (division name, parent corp, current threat response — hunting who and why)
       - 1 rogue operative (codename only, specialty, who they are currently working for)
       - 1 exploit or zero-day vulnerability being traded on the underground market right now
+
+      CANONICAL FACTIONS (reference ONLY these — do not invent new ones):
+        null-collective, axiom-security, helix-division, ghost-protocol, signal-collective
 
       Format: plain text bullet list only. No headers. No prose. No YAML.
       Each bullet is one dense sentence of field-operative shorthand.
@@ -74,6 +86,27 @@ steps:
       - All multi-line content fields must use the YAML block scalar (|) format
       - Never place text outside a closing quote on the same line
       - Dialogue text must be pure prose — no stage directions, no action text
+
+      CANONICAL FACTIONS (use ONLY these five — never create new factions):
+        null-collective    — ZERO's crew, player faction
+        axiom-security     — the corp that killed ZERO, hunting SIGNAL
+        helix-division     — government intel, wants backdoors open
+        ghost-protocol     — rival hired crew, can be flipped
+        signal-collective  — neutral underground brokers
+
+      IDEMPOTENCY — DO NOT CREATE:
+      - Any room ID listed in "EXISTING ROOM IDs" above
+      - Any item ID listed in "EXISTING ITEM IDs" above
+      - Any faction not in the five listed above
+
+      Every generated room must belong to one of four zones:
+        Zone A (Axiom territory): connect to net-1
+        Zone B (Helix territory): connect to net-2
+        Zone C (Ghost Protocol territory): connect to net-5
+        Zone D (ZERO/Null Collective territory): connect to net-4
+
+      Every room must contain at least one ZERO/SIGNAL narrative hook
+      (readable item, NPC dialogue, or system output connecting to the broadcast mission).
 
       rooms:
         - id: gen-<8 lowercase hex chars>
@@ -144,29 +177,17 @@ steps:
             desc: <1 sentence, what it does>
           skill_req: 1
 
-      factions:
-        - id: <faction-id, kebab-case version of name from intel brief>
-          name: <faction name as given in intel brief>
-          desc: <2-3 sentences on who they are, their history, how they operate>
-          agenda: <1 sentence on what they ultimately want>
-          territory: []
-          allies: []
-          enemies: []
-
       EXISTING ITEM IDs you may reference as ingredients or loot:
         data-chip, raw-silicon, copper-wire, carbon-blade, ice-pick,
         packet-sniffer, keycard, hazmat-suit, decryption-key, server-core,
         coolant-cartridge, maintenance-log
-
-      EXISTING FACTION IDs (do NOT regenerate these, pick a different one from the brief):
-        ghost-protocol, null-collective, axiom-security
 
       RULES:
         - Every id must be globally unique kebab-case
         - Room exits must be {} (empty)
         - NPC must have exactly 2 dialogue entries with different triggers
         - The readable item content must be 4-6 lines and reference the intel brief
-        - The faction entry must be one NOT already in the existing list above
+        - Do NOT add a factions: section — reference existing factions only
         - Keep everything PG-13
 
   # ── 4. Inject fragment into world.yaml ────────────────────────────────────
