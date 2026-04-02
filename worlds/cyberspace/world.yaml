@@ -87,6 +87,13 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: vex-collective
+    name: Vex Collective
+    desc: A network of independent fixers and extraction specialists who operate in the shadows of corporate territory. They move data, people, and contraband through forgotten infrastructure. Silent runners with a reputation for getting the job done.
+    agenda: Destabilize corporate information monopolies by distributing intercepted data to independent operators and street-level hackers.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -352,6 +359,16 @@ crafting_recipes:
       desc: |
         A pulse-jamming node that floods local mesh with decoy traffic,
         fragmenting your digital footprint across a thousand false vectors.
+    skill_req: 2
+  - id: recipe-bypass-harness
+    name: Breach Bypass Harness
+    ingredients:
+      - {id: copper-wire, count: 2}
+      - {id: ice-pick, count: 1}
+    output:
+      id: breach-harness-quick
+      name: Quick Breach Harness
+      desc: A jury-rigged data tap and lock-pick combo. Works once before burning out. Desperate times.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -786,6 +803,26 @@ loot_tables:
         name: Decryption Key
         desc: Cryptographic material for unlocking Obsidian Corp secure comms.
         probability: 0.4
+        count_min: 1
+        count_max: 1
+  - id: cipher-runner-korr-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.60
+        count_min: 1
+        count_max: 2
+      - item_id: maintenance-log
+        name: Maintenance Log
+        desc: A faded logbook detailing system vulnerabilities and bypass codes.
+        probability: 0.40
+        count_min: 1
+        count_max: 1
+      - item_id: emergency-transponder
+        name: Emergency Transponder
+        desc: A compact distress beacon, pre-programmed to summon extraction at any grid junction.
+        probability: 0.25
         count_min: 1
         count_max: 1
 rooms:
@@ -1317,6 +1354,43 @@ rooms:
           PHANTOM COLLECTIVE confirmed supply-chain insertion attack. Dormant beacon code embedded in crypto library patch releases.
           Forensics team hemorrhaging budget chasing vectors. Immediate asset redeployment required to intercept next PHANTOM drop before client confidence collapses.
           Recruiting technical contractors with supply-chain auditing skill. Turf conflict between CIPHER GUILD and PHANTOM intensifying. Time window: 60 days before forced consolidation.
+    systems: []
+    locks: []
+  - id: gen-f7d2a841
+    name: Flooded Server Vault
+    desc: Water laps against corroded server racks, their cooling loops burst and leaking. The air tastes of ozone and rust. Red emergency lights flicker above, casting everything in blood-hued shadows. A maintenance ladder leads up through a jagged hole in the ceiling.
+    exits: {}
+    npcs:
+      - id: cipher-runner-korr
+        name: Korr
+        desc: Lean figure in a waterlogged hazmat suit, one lens cracked, fingers moving constantly over a blackmarket data-pad.
+        hostile: false
+        loot_table_id: cipher-runner-korr-loot
+        trades:
+          - id: trade-korr-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: keycard
+            receive_item_name: Keycard
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: Run went hot, yeah? I don't ask questions. But the extraction window closes in three minutes. You moving or burning here?
+          - trigger: rep_gte:netrunners:5
+            text: Heard you run deep. Underground's already flagging this vault for delta-strike. I can get you to the tunnels if you've got the credit or the data.
+    items:
+      - id: submerged-server-core
+        name: Submerged Server Core
+        desc: A scorched computing module half-submerged in cold water, its LED indicators still pulsing weakly.
+      - id: extraction-order-corrupted
+        name: Corrupted Extraction Order
+        desc: A water-damaged printout, barely readable, clutched in a dead operator's hand.
+        readable: true
+        content: "AXIOM SECURITY - INTERNAL ALERT\nRUN DESIGNATION: Chimera-7 FAILED\nDATE: 2084-11-28\n\nAll personnel in Grid Sector 9 are compromised. \nThe netrunner team accessed restricted ICE. \nCorporate kill-squad en route. Recommend full facility purge.\nExtraction routes via maintenance tunnels still viable for 4 minutes.\nContact Vex-collective safe-house at the old transit hub.\n"
+      - id: flooded-circuit-board
+        name: Flooded Circuit Board
+        desc: A pristine piece of hardware now waterlogged, worth salvage if you can dry it out fast.
     systems: []
     locks: []
 quests:
