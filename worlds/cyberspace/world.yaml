@@ -331,6 +331,13 @@ rooms:
       - id: deck-patch
         name: "Neural Deck Patch"
         desc: "Restores 25 HP when used."
+      - id: journalist-dead-drop
+        name: Encrypted Handoff Log
+        desc: A crumpled printout with cascade-corrected timestamps and fragment hashes, still warm from the burner.
+        readable: true
+        content: |-
+          [2026-04-01 03:47 UTC] PHANTOM-COLLECTIVE TO INDEPENDENT COLLECTIVE
+          Package contents verified. Classification seals from Axiom SecOps. Witness statements. Project codenames. Budget allocations for drone swarms targeting the Undercity. Three journalists on protective detail now. They go live in 48 hours. System is already scrubbing—expect legal harassment, infrastructure attacks. This exposure threads the needle between revolution and annihilation. Ghost-Protocol will not appreciate the ripple. Status: committed to the edge. No abort vector.
   - id: net-3
     name: "The Core"
     desc: |
