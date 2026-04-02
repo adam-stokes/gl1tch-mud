@@ -1,7 +1,6 @@
 name: cyberspace
 start_room: net-0
 narrator_model: llama3.2
-
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -13,7 +12,6 @@ crafting_recipes:
       name: "Packet Sniffer"
       desc: "Intercepts and logs network traffic. Essential for any serious netrunner."
     skill_req: 0
-
   - id: ice-pick
     name: "ICE Pick"
     ingredients:
@@ -24,7 +22,6 @@ crafting_recipes:
       name: "ICE Pick"
       desc: "A specialised tool for cracking Intrusion Countermeasure Electronics."
     skill_req: 1
-
   - id: decryption-key
     name: "Decryption Key"
     ingredients:
@@ -35,7 +32,26 @@ crafting_recipes:
       name: "Decryption Key"
       desc: "Synthesised from captured traffic. Unlocks encrypted partitions."
     skill_req: 2
-
+  - id: test-synthesis-001
+    name: Widget Synthesis
+    ingredients:
+      - {id: data-chip, count: 1}
+      - {id: test-widget, count: 1}
+    output:
+      id: test-synthesized-widget
+      name: Synthesized Widget
+      desc: A widget improved through hacking intuition.
+    skill_req: 1
+  - id: recipe-resonator-key
+    name: Cascade Resonator
+    ingredients:
+      - {id: server-core, count: 1}
+      - {id: copper-wire, count: 2}
+    output:
+      id: cascade-resonator
+      name: Cascade Resonator
+      desc: A jury-rigged device that amplifies weak electrical signals, useful for reading degraded data on damaged storage media.
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
@@ -51,7 +67,6 @@ loot_tables:
         probability: 0.5
         count_min: 1
         count_max: 3
-
   - id: trace-program-loot
     entries:
       - item_id: copper-wire
@@ -66,7 +81,6 @@ loot_tables:
         probability: 0.4
         count_min: 1
         count_max: 1
-
   - id: shepherd-loot
     entries:
       - item_id: carbon-blade
@@ -81,7 +95,40 @@ loot_tables:
         probability: 0.9
         count_min: 2
         count_max: 5
-
+  - id: test-npc-001-loot
+    entries:
+      - item_id: test-widget
+        name: Test Widget
+        desc: A purpose-built widget for testing.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.5
+        count_min: 1
+        count_max: 3
+  - id: keeper-vault-loot
+    entries:
+      - item_id: server-core
+        name: Crystalline Server Core
+        desc: A hand-sized lattice of fused silicon and rare earths, still faintly warm.
+        probability: 0.60
+        count_min: 1
+        count_max: 1
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: copper-wire
+        name: Copper Wire
+        desc: Stripped from the old infrastructure, still valuable to those who know where to sell.
+        probability: 0.55
+        count_min: 2
+        count_max: 4
 rooms:
   - id: net-0
     name: "The Gibson — Entry Node"
@@ -107,7 +154,6 @@ rooms:
           - trigger: "always"
             text: "INTRUDER DETECTED. INITIATING COUNTERMEASURES."
     items: []
-
   - id: net-1
     name: "Archive Sector"
     desc: |
@@ -141,7 +187,6 @@ rooms:
         name: "Hazmat Suit"
         desc: "An environmental protection suit repurposed for netrunner disguise ops."
         is_disguise: true
-
   - id: net-2
     name: "Trace Corridor"
     desc: |
@@ -184,7 +229,6 @@ rooms:
       - id: deck-patch
         name: "Neural Deck Patch"
         desc: "Restores 25 HP when used."
-
   - id: net-3
     name: "The Core"
     desc: |
@@ -211,7 +255,6 @@ rooms:
       - id: master-key
         name: "Master Access Key"
         desc: "Root access to everything. Handle with care."
-
   - id: net-4
     name: "Deep Stack"
     desc: |
@@ -226,7 +269,6 @@ rooms:
       - id: ancient-firmware
         name: "Ancient Firmware Package"
         desc: "A pre-war firmware image. Incredibly rare. Someone would pay handsomely for this."
-
   - id: net-5
     name: "Black Ice Corridor"
     desc: |
@@ -241,3 +283,74 @@ rooms:
       - id: ice-fragment
         name: "Black ICE Fragment"
         desc: "A shard of deactivated Black ICE. Still warm. Useful for advanced crafting."
+  - id: gen-test1234
+    name: Test Injection Chamber
+    desc: A test room. Smells like burnt solder and data.
+    exits: {}
+    npcs:
+      - id: test-npc-001
+        name: Test Ghost
+        desc: A flickering data construct in a worn leather jacket.
+        hostile: false
+        loot_table_id: test-npc-001-loot
+        trades:
+          - id: trade-test-npc-001-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: test-widget
+            receive_item_name: Test Widget
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: You look lost. Most people are, in here.
+          - trigger: skill_gte:hacking:2
+            text: Nice ICE-breaker. Where'd you get the firmware?
+    items:
+      - id: test-widget
+        name: Test Widget
+        desc: A purpose-built widget for testing.
+    systems: []
+    locks: []
+  - id: gen-f7c2e419
+    name: Decommissioned Mainframe Chamber
+    desc: Floor-to-ceiling server racks hum with dying electronics, their indicator lights strobing through dust like dying fireflies. The air tastes of copper and ozone, recycled through vents that haven't been cleaned in years. Cables snake across the concrete, pooling in places where coolant has crystallized into rust-colored cakes.
+    exits: {}
+    npcs:
+      - id: keeper-vault
+        name: Keeper
+        desc: A rail-thin figure in a faded maintenance uniform, one eye replaced with a dim amber optical implant that casts a sickly glow across weathered synthetic skin.
+        hostile: false
+        loot_table_id: keeper-vault-loot
+        trades:
+          - id: trade-keeper-vault-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: decryption-key
+            receive_item_name: Decryption Key
+            rep_required: 0
+            faction: none
+          - id: trade-keeper-vault-2
+            offer_item_id: raw-silicon
+            offer_item_name: Raw Silicon
+            receive_item_id: coolant-cartridge
+            receive_item_name: Coolant Cartridge
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: Corporate pulled the plug fifteen years ago. Now I just keep the lights from dying completely. You here for salvage or secrets?
+          - trigger: skill_gte:hacking:2
+            text: There's still locked data in node-seven, but the ice is thick. You'll need better tools than most runners carry.
+    items:
+      - id: server-core
+        name: Crystalline Server Core
+        desc: A hand-sized lattice of fused silicon and rare earths, still faintly warm, pulsing with residual charge.
+      - id: coolant-cartridge
+        name: Coolant Cartridge
+        desc: A pressurized metal cylinder leaking trace amounts of iridescent fluid that smells like synthetic flowers and death.
+      - id: maintenance-log
+        name: Water-Damaged Maintenance Log
+        desc: A physical logbook with entries dating back to 2089, most pages unreadable but a few still legible.
+    systems: []
+    locks: []
