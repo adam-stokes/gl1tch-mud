@@ -300,6 +300,33 @@ crafting_recipes:
         scattering your location across phantom positions on the net. Effective against
         passive tracking until the resonance cascade destabilizes and burns out.
     skill_req: 2
+  - id: recipe-packet-ghost-core
+    name: Packet Ghost Device
+    ingredients:
+      - {id: raw-silicon, count: 1}
+      - {id: copper-wire, count: 2}
+      - {id: packet-sniffer, count: 1}
+    output:
+      id: packet-ghost-core
+      name: Packet Ghost Core
+      desc: |
+        A substrate of mirrored copper traces threaded through raw silicon,
+        designed to render network traffic invisible to passive surveillance nodes.
+    skill_req: 2
+  - id: recipe-trace-killer-module
+    name: Trace Killer Module
+    ingredients:
+      - {id: raw-silicon, count: 1}
+      - {id: copper-wire, count: 1}
+      - {id: ice-pick, count: 1}
+      - {id: response-dampener, count: 1}
+    output:
+      id: trace-killer-module
+      name: Trace Killer Module
+      desc: |
+        A hybrid circuit board hardened with crystalline points that shatters
+        digital footprints and dampens response signals before detection logs occur.
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
@@ -688,8 +715,10 @@ rooms:
         dialogue:
           - trigger: always
             text: Corporate pulled the plug fifteen years ago. Now I just keep the lights from dying completely. You here for salvage or secrets?
+            quest_id: q-kill-ice-daemon
           - trigger: skill_gte:hacking:2
             text: There's still locked data in node-seven, but the ice is thick. You'll need better tools than most runners carry.
+            quest_id: q-retrieve-server-core
     items:
       - id: server-core
         name: Crystalline Server Core
@@ -775,6 +804,7 @@ rooms:
         dialogue:
           - trigger: always
             text: Signals die in here. That's the whole point. If you need to stay invisible, you need dead air. What brings you to the void?
+            quest_id: q-hack-archive-console
           - trigger: skill_gte:hacking:2
             text: Your heat signature is clean. You know how to move dark. Axiom Security's been flooding the district with RF scanners. The corps want everything tagged, tracked, triangulated. This chamber buys you time.
     items:
@@ -818,6 +848,7 @@ rooms:
         dialogue:
           - trigger: always
             text: You move too loud. The networks listen. They always listen.
+            quest_id: q-kill-trace-program
           - trigger: skill_gte:hacking:2
             text: Phantom's distributed mirrors are still holding the SWIFT relay intact. The banks don't even know their settlement layer is compromised. Beautiful work.
     items:
@@ -898,6 +929,7 @@ rooms:
         dialogue:
           - trigger: always
             text: Eyes don't leave the screens. The feeds cycle. Panopticon's blind spots grow wider every day. You want in on this, you come with clean hands and dirty money.
+            quest_id: q-hack-trace-router
           - trigger: skill_gte:hacking:2
             text: BLACKWIRE's been smart about the distribution vector—nobody traces it back to source. The kit does the work. HSO's sensors start hallucinating phantoms while the real exfil happens in plain sight. Beautiful architecture.
     items:
@@ -956,3 +988,63 @@ rooms:
           Recruiting technical contractors with supply-chain auditing skill. Turf conflict between CIPHER GUILD and PHANTOM intensifying. Time window: 60 days before forced consolidation.
     systems: []
     locks: []
+quests:
+  - id: q-kill-ice-daemon
+    title: "Ghost the ICE"
+    description: "The entry node is crawling with Black ICE Daemons. Take out one to clear a path for the crew."
+    giver_npc_id: keeper-vault
+    obj_type: kill
+    obj_target: ice-daemon-0
+    obj_count: 1
+    reward_credits: 250
+    reward_xp_skill: hacking
+    reward_xp_amount: 30
+  - id: q-hack-trace-router
+    title: "Blind the Eye"
+    description: "Hack the trace-router in the Trace Corridor. Kess needs the surveillance window open."
+    giver_npc_id: kess-the-monitor
+    obj_type: hack
+    obj_target: trace-router
+    obj_count: 1
+    reward_credits: 400
+    reward_xp_skill: hacking
+    reward_xp_amount: 50
+    reward_item_id: corruption-kit-feed
+    reward_item_name: Corrupted Feed Injection Kit
+    reward_item_desc: "Custom-packaged utility loaded with false-positive injection code."
+  - id: q-retrieve-server-core
+    title: "Core Recovery"
+    description: "The Keeper in the Decommissioned Mainframe needs a Crystalline Server Core from cold storage. Locate and retrieve one."
+    giver_npc_id: keeper-vault
+    obj_type: retrieve
+    obj_target: server-core
+    obj_count: 1
+    reward_credits: 300
+    reward_xp_skill: hacking
+    reward_xp_amount: 20
+  - id: q-kill-trace-program
+    title: "Erase the Trace"
+    description: "A Trace Program is running hot in the Trace Corridor. Apex needs it gone before the window closes."
+    giver_npc_id: apex-runner
+    obj_type: kill
+    obj_target: trace-program-0
+    obj_count: 1
+    reward_credits: 350
+    reward_xp_skill: hacking
+    reward_xp_amount: 40
+    reward_item_id: mirror-access-token
+    reward_item_name: Mirror Access Token
+    reward_item_desc: "Temporary credentials to a phantom mirror node."
+  - id: q-hack-archive-console
+    title: "Dead Archive Dive"
+    description: "Cipher needs the archive-console in the Archive Sector cracked. Old data, new leverage."
+    giver_npc_id: cipher-runner
+    obj_type: hack
+    obj_target: archive-console
+    obj_count: 1
+    reward_credits: 500
+    reward_xp_skill: hacking
+    reward_xp_amount: 60
+    reward_item_id: rf-dampener-core
+    reward_item_name: RF Dampener Core
+    reward_item_desc: "A crystalline lattice matrix engineered to absorb EM radiation."
