@@ -272,6 +272,34 @@ crafting_recipes:
         A parasitic adapter that intercepts and mirrors encrypted responses back to their source,
         creating false echoes that fool authentication handshakes. Perfect for spoofing trusted systems.
     skill_req: 3
+  - id: recipe-thermal-ghost-cloak
+    name: Thermal Ghost Cloak
+    ingredients:
+      - {id: ice-fragment, count: 1}
+      - {id: coolant-cartridge, count: 1}
+      - {id: response-dampener, count: 1}
+    output:
+      id: thermal-ghost-cloak
+      name: Thermal Ghost Cloak
+      desc: |
+        A jury-rigged heat-sink lattice that bleeds your thermal signature into ambient
+        noise. Worn as an undersuit, it renders you invisible to thermal imaging for
+        short bursts. The coolant cycles only last minutes before needing a full recharge.
+    skill_req: 2
+  - id: recipe-cascade-shadow-mask
+    name: Cascade Shadow Mask
+    ingredients:
+      - {id: ice-fragment, count: 1}
+      - {id: coolant-cartridge, count: 1}
+      - {id: cascade-resonator, count: 1}
+    output:
+      id: cascade-shadow-mask
+      name: Cascade Shadow Mask
+      desc: |
+        A feedback loop device that mirrors incoming sensor pings back at their source,
+        scattering your location across phantom positions on the net. Effective against
+        passive tracking until the resonance cascade destabilizes and burns out.
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
