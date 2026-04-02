@@ -552,6 +552,36 @@ loot_tables:
         probability: 0.30
         count_min: 1
         count_max: 2
+      - item_id: signal-booster
+        name: Signal Booster
+        desc: Worn amplifier that extends range and pierces signal jamming.
+        probability: 0.42
+        count_min: 1
+        count_max: 2
+      - item_id: trace-jammer
+        name: Trace Jammer
+        desc: Pulse emitter that confuses location tracking systems.
+        probability: 0.38
+        count_min: 1
+        count_max: 3
+      - item_id: memory-shard
+        name: Memory Shard
+        desc: Salvaged storage unit containing fragmented data or obsolete code.
+        probability: 0.45
+        count_min: 1
+        count_max: 2
+      - item_id: static-cloak
+        name: Static Cloak
+        desc: Electromagnetic veil that scatters recognition algorithms and heat signatures.
+        probability: 0.28
+        count_min: 1
+        count_max: 2
+      - item_id: pulse-disruptor
+        name: Pulse Disruptor
+        desc: Compact device that causes temporary electronic interference in a localized area.
+        probability: 0.15
+        count_min: 1
+        count_max: 1
   - id: keeper-vault-loot
     entries:
       - item_id: server-core
@@ -588,6 +618,36 @@ loot_tables:
         name: Heat-sink Core
         desc: Salvaged from a black-ICE corpse, still radiating ambient cold.
         probability: 0.15
+        count_min: 1
+        count_max: 1
+      - item_id: chrome-splice
+        name: Chrome Splice
+        desc: A fused fragment of military-grade chrome harvested from decommissioned security rigs.
+        probability: 0.35
+        count_min: 1
+        count_max: 2
+      - item_id: zero-warrant
+        name: Zero Warrant
+        desc: Cryptographic token that grants temporary unrestricted access to protected networks.
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+      - item_id: black-ice-shard
+        name: Black Ice Shard
+        desc: Lethal defensive ICE fragment that corrupts or destroys anything attempting intrusion.
+        probability: 0.18
+        count_min: 1
+        count_max: 3
+      - item_id: vault-cipher
+        name: Vault Cipher
+        desc: Proprietary encryption algorithm carved into a shielded data core.
+        probability: 0.32
+        count_min: 1
+        count_max: 2
+      - item_id: breach-protocol
+        name: Breach Protocol
+        desc: Exploitable sequence encoded in corrupted security firmware.
+        probability: 0.22
         count_min: 1
         count_max: 1
   - id: keeper-moth-loot
