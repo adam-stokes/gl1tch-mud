@@ -695,6 +695,17 @@ rooms:
         is_exploit: true
         targets_system: trace-router
         augment_bonus: 15
+      - id: ceasefire-cipher
+        name: Encrypted Transmission
+        desc: A data burst still resolving through multiple anonymization layers, timestamp 2026-04-02 00:17 UTC
+        readable: true
+        content: |-
+          Eyes only - ghost-protocol dispatch. Truce active as of 0000 UTC today. Null-collective pulls from
+          eastern spine operations, we mothball substrate mining for the window. Axiom-security brokered the
+          terms - they're tired of the economic bleed. Hostile intent remains mutual. Third-party observers
+          already report phantom-collective probing the northern perimeter, looking for gaps. Escalation authority
+          transfers to field command if ceasefire breaks. Prep contingency decryption cascades. Window closes
+          2026-04-23 unless extended by consensus. Plan accordingly.
   - id: net-5
     name: "Black Ice Corridor"
     desc: |
