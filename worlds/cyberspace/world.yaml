@@ -386,6 +386,36 @@ loot_tables:
         probability: 0.12
         count_min: 1
         count_max: 1
+      - item_id: encryption-shard
+        name: Encryption Shard
+        desc: Crystallized fragment of ICE defensive protocols holding partial key material.
+        probability: 0.45
+        count_min: 1
+        count_max: 3
+      - item_id: firewall-residue
+        name: Firewall Residue
+        desc: Scorched data patterns left behind from ICE barrier collapse.
+        probability: 0.38
+        count_min: 1
+        count_max: 2
+      - item_id: trace-fragment
+        name: Trace Fragment
+        desc: Shadowed log entry capturing ICE attack vector and response sequence.
+        probability: 0.28
+        count_min: 1
+        count_max: 2
+      - item_id: void-module
+        name: Void Module
+        desc: Extracted ICE security chamber containing null-state data structures.
+        probability: 0.15
+        count_min: 1
+        count_max: 1
+      - item_id: corruption-seed
+        name: Corruption Seed
+        desc: Dormant attack pattern that propagates through connected systems slowly.
+        probability: 0.22
+        count_min: 1
+        count_max: 1
   - id: trace-program-loot
     entries:
       - item_id: copper-wire
@@ -426,6 +456,30 @@ loot_tables:
         probability: 0.20
         count_min: 1
         count_max: 1
+      - item_id: signal-jammer
+        name: Signal Jammer
+        desc: Portable device that disrupts local wireless communications in short bursts.
+        probability: 0.35
+        count_min: 1
+        count_max: 2
+      - item_id: herd-beacon
+        name: Herd Beacon
+        desc: Tracking node used to monitor movement patterns across crowds.
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+      - item_id: static-crown
+        name: Static Crown
+        desc: Neural disruptor that fragments nearby sensory input for targets.
+        probability: 0.40
+        count_min: 1
+        count_max: 3
+      - item_id: echo-beacon
+        name: Echo Beacon
+        desc: Repeater module that amplifies and redirects communication signals.
+        probability: 0.30
+        count_min: 1
+        count_max: 2
   - id: keeper-vault-loot
     entries:
       - item_id: server-core
