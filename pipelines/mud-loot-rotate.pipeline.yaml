@@ -81,6 +81,7 @@ steps:
   # ── 2b. Fallback: generate via Haiku if codex produced nothing ────────────
   - id: generate
     executor: claude
+    no_clarify: true
     model: claude-haiku-4-5-20251001
     needs: [seed, codex_try]
     prompt: |
