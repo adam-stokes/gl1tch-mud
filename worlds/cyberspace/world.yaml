@@ -219,6 +219,32 @@ crafting_recipes:
       name: Blind Spot Charge
       desc: Weaponized feed corruption payload that creates localized surveillance gaps. HSO's algorithms will ignore anything in the radius.
     skill_req: 2
+  - id: recipe-cipher-phantom
+    name: Cipher Phantom
+    ingredients:
+      - {id: packet-sniffer, count: 1}
+      - {id: decryption-key, count: 1}
+      - {id: data-chip, count: 1}
+    output:
+      id: cipher-phantom
+      name: Cipher Phantom
+      desc: |
+        A spectral network probe that decrypts live packet streams in real-time.
+        Invisible to most ICE, it ghosts through corporate intranets harvesting unfiltered data.
+    skill_req: 2
+  - id: recipe-traffic-wraith
+    name: Traffic Wraith
+    ingredients:
+      - {id: packet-sniffer, count: 1}
+      - {id: decryption-key, count: 1}
+      - {id: ice-pick, count: 1}
+    output:
+      id: traffic-wraith
+      name: Traffic Wraith
+      desc: |
+        A vicious decryption daemon that tears through encrypted channels and peels back network masks.
+        Leaves burning signatures in its wake, exposing hidden comm protocols and buried surveillance feeds.
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
