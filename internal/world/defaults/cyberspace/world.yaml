@@ -2,6 +2,86 @@ name: cyberspace
 start_room: net-0
 narrator_model: llama3.2
 
+crafting_recipes:
+  - id: packet-sniffer
+    name: "Packet Sniffer"
+    ingredients:
+      - {id: raw-silicon, count: 2}
+      - {id: copper-wire, count: 1}
+    output:
+      id: packet-sniffer
+      name: "Packet Sniffer"
+      desc: "Intercepts and logs network traffic. Essential for any serious netrunner."
+    skill_req: 0
+
+  - id: ice-pick
+    name: "ICE Pick"
+    ingredients:
+      - {id: carbon-blade, count: 1}
+      - {id: copper-wire, count: 1}
+    output:
+      id: ice-pick
+      name: "ICE Pick"
+      desc: "A specialised tool for cracking Intrusion Countermeasure Electronics."
+    skill_req: 1
+
+  - id: decryption-key
+    name: "Decryption Key"
+    ingredients:
+      - {id: packet-sniffer, count: 1}
+      - {id: data-chip, count: 2}
+    output:
+      id: decryption-key
+      name: "Decryption Key"
+      desc: "Synthesised from captured traffic. Unlocks encrypted partitions."
+    skill_req: 2
+
+loot_tables:
+  - id: ice-daemon-loot
+    entries:
+      - item_id: data-chip
+        name: "Data Chip"
+        desc: "A fragment of stolen data. Worth something to the right buyer."
+        probability: 0.7
+        count_min: 1
+        count_max: 2
+      - item_id: raw-silicon
+        name: "Raw Silicon"
+        desc: "Unprocessed chip substrate."
+        probability: 0.5
+        count_min: 1
+        count_max: 3
+
+  - id: trace-program-loot
+    entries:
+      - item_id: copper-wire
+        name: "Copper Wire"
+        desc: "Stripped from a deactivated trace program."
+        probability: 1.0
+        count_min: 1
+        count_max: 2
+      - item_id: data-chip
+        name: "Data Chip"
+        desc: "Captured trace data."
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+
+  - id: shepherd-loot
+    entries:
+      - item_id: carbon-blade
+        name: "Carbon Blade"
+        desc: "A razor-thin tool used for precision cutting. Dropped by The Shepherd."
+        probability: 1.0
+        count_min: 1
+        count_max: 1
+      - item_id: data-chip
+        name: "Data Chip"
+        desc: "Ancient knowledge. The Shepherd hoarded it."
+        probability: 0.9
+        count_min: 2
+        count_max: 5
+
 rooms:
   - id: net-0
     name: "The Gibson — Entry Node"
@@ -11,12 +91,21 @@ rooms:
     exits:
       north: net-1
       east: net-2
+    systems:
+      - id: entry-terminal
+        security_level: 2
+        reward_item: raw-silicon
+        reward_text: "You crack the entry terminal and extract raw silicon from its buffer."
     npcs:
       - id: ice-daemon-0
         name: "Black ICE Daemon"
         hp: 30
         attack: 8
         desc: "A faceless enforcer. Its eyes are red LEDs."
+        loot_table_id: ice-daemon-loot
+        dialogue:
+          - trigger: "always"
+            text: "INTRUDER DETECTED. INITIATING COUNTERMEASURES."
     items: []
 
   - id: net-1
@@ -24,14 +113,34 @@ rooms:
     desc: |
       Dusty memory cores line the walls, stacked floor to ceiling.
       Some are cracked. Data leaks out in faint blue wisps.
+      A secure vault door leads north — it looks sealed tight.
     exits:
       south: net-0
       east: net-3
+      north: net-4
+    systems:
+      - id: archive-console
+        security_level: 4
+        reward_item: copper-wire
+        reward_text: "Deep in the archive you find a coil of copper wire — useful for crafting."
+    locks:
+      - id: vault-door
+        exit: north
+        difficulty: 5
+        keys:
+          - keycard
     npcs: []
     items:
       - id: root-key
         name: "Root Access Key"
         desc: "A crystalline token the size of a thumbnail. It hums with potential."
+      - id: keycard
+        name: "Security Keycard"
+        desc: "An old keycard. Still valid, if the vault hasn't rotated credentials."
+      - id: hazmat-suit
+        name: "Hazmat Suit"
+        desc: "An environmental protection suit repurposed for netrunner disguise ops."
+        is_disguise: true
 
   - id: net-2
     name: "Trace Corridor"
@@ -40,12 +149,37 @@ rooms:
       adjacent sectors — they haven't noticed you yet.
     exits:
       west: net-0
+      south: net-5
+    systems:
+      - id: trace-router
+        security_level: 6
+        reward_item: data-chip
+        reward_text: "You reroute the trace program's uplink and pocket a data chip."
     npcs:
       - id: trace-program-0
         name: "Trace Program"
         hp: 20
         attack: 5
         desc: "A sleek hunter-killer. Fast, relentless, dumb."
+        loot_table_id: trace-program-loot
+        trades:
+          - id: trade-data
+            wants:
+              - id: data-chip
+                count: 1
+            offers:
+              - id: encryption-key
+                name: "Encryption Key"
+                desc: "Bypasses standard auth layers."
+                count: 1
+            faction_req: "netrunners:3"
+        dialogue:
+          - trigger: "disguise:hazmat-suit"
+            text: "Maintenance crew? Pass through. Don't touch anything."
+          - trigger: "has_item:root-key"
+            text: "That key... where did you get that? The Shepherd will be angry."
+          - trigger: "always"
+            text: "You shouldn't be in this sector. Turn around."
     items:
       - id: deck-patch
         name: "Neural Deck Patch"
@@ -65,7 +199,45 @@ rooms:
         hp: 80
         attack: 15
         desc: "An AI so old it has forgotten what it was protecting."
+        loot_table_id: shepherd-loot
+        dialogue:
+          - trigger: "rep_gte:netrunners:10"
+            text: "You carry the mark of those who built me. I remember. Ask your question."
+          - trigger: "has_item:decryption-key"
+            text: "You have the key. You understand the old protocols. I will speak with you."
+          - trigger: "always"
+            text: "You do not belong here. Leave before I am forced to act."
     items:
       - id: master-key
         name: "Master Access Key"
         desc: "Root access to everything. Handle with care."
+
+  - id: net-4
+    name: "Deep Stack"
+    desc: |
+      Beyond the vault door lies a forgotten partition. Rows of crystalline data
+      towers stretch upward into darkness. This place hasn't been accessed in years.
+      Cobwebs of corrupted code drift between the towers like digital spiderwebs.
+      Something valuable was stored here once.
+    exits:
+      south: net-1
+    npcs: []
+    items:
+      - id: ancient-firmware
+        name: "Ancient Firmware Package"
+        desc: "A pre-war firmware image. Incredibly rare. Someone would pay handsomely for this."
+
+  - id: net-5
+    name: "Black Ice Corridor"
+    desc: |
+      The corridor hums with predatory energy. Black ICE crystalline formations
+      line the walls — passive, but aware. One wrong move and they activate.
+      The air crackles with static discharge and the smell of burnt ozone.
+      A faint blue glow pulses from deeper in the sector.
+    exits:
+      north: net-2
+    npcs: []
+    items:
+      - id: ice-fragment
+        name: "Black ICE Fragment"
+        desc: "A shard of deactivated Black ICE. Still warm. Useful for advanced crafting."

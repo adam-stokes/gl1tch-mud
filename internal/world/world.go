@@ -13,39 +13,116 @@ import (
 //go:embed defaults/cyberspace/world.yaml
 var defaultWorldFS embed.FS
 
+// System is a hackable terminal or node inside a room.
+type System struct {
+	ID            string `yaml:"id"`
+	SecurityLevel int    `yaml:"security_level"`
+	RewardItem    string `yaml:"reward_item,omitempty"`
+	RewardText    string `yaml:"reward_text,omitempty"`
+}
+
+// Lock is a locked exit or container in a room.
+type Lock struct {
+	ID         string   `yaml:"id"`
+	Exit       string   `yaml:"exit"`
+	Difficulty int      `yaml:"difficulty"`
+	Keys       []string `yaml:"keys,omitempty"`
+}
+
+// DialogueLine is one line of NPC dialogue with a trigger condition.
+type DialogueLine struct {
+	Trigger string `yaml:"trigger"`
+	Text    string `yaml:"text"`
+}
+
+// TradeIngredient is an item required or offered in a trade.
+type TradeIngredient struct {
+	ID    string `yaml:"id"`
+	Name  string `yaml:"name,omitempty"`
+	Desc  string `yaml:"desc,omitempty"`
+	Count int    `yaml:"count"`
+}
+
+// TradeOffer is a single trade an NPC can make.
+type TradeOffer struct {
+	ID         string            `yaml:"id"`
+	Wants      []TradeIngredient `yaml:"wants"`
+	Offers     []TradeIngredient `yaml:"offers"`
+	FactionReq string            `yaml:"faction_req,omitempty"`
+}
+
+// CraftingIngredient is an item required for a crafting recipe.
+type CraftingIngredient struct {
+	ID    string `yaml:"id"`
+	Count int    `yaml:"count"`
+}
+
+// CraftingRecipe defines how to craft an item.
+type CraftingRecipe struct {
+	ID          string               `yaml:"id"`
+	Name        string               `yaml:"name"`
+	Ingredients []CraftingIngredient `yaml:"ingredients"`
+	Output      Item                 `yaml:"output"`
+	SkillReq    int                  `yaml:"skill_req,omitempty"`
+}
+
+// LootEntry is a single item in a loot table.
+type LootEntry struct {
+	ItemID      string  `yaml:"item_id"`
+	Name        string  `yaml:"name,omitempty"`
+	Desc        string  `yaml:"desc,omitempty"`
+	Probability float64 `yaml:"probability"`
+	CountMin    int     `yaml:"count_min"`
+	CountMax    int     `yaml:"count_max"`
+}
+
+// LootTable holds a named set of loot entries.
+type LootTable struct {
+	ID      string      `yaml:"id"`
+	Entries []LootEntry `yaml:"entries"`
+}
+
 // NPC is an enemy or character in a room.
 type NPC struct {
-	ID     string `yaml:"id"`
-	Name   string `yaml:"name"`
-	HP     int    `yaml:"hp"`
-	Attack int    `yaml:"attack"`
-	Desc   string `yaml:"desc"`
+	ID          string       `yaml:"id"`
+	Name        string       `yaml:"name"`
+	HP          int          `yaml:"hp"`
+	Attack      int          `yaml:"attack"`
+	Desc        string       `yaml:"desc"`
+	LootTableID string       `yaml:"loot_table_id,omitempty"`
+	Trades      []TradeOffer `yaml:"trades,omitempty"`
+	Dialogue    []DialogueLine `yaml:"dialogue,omitempty"`
 }
 
 // Item is a collectable object in a room.
 type Item struct {
-	ID   string `yaml:"id"`
-	Name string `yaml:"name"`
-	Desc string `yaml:"desc"`
+	ID         string `yaml:"id"`
+	Name       string `yaml:"name"`
+	Desc       string `yaml:"desc"`
+	IsDisguise bool   `yaml:"is_disguise,omitempty"`
 }
 
 // Room is a single location in the world.
 type Room struct {
-	ID    string            `yaml:"id"`
-	Name  string            `yaml:"name"`
-	Desc  string            `yaml:"desc"`
-	Exits map[string]string `yaml:"exits"`
-	NPCs  []NPC             `yaml:"npcs"`
-	Items []Item            `yaml:"items"`
+	ID      string            `yaml:"id"`
+	Name    string            `yaml:"name"`
+	Desc    string            `yaml:"desc"`
+	Exits   map[string]string `yaml:"exits"`
+	NPCs    []NPC             `yaml:"npcs"`
+	Items   []Item            `yaml:"items"`
+	Systems []System          `yaml:"systems,omitempty"`
+	Locks   []Lock            `yaml:"locks,omitempty"`
 }
 
 // World holds all rooms for a loaded world.
 type World struct {
-	Name          string `yaml:"name"`
-	StartRoom     string `yaml:"start_room"`
-	NarratorModel string `yaml:"narrator_model"`
-	Rooms         []Room `yaml:"rooms"`
-	index         map[string]*Room
+	Name            string           `yaml:"name"`
+	StartRoom       string           `yaml:"start_room"`
+	NarratorModel   string           `yaml:"narrator_model"`
+	Rooms           []Room           `yaml:"rooms"`
+	CraftingRecipes []CraftingRecipe `yaml:"crafting_recipes,omitempty"`
+	LootTables      []LootTable      `yaml:"loot_tables,omitempty"`
+	index           map[string]*Room
 }
 
 // Load reads a world YAML from ~/.local/share/gl1tch-mud/worlds/<name>/world.yaml.
@@ -74,6 +151,55 @@ func Load(name string) (*World, error) {
 // Room returns the room with the given ID, or nil.
 func (w *World) Room(id string) *Room {
 	return w.index[id]
+}
+
+// AddRoom adds a generated room to the world graph at runtime.
+func (w *World) AddRoom(r *Room) {
+	if w.index == nil {
+		w.index = make(map[string]*Room)
+	}
+	w.Rooms = append(w.Rooms, *r)
+	w.index[r.ID] = &w.Rooms[len(w.Rooms)-1]
+}
+
+// FindLootTable returns the loot table with the given ID, or nil.
+func (w *World) FindLootTable(id string) *LootTable {
+	for i := range w.LootTables {
+		if w.LootTables[i].ID == id {
+			return &w.LootTables[i]
+		}
+	}
+	return nil
+}
+
+// FindRecipe returns the crafting recipe with the given ID, or nil.
+func (w *World) FindRecipe(id string) *CraftingRecipe {
+	for i := range w.CraftingRecipes {
+		if w.CraftingRecipes[i].ID == id {
+			return &w.CraftingRecipes[i]
+		}
+	}
+	return nil
+}
+
+// FindLock returns the lock for the given exit direction in the room, or nil.
+func (r *Room) FindLock(exitDir string) *Lock {
+	for i := range r.Locks {
+		if r.Locks[i].Exit == exitDir {
+			return &r.Locks[i]
+		}
+	}
+	return nil
+}
+
+// FindSystem returns the system with the given ID in the room, or nil.
+func (r *Room) FindSystem(systemID string) *System {
+	for i := range r.Systems {
+		if r.Systems[i].ID == systemID {
+			return &r.Systems[i]
+		}
+	}
+	return nil
 }
 
 // Render returns a formatted description of the room.

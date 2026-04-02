@@ -28,4 +28,49 @@ CREATE TABLE IF NOT EXISTS npc_state (
 CREATE TABLE IF NOT EXISTS visited (
     room_id TEXT NOT NULL PRIMARY KEY
 );
+
+CREATE TABLE IF NOT EXISTS player_skills (
+    skill TEXT    PRIMARY KEY,
+    level INTEGER NOT NULL DEFAULT 0,
+    xp    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS player_reputation (
+    faction TEXT    PRIMARY KEY,
+    value   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS system_state (
+    room_id   TEXT    NOT NULL,
+    system_id TEXT    NOT NULL,
+    intrusion REAL    NOT NULL DEFAULT 0,
+    alert     INTEGER NOT NULL DEFAULT 0,
+    hacked    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (room_id, system_id)
+);
+
+CREATE TABLE IF NOT EXISTS lock_state (
+    lock_id  TEXT    PRIMARY KEY,
+    unlocked INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS npc_memory (
+    npc_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    ts     INTEGER NOT NULL,
+    PRIMARY KEY (npc_id, action)
+);
+
+CREATE TABLE IF NOT EXISTS player_stealth (
+    id       INTEGER PRIMARY KEY CHECK (id = 1),
+    level    INTEGER NOT NULL DEFAULT 50,
+    disguise TEXT    NOT NULL DEFAULT 'none'
+);
+
+CREATE TABLE IF NOT EXISTS generated_content (
+    prompt_hash TEXT    PRIMARY KEY,
+    type        TEXT    NOT NULL,
+    yaml_blob   TEXT    NOT NULL,
+    created_at  INTEGER NOT NULL
+);
 `

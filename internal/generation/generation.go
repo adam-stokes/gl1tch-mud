@@ -1,0 +1,279 @@
+// Package generation implements Ollama-driven room generation for the explore command.
+package generation
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/world"
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	defaultOllamaURL = "http://localhost:11434/api/chat"
+	defaultTimeout   = 5 * time.Second
+)
+
+// Generator handles Ollama-based room generation with SQLite caching.
+type Generator struct {
+	db         *sql.DB
+	ollamaURL  string
+	httpClient *http.Client
+}
+
+// New creates a new Generator using the given DB and default Ollama URL.
+func New(db *sql.DB) *Generator {
+	return &Generator{
+		db:        db,
+		ollamaURL: defaultOllamaURL,
+		httpClient: &http.Client{Timeout: defaultTimeout},
+	}
+}
+
+// NewWithURL creates a Generator with a custom Ollama URL (for testing).
+func NewWithURL(db *sql.DB, url string) *Generator {
+	return &Generator{
+		db:        db,
+		ollamaURL: url,
+		httpClient: &http.Client{Timeout: defaultTimeout},
+	}
+}
+
+// promptHash returns the SHA256 of the composite prompt key.
+func promptHash(roomID, direction, worldName string) string {
+	h := sha256.Sum256([]byte(roomID + "|" + direction + "|" + worldName))
+	return fmt.Sprintf("%x", h)
+}
+
+// oppositeDirection returns the reverse of a compass direction.
+func oppositeDirection(dir string) string {
+	switch strings.ToLower(dir) {
+	case "north":
+		return "south"
+	case "south":
+		return "north"
+	case "east":
+		return "west"
+	case "west":
+		return "east"
+	case "up":
+		return "down"
+	case "down":
+		return "up"
+	}
+	return "back"
+}
+
+// cachedRoom looks up a generated room from the cache. Returns nil if not found.
+func (g *Generator) cachedRoom(hash string) *world.Room {
+	var blob string
+	err := g.db.QueryRow(
+		`SELECT yaml_blob FROM generated_content WHERE prompt_hash=? AND type='room'`, hash,
+	).Scan(&blob)
+	if err != nil {
+		return nil
+	}
+	var r world.Room
+	if err := yaml.Unmarshal([]byte(blob), &r); err != nil {
+		return nil
+	}
+	return &r
+}
+
+// persistRoom stores a generated room in the cache.
+func (g *Generator) persistRoom(hash string, r *world.Room) error {
+	blob, err := yaml.Marshal(r)
+	if err != nil {
+		return err
+	}
+	_, err = g.db.Exec(
+		`INSERT OR IGNORE INTO generated_content (prompt_hash, type, yaml_blob, created_at) VALUES (?,?,?,?)`,
+		hash, "room", string(blob), time.Now().Unix(),
+	)
+	return err
+}
+
+// ollamaRequest is the JSON body sent to the Ollama API.
+type ollamaRequest struct {
+	Model    string          `json:"model"`
+	Messages []ollamaMessage `json:"messages"`
+	Stream   bool            `json:"stream"`
+}
+
+type ollamaMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// ollamaResponse is the JSON response from Ollama (non-streaming).
+type ollamaResponse struct {
+	Message ollamaMessage `json:"message"`
+}
+
+func buildPrompt(currentRoom *world.Room, direction, worldName, model string) string {
+	return fmt.Sprintf(`You are generating a room for a cyberpunk text MUD called "%s".
+The player is in "%s": %s
+They explore to the %s and find a new area.
+
+Return ONLY a YAML block (no prose, no markdown fences) with this exact structure:
+id: gen-placeholder
+name: "Room Name Here"
+desc: |
+  A short 2-3 sentence cyberpunk description.
+exits:
+  %s: %s
+npcs: []
+items: []
+
+Keep it atmospheric, cyberpunk, and consistent with the theme. Output ONLY the YAML.`,
+		worldName,
+		currentRoom.Name, strings.TrimSpace(currentRoom.Desc),
+		direction,
+		oppositeDirection(direction), currentRoom.ID,
+	)
+}
+
+// callOllama sends the generation prompt to Ollama and returns the raw content.
+func (g *Generator) callOllama(ctx context.Context, model, prompt string) (string, error) {
+	reqBody := ollamaRequest{
+		Model: model,
+		Messages: []ollamaMessage{
+			{Role: "user", Content: prompt},
+		},
+		Stream: false,
+	}
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.ollamaURL, bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var ollamaResp ollamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return "", fmt.Errorf("ollama: parse response: %w", err)
+	}
+	return ollamaResp.Message.Content, nil
+}
+
+// parseRoomYAML extracts a Room struct from potentially noisy model output.
+// It strips any markdown code fences and tries to parse the remainder.
+func parseRoomYAML(content string) (*world.Room, error) {
+	// Strip markdown fences if present
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "```yaml")
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+	content = strings.TrimSpace(content)
+
+	var r world.Room
+	if err := yaml.Unmarshal([]byte(content), &r); err != nil {
+		return nil, fmt.Errorf("parse room yaml: %w", err)
+	}
+	if r.Name == "" {
+		return nil, fmt.Errorf("generated room has no name")
+	}
+	return &r, nil
+}
+
+// GenerateResult is the outcome of a Generate call.
+type GenerateResult struct {
+	Room      *world.Room
+	FromCache bool
+	Model     string
+	Error     error
+	ErrMsg    string // user-facing message on failure
+}
+
+// Generate attempts to create or load a room for the given direction.
+// currentRoom is the room the player is currently in.
+// w is the live world; on success, the generated room is added to the world graph.
+func (g *Generator) Generate(ctx context.Context, w *world.World, currentRoom *world.Room, direction string) GenerateResult {
+	model := w.NarratorModel
+	if model == "" {
+		model = "llama3.2"
+	}
+
+	hash := promptHash(currentRoom.ID, direction, w.Name)
+
+	// Cache hit
+	if cached := g.cachedRoom(hash); cached != nil {
+		g.wireRooms(w, currentRoom, cached, direction)
+		return GenerateResult{Room: cached, FromCache: true, Model: model}
+	}
+
+	// Call Ollama
+	prompt := buildPrompt(currentRoom, direction, w.Name, model)
+	content, err := g.callOllama(ctx, model, prompt)
+	if err != nil {
+		return GenerateResult{
+			Error:  err,
+			ErrMsg: "static beyond the edge — signal lost.",
+		}
+	}
+
+	room, err := parseRoomYAML(content)
+	if err != nil {
+		return GenerateResult{
+			Error:  err,
+			ErrMsg: "something's there but you can't make it out.",
+		}
+	}
+
+	// Assign deterministic ID based on hash
+	room.ID = "gen-" + hash[:8]
+
+	// Wire exits
+	g.wireRooms(w, currentRoom, room, direction)
+
+	// Persist to cache
+	g.persistRoom(hash, room) //nolint:errcheck
+
+	return GenerateResult{Room: room, FromCache: false, Model: model}
+}
+
+// wireRooms adds the new room to the world graph and links exits bidirectionally.
+func (g *Generator) wireRooms(w *world.World, current, generated *world.Room, direction string) {
+	// Don't add if already in the world
+	if w.Room(generated.ID) != nil {
+		return
+	}
+
+	// Ensure generated room has the return exit
+	if generated.Exits == nil {
+		generated.Exits = make(map[string]string)
+	}
+	generated.Exits[oppositeDirection(direction)] = current.ID
+
+	// Add to world graph
+	w.AddRoom(generated)
+
+	// Wire current room → generated room
+	if current.Exits == nil {
+		current.Exits = make(map[string]string)
+	}
+	current.Exits[direction] = generated.ID
+}
