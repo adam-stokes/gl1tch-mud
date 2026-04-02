@@ -108,6 +108,13 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: signal-runners
+    name: Signal Runners
+    desc: A loose collective of subnet maintenance crews and cache-tenders who keep ghost networks alive on the margins. They trade in ephemeral data and stolen bandwidth, always one step ahead of corporate purges.
+    agenda: Preserve the subnet commons and deny Axiom Security complete network dominance.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -404,6 +411,17 @@ crafting_recipes:
       id: signal-cloak-mk2
       name: Signal Cloak Mark II
       desc: A wearable Faraday vest that scrambles tracking signatures within a three-meter radius. Hums softly. Smells like ozone.
+    skill_req: 2
+  - id: recipe-signal-tap
+    name: Signal Tap Module
+    ingredients:
+      - {id: packet-sniffer, count: 1}
+      - {id: copper-wire, count: 2}
+      - {id: relay-bleed-packet, count: 1}
+    output:
+      id: signal-tap-module
+      name: Signal Tap Module
+      desc: A repurposed sniffer tuned to bleed idle bandwidth. Lets you ghost through monitored relays without triggering hardened alerts.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -898,6 +916,26 @@ loot_tables:
         name: Shielded Datapad
         desc: A portable terminal wrapped in grounded wire, still locked with a passphrase.
         probability: 0.2
+        count_min: 1
+        count_max: 1
+  - id: cache-keep-vex-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: coolant-cartridge
+        name: Coolant Cartridge
+        desc: Half-empty but still useful for keeping rigs from frying.
+        probability: 0.35
+        count_min: 1
+        count_max: 1
+      - item_id: relay-bleed-packet
+        name: Relay Bleed Packet
+        desc: Compressed partition of data that leaked during a reroute.
+        probability: 0.20
         count_min: 1
         count_max: 1
 rooms:
@@ -1541,6 +1579,49 @@ rooms:
           Axiom Security has deployed new tracking algorithms in the main grid. Any unshielded transmission leaves a signature detectable across three city sectors. Silent Collective is offering asylum in shielded chambers—temporary, mobile, built into dead zones.
 
           Rendezvous: Null Broadcast Chamber. Recognition: hum frequency 7.3 kHz.
+    systems: []
+    locks: []
+  - id: gen-7a3f5c2e
+    name: Borrowed Signal Relay
+    desc: |
+      Defunct telecom junction box gutted and rewired into a makeshift data cache.
+      Salvaged routers pulse with stolen bandwidth, their indicator lights casting sickly
+      amber across grease-stained work surfaces. You hear the high whine of cooling fans
+      fighting entropy on borrowed time.
+    exits: {}
+    npcs:
+      - id: cache-keep-vex
+        name: Vex
+        desc: Wiry figure in a jury-rigged cooling vest, fingers stained with circuit-board flux.
+        hostile: false
+        loot_table_id: cache-keep-vex-loot
+        trades:
+          - id: trade-cache-keep-vex-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: packet-sniffer
+            receive_item_name: Packet Sniffer
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: Signal's clean today. You got something to stash or you just browsing the cache?
+          - trigger: skill_gte:hacking:2
+            text: Seen Axiom sweeps probing the subnet. They're mapping hardened nodes. Bad news if they find this relay before the bandwidth bleeds out.
+    items:
+      - id: relay-cache-fragment
+        name: Cache Log Fragment
+        desc: A printout of data routing records, partially water-damaged and smudged.
+      - id: relay-intercept-burst
+        name: Intercepted Transmission
+        desc: A captured radio burst, still encoded in burst-mode compression.
+        readable: true
+        content: |
+          AXIOM SECURITY SWEEP - 2026-03-28
+          Sector 7 ghost-subnets marked for elimination.
+          Null Collective claimed three nodes already. Ghost Protocol silent.
+          All borrowed bandwidth flagged. Recommend cache purge within 72 hours.
+          Dispatch Unit 4 standing by.
     systems: []
     locks: []
 quests:
