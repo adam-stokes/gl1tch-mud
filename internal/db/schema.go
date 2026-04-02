@@ -73,4 +73,11 @@ CREATE TABLE IF NOT EXISTS generated_content (
     yaml_blob   TEXT    NOT NULL,
     created_at  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS unlocked_recipes (recipe_id TEXT PRIMARY KEY, unlocked_at INT);
+CREATE TABLE IF NOT EXISTS player_augments (skill TEXT, bonus INT, installed_at INT);
+CREATE TABLE IF NOT EXISTS item_mods (item_instance TEXT PRIMARY KEY, mod_id TEXT, applied_at INT);
+CREATE TABLE IF NOT EXISTS bounties (room_id TEXT PRIMARY KEY, npc_id TEXT, created_at INT);
+CREATE TABLE IF NOT EXISTS vuln_windows (system_id TEXT PRIMARY KEY, bonus INT, expires_action INT);
+CREATE TABLE IF NOT EXISTS player_actions (id INT PRIMARY KEY CHECK(id=1), count INT DEFAULT 0);
 `

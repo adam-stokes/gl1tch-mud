@@ -19,6 +19,7 @@ type System struct {
 	SecurityLevel int    `yaml:"security_level"`
 	RewardItem    string `yaml:"reward_item,omitempty"`
 	RewardText    string `yaml:"reward_text,omitempty"`
+	ICE           string `yaml:"ice,omitempty"`
 }
 
 // Lock is a locked exit or container in a room.
@@ -59,11 +60,14 @@ type CraftingIngredient struct {
 
 // CraftingRecipe defines how to craft an item.
 type CraftingRecipe struct {
-	ID          string               `yaml:"id"`
-	Name        string               `yaml:"name"`
-	Ingredients []CraftingIngredient `yaml:"ingredients"`
-	Output      Item                 `yaml:"output"`
-	SkillReq    int                  `yaml:"skill_req,omitempty"`
+	ID             string               `yaml:"id"`
+	Name           string               `yaml:"name"`
+	Ingredients    []CraftingIngredient `yaml:"ingredients"`
+	Output         Item                 `yaml:"output"`
+	SkillReq       int                  `yaml:"skill_req,omitempty"`
+	Workbench      string               `yaml:"workbench,omitempty"`
+	TierThresholds []int                `yaml:"tier_thresholds,omitempty"`
+	TierNames      []string             `yaml:"tier_names,omitempty"`
 }
 
 // LootEntry is a single item in a loot table.
@@ -74,6 +78,7 @@ type LootEntry struct {
 	Probability float64 `yaml:"probability"`
 	CountMin    int     `yaml:"count_min"`
 	CountMax    int     `yaml:"count_max"`
+	Faction     string  `yaml:"faction,omitempty"`
 }
 
 // LootTable holds a named set of loot entries.
@@ -107,12 +112,23 @@ type Faction struct {
 
 // Item is a collectable object in a room.
 type Item struct {
-	ID         string `yaml:"id"`
-	Name       string `yaml:"name"`
-	Desc       string `yaml:"desc"`
-	IsDisguise bool   `yaml:"is_disguise,omitempty"`
-	Readable   bool   `yaml:"readable,omitempty"`
-	Content    string `yaml:"content,omitempty"`
+	ID            string `yaml:"id"`
+	Name          string `yaml:"name"`
+	Desc          string `yaml:"desc"`
+	IsDisguise    bool   `yaml:"is_disguise,omitempty"`
+	Readable      bool   `yaml:"readable,omitempty"`
+	Content       string `yaml:"content,omitempty"`
+	IsBlueprint   bool   `yaml:"is_blueprint,omitempty"`
+	UnlocksRecipe string `yaml:"unlocks_recipe,omitempty"`
+	IsContainer   bool   `yaml:"is_container,omitempty"`
+	Capacity      int    `yaml:"capacity,omitempty"`
+	IsExploit     bool   `yaml:"is_exploit,omitempty"`
+	TargetsSystem string `yaml:"targets_system,omitempty"`
+	IsAugment     bool   `yaml:"is_augment,omitempty"`
+	AugmentSkill  string `yaml:"augment_skill,omitempty"`
+	AugmentBonus  int    `yaml:"augment_bonus,omitempty"`
+	ModSlots      int    `yaml:"mod_slots,omitempty"`
+	IsMod         bool   `yaml:"is_mod,omitempty"`
 }
 
 // Room is a single location in the world.
@@ -201,6 +217,18 @@ func (w *World) FindRecipe(id string) *CraftingRecipe {
 	for i := range w.CraftingRecipes {
 		if w.CraftingRecipes[i].ID == id {
 			return &w.CraftingRecipes[i]
+		}
+	}
+	return nil
+}
+
+// FindItem searches all rooms for an item with the given ID and returns a pointer to it, or nil.
+func (w *World) FindItem(id string) *Item {
+	for i := range w.Rooms {
+		for j := range w.Rooms[i].Items {
+			if w.Rooms[i].Items[j].ID == id {
+				return &w.Rooms[i].Items[j]
+			}
 		}
 	}
 	return nil

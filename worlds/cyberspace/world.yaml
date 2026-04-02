@@ -72,7 +72,10 @@ crafting_recipes:
       id: ice-pick
       name: "ICE Pick"
       desc: "A specialised tool for cracking Intrusion Countermeasure Electronics."
+      mod_slots: 1
     skill_req: 1
+    tier_thresholds: [0, 3, 6]
+    tier_names: ["Mk1", "Mk2", "Mk3"]
   - id: decryption-key
     name: "Decryption Key"
     ingredients:
@@ -228,6 +231,11 @@ rooms:
         name: "Hazmat Suit"
         desc: "An environmental protection suit repurposed for netrunner disguise ops."
         is_disguise: true
+      - id: blueprint-ice-pick
+        name: "ICE Pick Blueprint"
+        desc: "A technical schematic for crafting tiered ICE Pick tools. Decode to unlock the recipe."
+        is_blueprint: true
+        unlocks_recipe: ice-pick
   - id: net-2
     name: "Trace Corridor"
     desc: |
@@ -241,6 +249,7 @@ rooms:
         security_level: 6
         reward_item: data-chip
         reward_text: "You reroute the trace program's uplink and pocket a data chip."
+        ice: active
     npcs:
       - id: trace-program-0
         name: "Trace Program"
@@ -310,6 +319,12 @@ rooms:
       - id: ancient-firmware
         name: "Ancient Firmware Package"
         desc: "A pre-war firmware image. Incredibly rare. Someone would pay handsomely for this."
+      - id: exploit-axiom-auth
+        name: "Axiom Auth Exploit"
+        desc: "A zero-day exploit fragment targeting Axiom Security's authentication layer. Grants a bonus when hacking Axiom-defended systems."
+        is_exploit: true
+        targets_system: trace-router
+        augment_bonus: 15
   - id: net-5
     name: "Black Ice Corridor"
     desc: |
@@ -324,6 +339,10 @@ rooms:
       - id: ice-fragment
         name: "Black ICE Fragment"
         desc: "A shard of deactivated Black ICE. Still warm. Useful for advanced crafting."
+      - id: response-dampener
+        name: "Response Dampener"
+        desc: "A hardware mod that attenuates ICE response signals. Fits into a compatible tool's mod slot."
+        is_mod: true
   - id: gen-f7c2e419
     name: Decommissioned Mainframe Chamber
     desc: Floor-to-ceiling server racks hum with dying electronics, their indicator lights strobing through dust like dying fireflies. The air tastes of copper and ozone, recycled through vents that haven't been cleaned in years. Cables snake across the concrete, pooling in places where coolant has crystallized into rust-colored cakes.
@@ -370,6 +389,12 @@ rooms:
           Entry 2089-07-22 — Axiom contractors on-site. Did not ask what they installed in node-seven.
           Entry 2091-01-04 — Power draw tripled overnight. No work order on record. Nobody answers the line anymore.
           Entry 2094-08-30 — I think whatever is in node-seven is still running. I don't check anymore.
+      - id: neural-jack-mk1
+        name: "Neural Jack Mk1"
+        desc: "A first-generation cortical interface chip. Improves hacking reflex speed when installed."
+        is_augment: true
+        augment_skill: hacking
+        augment_bonus: 5
     systems: []
     locks: []
   - id: gen-a7f2e4d9

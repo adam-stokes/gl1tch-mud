@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -118,4 +119,108 @@ func Hack(db *sql.DB, room *world.Room, systemID string, hackingSkill int) Resul
 // AlertLevel returns the current alert level for a system (0 if no record).
 func AlertLevel(db *sql.DB, roomID, systemID string) int {
 	return alertLevel(db, roomID, systemID)
+}
+
+// HackPhase is a named stage of a multi-phase hack.
+type HackPhase string
+
+const (
+	PhaseBreach  HackPhase = "breach"
+	PhaseExploit HackPhase = "exploit"
+	PhaseExfil   HackPhase = "exfil"
+)
+
+// PhaseResult is the outcome of one phase of a multi-phase hack.
+type PhaseResult struct {
+	Phase   HackPhase
+	Success bool
+	Message string
+}
+
+// HackMulti runs a three-phase hack: breach, exploit, exfil.
+// exploitBonus is added to the exploit roll (e.g. from exploit fragment items).
+// Returns per-phase results and a bounty flag (true if exfil failed after successful exploit).
+func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, exploitBonus int) ([]PhaseResult, bool, error) {
+	sys := room.FindSystem(systemID)
+	if sys == nil {
+		return nil, false, fmt.Errorf("system %q not found in room %q", systemID, room.ID)
+	}
+
+	// Load current alert level.
+	var alert int
+	_ = db.QueryRow(`SELECT alert FROM system_state WHERE room_id = ? AND system_id = ?`, room.ID, systemID).Scan(&alert)
+
+	var results []PhaseResult
+	bounty := false
+
+	// Phase 1: Breach
+	breachRoll := rand.Intn(100) + 1 + hackingSkill - sys.SecurityLevel*8
+	breachOK := breachRoll >= 50
+	br := PhaseResult{Phase: PhaseBreach, Success: breachOK}
+	if breachOK {
+		br.Message = fmt.Sprintf("Breach successful. Roll: %d.", breachRoll)
+	} else {
+		alert++
+		_, _ = db.Exec(`INSERT INTO system_state (room_id, system_id, intrusion, alert) VALUES (?, ?, 0, ?)
+            ON CONFLICT(room_id, system_id) DO UPDATE SET alert = ?`, room.ID, systemID, alert, alert)
+		br.Message = fmt.Sprintf("Breach failed. Roll: %d. Alert level: %d.", breachRoll, alert)
+	}
+	results = append(results, br)
+	if !breachOK {
+		return results, false, nil
+	}
+
+	// Phase 2: Exploit
+	exploitRoll := rand.Intn(100) + 1 + hackingSkill + exploitBonus - sys.SecurityLevel*10
+	exploitOK := exploitRoll >= 50
+	er := PhaseResult{Phase: PhaseExploit, Success: exploitOK}
+	if exploitOK {
+		er.Message = fmt.Sprintf("Exploit delivered. Roll: %d.", exploitRoll)
+	} else {
+		alert++
+		_, _ = db.Exec(`INSERT INTO system_state (room_id, system_id, intrusion, alert) VALUES (?, ?, 0, ?)
+            ON CONFLICT(room_id, system_id) DO UPDATE SET alert = ?`, room.ID, systemID, alert, alert)
+		er.Message = fmt.Sprintf("Exploit failed. Roll: %d. Alert level: %d.", exploitRoll, alert)
+	}
+	results = append(results, er)
+	if !exploitOK {
+		return results, false, nil
+	}
+
+	// Phase 3: Exfil
+	exfilRoll := rand.Intn(100) + 1 - alert*15
+	exfilOK := exfilRoll >= 20
+	xr := PhaseResult{Phase: PhaseExfil, Success: exfilOK}
+	if exfilOK {
+		xr.Message = fmt.Sprintf("Exfil clean. Roll: %d.", exfilRoll)
+	} else {
+		bounty = true
+		_, _ = db.Exec(`INSERT OR REPLACE INTO bounties (room_id, npc_id, created_at) VALUES (?, ?, ?)`,
+			room.ID, "bounty-hunter-"+systemID, time.Now().Unix())
+		xr.Message = fmt.Sprintf("Exfil dirty — you left traces. Roll: %d. Expect company.", exfilRoll)
+	}
+	results = append(results, xr)
+	return results, bounty, nil
+}
+
+// SetVulnWindow sets a temporary vulnerability window for a system.
+// The window expires after currentAction+3 actions have elapsed.
+func SetVulnWindow(db *sql.DB, systemID string, bonus int, currentAction int) error {
+	_, err := db.Exec(`INSERT OR REPLACE INTO vuln_windows (system_id, bonus, expires_action) VALUES (?, ?, ?)`,
+		systemID, bonus, currentAction+3)
+	return err
+}
+
+// VulnBonus returns the current vulnerability bonus for a system, or 0 if expired/absent.
+func VulnBonus(db *sql.DB, systemID string, currentAction int) (int, error) {
+	var bonus, expires int
+	err := db.QueryRow(`SELECT bonus, expires_action FROM vuln_windows WHERE system_id = ?`, systemID).Scan(&bonus, &expires)
+	if err != nil {
+		return 0, nil
+	}
+	if currentAction > expires {
+		_, _ = db.Exec(`DELETE FROM vuln_windows WHERE system_id = ?`, systemID)
+		return 0, nil
+	}
+	return bonus, nil
 }

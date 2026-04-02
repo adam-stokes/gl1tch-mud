@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/augments"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/espionage"
 	"github.com/adam-stokes/gl1tch-mud/internal/generation"
 	"github.com/adam-stokes/gl1tch-mud/internal/hacking"
 	"github.com/adam-stokes/gl1tch-mud/internal/locking"
 	"github.com/adam-stokes/gl1tch-mud/internal/looting"
+	"github.com/adam-stokes/gl1tch-mud/internal/mods"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/skills"
 	"github.com/adam-stokes/gl1tch-mud/internal/trading"
@@ -70,8 +72,12 @@ var Registry = map[string]HandlerFunc{
 	"hide":     Hide,
 	"disguise": Disguise,
 	"talk":     Talk,
-	"explore":  Explore,
-	"read":     Read,
+	"explore":   Explore,
+	"read":      Read,
+	"search":    Search,
+	"install":   Install,
+	"mod":       Mod,
+	"blueprint": Blueprint,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
@@ -302,7 +308,7 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			out.WriteString(fmt.Sprintf("\n%s is dead.", npc.Name))
 
 			// Roll loot
-			lootItems := looting.Roll(w, npc.ID)
+			lootItems := looting.Roll(w, npc.ID, "")
 			var lootNames []string
 			for _, item := range lootItems {
 				room.Items = append(room.Items, item)
@@ -403,6 +409,10 @@ func Help(db *sql.DB, s *player.State, w *world.World, args []string) Result {
   talk <npc>        — speak to an NPC
   explore <dir>     — explore an unmapped direction (may generate new rooms)
   read <item>       — read a readable item in the room
+  search <item>     — search a container item in the room
+  install <item>    — install a neural augment
+  mod <item> with <mod> — apply a mod to an item
+  blueprint <item>  — decode a blueprint to unlock a recipe
   help / ?          — this list
   quit              — disconnect`}
 }
@@ -442,54 +452,88 @@ func Skills(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-// Hack attempts to compromise a hackable system in the current room.
+// Hack attempts to compromise a hackable system in the current room using multi-phase logic.
 func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "hack what? (hack <system-id>)"}
 	}
 	systemID := args[0]
 	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "no hackable systems here."}
+	}
 
 	hackSkill := skills.Level(db, "hacking")
-	res := hacking.Hack(db, room, systemID, hackSkill)
 
-	var ev *Event
-	var out strings.Builder
-	out.WriteString(res.Message)
-
-	if res.Success {
-		// Deliver reward item if specified
-		if res.RewardItem != "" {
-			player.AddItem(db, res.RewardItem, res.RewardItem, "system reward") //nolint:errcheck
-			out.WriteString(fmt.Sprintf("\nyou receive: %s", res.RewardItem))
+	// Check for exploit fragment items in the room targeting this system.
+	exploitBonus := 0
+	for _, item := range room.Items {
+		if item.IsExploit && item.TargetsSystem == systemID {
+			exploitBonus += item.AugmentBonus // re-using AugmentBonus as exploit potency
 		}
+	}
 
+	phases, bounty, err := hacking.HackMulti(db, room, systemID, hackSkill, exploitBonus)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("hack failed: %v", err)}
+	}
+
+	var out strings.Builder
+	var lastEv *Event
+
+	for _, pr := range phases {
+		out.WriteString(fmt.Sprintf("[%s] %s\n", pr.Phase, pr.Message))
+
+		topic := ""
+		switch pr.Phase {
+		case hacking.PhaseBreach:
+			topic = "mud.hack.breach"
+		case hacking.PhaseExploit:
+			topic = "mud.hack.exploit"
+		case hacking.PhaseExfil:
+			topic = "mud.hack.exfil"
+		}
+		if topic != "" {
+			lastEv = &Event{
+				Topic: topic,
+				Payload: map[string]any{
+					"system_id": systemID,
+					"success":   pr.Success,
+					"room_id":   s.RoomID,
+				},
+			}
+		}
+	}
+
+	// Determine overall success (all phases passed).
+	allSuccess := len(phases) == 3 && phases[2].Success
+	if allSuccess {
 		// Award XP
 		awardRes, err := skills.Award(db, "hacking", 20)
 		if err == nil && awardRes.LeveledUp {
 			out.WriteString("\n" + awardRes.LevelUpMsg)
 		}
-
-		ev = &Event{
+		lastEv = &Event{
 			Topic: "mud.hack.success",
 			Payload: map[string]any{
 				"system_id": systemID,
-				"reward":    res.RewardItem,
 				"room_id":   s.RoomID,
-			},
-		}
-	} else if !res.NoSystem && !res.AlreadyHacked {
-		ev = &Event{
-			Topic: "mud.hack.alert",
-			Payload: map[string]any{
-				"system_id":   systemID,
-				"alert_level": res.AlertLevel,
-				"room_id":     s.RoomID,
 			},
 		}
 	}
 
-	return Result{Output: out.String(), Event: ev}
+	if bounty {
+		out.WriteString("bounty posted — a hunter has your signature.\n")
+		lastEv = &Event{
+			Topic: "mud.hack.bounty",
+			Payload: map[string]any{
+				"system_id": systemID,
+				"room_id":   s.RoomID,
+			},
+		}
+	}
+
+	return Result{Output: strings.TrimRight(out.String(), "\n"), Event: lastEv}
 }
 
 // Pick attempts to pick a lock in the current room.
@@ -706,8 +750,9 @@ func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	recipeID := args[0]
 	hackSkill := skills.Level(db, "hacking")
 	invIDs := inventoryIDs(db)
+	room := w.Room(s.RoomID)
 
-	res := crafting.Craft(db, w, recipeID, invIDs, hackSkill)
+	res := crafting.Craft(db, w, room, recipeID, invIDs, hackSkill)
 
 	var ev *Event
 	if res.OK {
@@ -885,6 +930,128 @@ func Explore(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		Output: res.Room.Render(false) + fromCache,
 		Event:  ev,
 	}
+}
+
+// Search searches a container item in the current room.
+func Search(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "You are nowhere."}
+	}
+	if len(args) == 0 {
+		return Result{Output: "search what?"}
+	}
+	target := strings.Join(args, " ")
+	for _, item := range room.Items {
+		if strings.EqualFold(item.Name, target) || item.ID == target {
+			if item.IsContainer {
+				if item.Capacity > 0 {
+					return Result{Output: fmt.Sprintf("You search the %s. It could hold up to %d items — currently empty.", item.Name, item.Capacity)}
+				}
+				return Result{Output: fmt.Sprintf("You search the %s. Nothing inside.", item.Name)}
+			}
+			return Result{Output: fmt.Sprintf("The %s doesn't have anything hidden in it.", item.Name)}
+		}
+	}
+	return Result{Output: "You don't see that here."}
+}
+
+// Install installs a neural augment from the current room.
+func Install(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "You are nowhere."}
+	}
+	if len(args) == 0 {
+		return Result{Output: "install what?"}
+	}
+	target := strings.Join(args, " ")
+	for i, item := range room.Items {
+		if strings.EqualFold(item.Name, target) || item.ID == target {
+			if !item.IsAugment {
+				return Result{Output: "That's not an installable augment."}
+			}
+			if err := augments.Install(db, item.AugmentSkill, item.AugmentBonus); err != nil {
+				if err.Error() == "max augments reached" {
+					return Result{Output: "Neural capacity full. You cannot install more augments."}
+				}
+				return Result{Output: fmt.Sprintf("Installation failed: %v", err)}
+			}
+			room.Items = append(room.Items[:i], room.Items[i+1:]...)
+			return Result{Output: fmt.Sprintf("Neural interface accepted. %s +%d.", item.AugmentSkill, item.AugmentBonus)}
+		}
+	}
+	return Result{Output: "You don't see that here."}
+}
+
+// Mod applies a mod item to a target item in the current room.
+func Mod(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "You are nowhere."}
+	}
+	combined := strings.Join(args, " ")
+	parts := strings.SplitN(combined, " with ", 2)
+	if len(parts) != 2 {
+		return Result{Output: "Usage: mod <item> with <mod-item>"}
+	}
+	targetName := strings.TrimSpace(parts[0])
+	modName := strings.TrimSpace(parts[1])
+
+	var targetItem *world.Item
+	var modItem *world.Item
+	var modIdx int
+	for i := range room.Items {
+		if strings.EqualFold(room.Items[i].Name, targetName) || room.Items[i].ID == targetName {
+			targetItem = &room.Items[i]
+		}
+		if strings.EqualFold(room.Items[i].Name, modName) || room.Items[i].ID == modName {
+			modItem = &room.Items[i]
+			modIdx = i
+		}
+	}
+	if targetItem == nil {
+		return Result{Output: fmt.Sprintf("You don't see %q here.", targetName)}
+	}
+	if modItem == nil {
+		return Result{Output: fmt.Sprintf("You don't see %q here.", modName)}
+	}
+	if targetItem.ModSlots <= 0 {
+		return Result{Output: fmt.Sprintf("The %s has no mod slots.", targetItem.Name)}
+	}
+	if !modItem.IsMod {
+		return Result{Output: fmt.Sprintf("The %s is not a mod.", modItem.Name)}
+	}
+	if err := mods.Apply(db, targetItem.ID, modItem.ID); err != nil {
+		return Result{Output: fmt.Sprintf("Mod failed: %v", err)}
+	}
+	room.Items = append(room.Items[:modIdx], room.Items[modIdx+1:]...)
+	return Result{Output: fmt.Sprintf("Mod installed on %s. Slot used.", targetItem.Name)}
+}
+
+// Blueprint decodes a blueprint item to unlock a crafting recipe.
+func Blueprint(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "You are nowhere."}
+	}
+	if len(args) == 0 {
+		return Result{Output: "blueprint what?"}
+	}
+	target := strings.Join(args, " ")
+	for i, item := range room.Items {
+		if strings.EqualFold(item.Name, target) || item.ID == target {
+			if !item.IsBlueprint || item.UnlocksRecipe == "" {
+				return Result{Output: "That's not a readable blueprint."}
+			}
+			if err := crafting.UnlockRecipe(db, item.UnlocksRecipe); err != nil {
+				return Result{Output: fmt.Sprintf("Blueprint decode failed: %v", err)}
+			}
+			room.Items = append(room.Items[:i], room.Items[i+1:]...)
+			return Result{Output: fmt.Sprintf("Blueprint decoded. Recipe unlocked: %s.", item.UnlocksRecipe)}
+		}
+	}
+	return Result{Output: "You don't see that here."}
 }
 
 // buildReputationMap returns a map of all faction reputations.

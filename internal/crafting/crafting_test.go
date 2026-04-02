@@ -55,7 +55,7 @@ func TestUnknownRecipe(t *testing.T) {
 	defer db.Close()
 
 	w := makeWorld()
-	res := Craft(db, w, "bogus", []string{}, 0)
+	res := Craft(db, w, nil, "bogus", []string{}, 0)
 	if res.OK {
 		t.Error("expected failure for unknown recipe")
 	}
@@ -69,7 +69,7 @@ func TestSkillGate(t *testing.T) {
 	defer db.Close()
 
 	w := makeWorld()
-	res := Craft(db, w, "sniffer", []string{"silicon", "silicon", "wire"}, 0)
+	res := Craft(db, w, nil, "sniffer", []string{"silicon", "silicon", "wire"}, 0)
 	if res.OK {
 		t.Error("expected failure for insufficient skill")
 	}
@@ -84,7 +84,7 @@ func TestMissingIngredients(t *testing.T) {
 
 	w := makeWorld()
 	// SkillReq=2, hackingSkill=3 → passes skill gate; but no ingredients
-	res := Craft(db, w, "sniffer", []string{}, 3)
+	res := Craft(db, w, nil, "sniffer", []string{}, 3)
 	if res.OK {
 		t.Error("expected failure for missing ingredients")
 	}
@@ -103,7 +103,7 @@ func TestSuccessfulCraft(t *testing.T) {
 
 	w := makeWorld()
 	// sniffer needs silicon x2 but we only have 1 in unique inventory — adjust test to use ice-pick
-	res := Craft(db, w, "ice-pick", []string{"carbon-blade"}, 0)
+	res := Craft(db, w, nil, "ice-pick", []string{"carbon-blade"}, 0)
 	if !res.OK {
 		t.Errorf("expected success, got: %s", res.Message)
 	}
@@ -117,7 +117,7 @@ func TestNoRecipesKnown(t *testing.T) {
 	defer db.Close()
 
 	w := &world.World{}
-	res := Craft(db, w, "anything", []string{}, 0)
+	res := Craft(db, w, nil, "anything", []string{}, 0)
 	if res.OK {
 		t.Error("expected failure when world has no recipes")
 	}

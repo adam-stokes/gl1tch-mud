@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -18,9 +19,10 @@ type Result struct {
 }
 
 // Craft attempts to craft the recipe with the given ID.
-// hackingSkill is the player's current hacking skill level (used for skill gate).
+// hackingSkill is the player's current hacking skill level (used for skill gate and tier selection).
 // inventoryIDs is a list of item IDs the player currently carries.
-func Craft(db *sql.DB, w *world.World, recipeID string, inventoryIDs []string, hackingSkill int) Result {
+// room is the player's current room (used for workbench check).
+func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, inventoryIDs []string, hackingSkill int) Result {
 	recipe := w.FindRecipe(recipeID)
 	if recipe == nil {
 		// List available recipes
@@ -33,6 +35,15 @@ func Craft(db *sql.DB, w *world.World, recipeID string, inventoryIDs []string, h
 		}
 		return Result{
 			Message: fmt.Sprintf("unknown recipe %q. known: %s", recipeID, strings.Join(names, ", ")),
+		}
+	}
+
+	// Blueprint/unlock check: if recipe has TierThresholds, a blueprint must have been decoded.
+	if len(recipe.TierThresholds) > 0 {
+		var count int
+		_ = db.QueryRow(`SELECT COUNT(*) FROM unlocked_recipes WHERE recipe_id = ?`, recipe.ID).Scan(&count)
+		if count == 0 {
+			return Result{Message: "You need a blueprint to craft this."}
 		}
 	}
 
@@ -66,6 +77,11 @@ func Craft(db *sql.DB, w *world.World, recipeID string, inventoryIDs []string, h
 		}
 	}
 
+	// Workbench check
+	if recipe.Workbench != "" && (room == nil || room.ID != recipe.Workbench) {
+		return Result{Message: fmt.Sprintf("This recipe requires a workbench in %s.", recipe.Workbench)}
+	}
+
 	// Consume ingredients
 	for _, ing := range recipe.Ingredients {
 		for i := 0; i < ing.Count; i++ {
@@ -73,8 +89,22 @@ func Craft(db *sql.DB, w *world.World, recipeID string, inventoryIDs []string, h
 		}
 	}
 
-	// Add output item
+	// Add output item, applying tier if configured
 	out := recipe.Output
+	tier := ""
+	if len(recipe.TierThresholds) > 0 && len(recipe.TierNames) == len(recipe.TierThresholds) {
+		for i := len(recipe.TierThresholds) - 1; i >= 0; i-- {
+			if hackingSkill >= recipe.TierThresholds[i] {
+				tier = recipe.TierNames[i]
+				break
+			}
+		}
+		if tier != "" {
+			out.Name = tier + " " + out.Name
+			out.ID = out.ID + "_" + strings.ToLower(tier)
+		}
+	}
+
 	db.Exec( //nolint:errcheck
 		`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
 		out.ID, out.Name, out.Desc,
@@ -85,4 +115,18 @@ func Craft(db *sql.DB, w *world.World, recipeID string, inventoryIDs []string, h
 		OutputItem: out,
 		Message:    fmt.Sprintf("you craft %s.", out.Name),
 	}
+}
+
+// UnlockRecipe records that the given recipe has been unlocked via a blueprint.
+func UnlockRecipe(db *sql.DB, recipeID string) error {
+	_, err := db.Exec(`INSERT OR IGNORE INTO unlocked_recipes (recipe_id, unlocked_at) VALUES (?, ?)`,
+		recipeID, time.Now().Unix())
+	return err
+}
+
+// IsUnlocked reports whether the given recipe has been unlocked.
+func IsUnlocked(db *sql.DB, recipeID string) (bool, error) {
+	var count int
+	err := db.QueryRow(`SELECT COUNT(*) FROM unlocked_recipes WHERE recipe_id = ?`, recipeID).Scan(&count)
+	return count > 0, err
 }

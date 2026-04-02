@@ -11,7 +11,8 @@ import (
 // Roll looks up the NPC's loot table and rolls for each entry.
 // Returns a slice of world.Item that were dropped (possibly empty).
 // count > 1 entries generate one Item per copy (same ID, unique names won't clash in the room).
-func Roll(w *world.World, npcID string) []world.Item {
+// disguiseFaction doubles the drop probability for entries whose Faction matches.
+func Roll(w *world.World, npcID string, disguiseFaction string) []world.Item {
 	// Find the NPC in any room to get its loot_table_id.
 	var lootTableID string
 	for _, room := range w.Rooms {
@@ -39,8 +40,12 @@ func Roll(w *world.World, npcID string) []world.Item {
 		if entry.Probability <= 0 {
 			continue
 		}
+		prob := entry.Probability
+		if entry.Faction != "" && entry.Faction == disguiseFaction {
+			prob = min(1.0, prob*2.0)
+		}
 		roll := rand.Float64()
-		if roll <= entry.Probability {
+		if roll <= prob {
 			count := entry.CountMin
 			if entry.CountMax > entry.CountMin {
 				count = entry.CountMin + rand.Intn(entry.CountMax-entry.CountMin+1)
