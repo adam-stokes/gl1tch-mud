@@ -112,10 +112,18 @@ type Faction struct {
 }
 
 // Item is a collectable object in a room.
+// SignalTier encodes rarity in cyberspace lingo:
+//
+//	noise     — junk, scrapmetal, barely functional
+//	signal    — usable, standard underground gear
+//	ghost     — clean, rare, off-grid provenance
+//	zero-day  — exploit-grade, one-of-a-kind
+//	flatline  — legendary, world-altering
 type Item struct {
 	ID            string `yaml:"id"`
 	Name          string `yaml:"name"`
 	Desc          string `yaml:"desc"`
+	SignalTier    string `yaml:"signal_tier,omitempty"`
 	IsDisguise    bool   `yaml:"is_disguise,omitempty"`
 	Readable      bool   `yaml:"readable,omitempty"`
 	Content       string `yaml:"content,omitempty"`
@@ -307,7 +315,11 @@ func (r *Room) Render(visitedBefore bool) string {
 
 	if len(r.Items) > 0 {
 		for _, item := range r.Items {
-			b.WriteString("  + " + item.Name + " is on the ground.\n")
+			prefix := "  + "
+			if item.SignalTier != "" && item.SignalTier != "noise" && item.SignalTier != "signal" {
+				prefix = "  + [" + strings.ToUpper(item.SignalTier) + "] "
+			}
+			b.WriteString(prefix + item.Name + " is on the ground.\n")
 		}
 	}
 

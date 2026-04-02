@@ -266,7 +266,11 @@ func Examine(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 	for _, item := range room.Items {
 		if strings.Contains(strings.ToLower(item.Name), target) {
-			return Result{Output: item.Desc}
+			out := item.Desc
+			if item.SignalTier != "" {
+				out = "[" + strings.ToUpper(item.SignalTier) + "] " + out
+			}
+			return Result{Output: out}
 		}
 	}
 	return Result{Output: fmt.Sprintf("you don't see any %s here.", target)}
@@ -422,7 +426,11 @@ func Inventory(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 	var b strings.Builder
 	b.WriteString("carrying:\n")
 	for _, it := range items {
-		b.WriteString(fmt.Sprintf("  - %s\n", it.Name))
+		tier := ""
+		if wi := w.FindItem(it.ID); wi != nil && wi.SignalTier != "" {
+			tier = " [" + strings.ToUpper(wi.SignalTier) + "]"
+		}
+		b.WriteString(fmt.Sprintf("  - %s%s\n", it.Name, tier))
 	}
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
