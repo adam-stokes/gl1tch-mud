@@ -136,6 +136,31 @@ crafting_recipes:
       name: Ghost Cloak
       desc: A wearable electromagnetic veil that masks RF signatures for short bursts. Walk silent, disappear from corporate sensors. Lasts until you transmit.
     skill_req: 2
+  - id: recipe-signal-harvester
+    name: Signal Harvester Assembly
+    ingredients:
+      - {id: raw-silicon, count: 1}
+      - {id: copper-wire, count: 2}
+    output:
+      id: signal-harvester
+      name: Signal Harvester
+      desc: |
+        A delicate lattice of silicon traces and copper coils that siphons wireless data
+        from nearby networks. Bleeds electromagnetic noise with every pulse.
+    skill_req: 1
+  - id: recipe-vault-breaker
+    name: Vault Breaker Kit
+    ingredients:
+      - {id: copper-wire, count: 1}
+      - {id: ice-pick, count: 1}
+      - {id: decryption-key, count: 1}
+    output:
+      id: vault-breaker
+      name: Vault Breaker
+      desc: |
+        A hybrid tool that combines brute-force puncture with cryptographic override.
+        Extracts encrypted payloads from hardened server cores when force meets keys.
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
