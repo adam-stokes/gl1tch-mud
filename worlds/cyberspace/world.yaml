@@ -1,0 +1,71 @@
+name: cyberspace
+start_room: net-0
+narrator_model: llama3.2
+
+rooms:
+  - id: net-0
+    name: "The Gibson — Entry Node"
+    desc: |
+      Neon data streams pulse overhead. The air smells like ozone and burnt silicon.
+      You are jacked in. Two corridors branch into darkness ahead.
+    exits:
+      north: net-1
+      east: net-2
+    npcs:
+      - id: ice-daemon-0
+        name: "Black ICE Daemon"
+        hp: 30
+        attack: 8
+        desc: "A faceless enforcer. Its eyes are red LEDs."
+    items: []
+
+  - id: net-1
+    name: "Archive Sector"
+    desc: |
+      Dusty memory cores line the walls, stacked floor to ceiling.
+      Some are cracked. Data leaks out in faint blue wisps.
+    exits:
+      south: net-0
+      east: net-3
+    npcs: []
+    items:
+      - id: root-key
+        name: "Root Access Key"
+        desc: "A crystalline token the size of a thumbnail. It hums with potential."
+
+  - id: net-2
+    name: "Trace Corridor"
+    desc: |
+      The walls here are translucent. You can see other programs moving through
+      adjacent sectors — they haven't noticed you yet.
+    exits:
+      west: net-0
+    npcs:
+      - id: trace-program-0
+        name: "Trace Program"
+        hp: 20
+        attack: 5
+        desc: "A sleek hunter-killer. Fast, relentless, dumb."
+    items:
+      - id: deck-patch
+        name: "Neural Deck Patch"
+        desc: "Restores 25 HP when used."
+
+  - id: net-3
+    name: "The Core"
+    desc: |
+      This is it. The heart of The Gibson. Data cascades from floor to ceiling
+      in blinding columns of light. Something vast and old watches you from
+      the centre of the room.
+    exits:
+      west: net-1
+    npcs:
+      - id: the-shepherd
+        name: "The Shepherd"
+        hp: 80
+        attack: 15
+        desc: "An AI so old it has forgotten what it was protecting."
+    items:
+      - id: master-key
+        name: "Master Access Key"
+        desc: "Root access to everything. Handle with care."
