@@ -826,6 +826,13 @@ rooms:
           Exfil confirmed 2026-03-29 0400Z. Security response window closed by 0430Z.
           Corporate forensics still running circular audits. They don't know scope.
           Next phase: sell through Consensus-3 dark market. Zero-day window closes 2026-04-05.
+      - id: journalist-handoff-cipher
+        name: Encrypted Transmission
+        desc: A data chip still warm from the transmission, marked with fresh scratch patterns where a hand gripped it tight.
+        readable: true
+        content: |-
+          NETWORK TIMESTAMP: 2026-04-01 14:27 UTC
+          Contact made the dead drop. Package contains three years of axiom-security audits, contractor lists, and facility maps. The journalist collective publishes in 48 hours and we vanish. Every corp in the city will be hunting both them and us. The leverage is mutual destruction at this point. Next phase: quantum-key derivatives to the underground press.
     systems: []
     locks: []
   - id: gen-b4e9f2a6
