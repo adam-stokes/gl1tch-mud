@@ -245,6 +245,33 @@ crafting_recipes:
         A vicious decryption daemon that tears through encrypted channels and peels back network masks.
         Leaves burning signatures in its wake, exposing hidden comm protocols and buried surveillance feeds.
     skill_req: 2
+  - id: recipe-spoof-beacon
+    name: Spoof Beacon
+    ingredients:
+      - {id: data-chip, count: 1}
+      - {id: copper-wire, count: 2}
+      - {id: packet-sniffer, count: 1}
+    output:
+      id: spoof-beacon
+      name: Spoof Beacon
+      desc: |
+        A signal jammer rigged with false network identities. Broadcasts phantom data signatures
+        across local networks to mask actual traffic sources and confuse ICE surveillance systems.
+    skill_req: 2
+  - id: recipe-mirror-protocol-adapter
+    name: Mirror Protocol Adapter
+    ingredients:
+      - {id: data-chip, count: 1}
+      - {id: copper-wire, count: 1}
+      - {id: decryption-key, count: 1}
+      - {id: response-dampener, count: 1}
+    output:
+      id: mirror-protocol-adapter
+      name: Mirror Protocol Adapter
+      desc: |
+        A parasitic adapter that intercepts and mirrors encrypted responses back to their source,
+        creating false echoes that fool authentication handshakes. Perfect for spoofing trusted systems.
+    skill_req: 3
 loot_tables:
   - id: ice-daemon-loot
     entries:
