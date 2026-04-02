@@ -430,6 +430,24 @@ loot_tables:
         probability: 0.4
         count_min: 1
         count_max: 1
+      - item_id: firewall-shard
+        name: Firewall Shard
+        desc: Fragment of corrupted defensive code that burns with hostile intent.
+        probability: 0.35
+        count_min: 1
+        count_max: 2
+      - item_id: virus-strain
+        name: Virus Strain
+        desc: Bottled malware with an unpredictable mutation profile.
+        probability: 0.25
+        count_min: 1
+        count_max: 3
+      - item_id: bandwidth-siphon
+        name: Bandwidth Siphon
+        desc: Contraband code fragment for draining traffic undetected.
+        probability: 0.20
+        count_min: 1
+        count_max: 2
   - id: shepherd-loot
     entries:
       - item_id: carbon-blade
@@ -500,6 +518,24 @@ loot_tables:
         probability: 0.55
         count_min: 2
         count_max: 4
+      - item_id: chrome-implant
+        name: Chrome Implant
+        desc: Wetware upgrade component still faintly warm to the touch.
+        probability: 0.45
+        count_min: 1
+        count_max: 2
+      - item_id: circuit-lattice
+        name: Circuit Lattice
+        desc: Delicate mesh of rare conductor arranged in fractal geometry.
+        probability: 0.30
+        count_min: 1
+        count_max: 3
+      - item_id: heat-sink-core
+        name: Heat-sink Core
+        desc: Salvaged from a black-ICE corpse, still radiating ambient cold.
+        probability: 0.15
+        count_min: 1
+        count_max: 1
   - id: keeper-moth-loot
     entries:
       - item_id: data-chip
