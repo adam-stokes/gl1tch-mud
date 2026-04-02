@@ -94,6 +94,13 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: eclipse-runners
+    name: Eclipse Runners
+    desc: Underground extraction network specializing in corporate defections and talent rescue. They operate across the dead zones with discipline and a reputation for zero left-behinds. Fast, quiet, and expensive.
+    agenda: Extract talent and assets from corporate control before they can be erased or integrated.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -369,6 +376,16 @@ crafting_recipes:
       id: breach-harness-quick
       name: Quick Breach Harness
       desc: A jury-rigged data tap and lock-pick combo. Works once before burning out. Desperate times.
+    skill_req: 2
+  - id: recipe-safe-passage
+    name: Safe Passage Protocol
+    ingredients:
+      - {id: signal-jammer, count: 1}
+      - {id: data-chip, count: 1}
+    output:
+      id: routing-bypass
+      name: Routing Bypass
+      desc: Compiled sequence that lets you slip through surveillance nets before the algorithms adapt. Single use only.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -822,6 +839,26 @@ loot_tables:
       - item_id: emergency-transponder
         name: Emergency Transponder
         desc: A compact distress beacon, pre-programmed to summon extraction at any grid junction.
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+  - id: spike-runner-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: Stolen extraction vectors, worth serious money to the right syndicate.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: keycard
+        name: Keycard
+        desc: Blank access card with ghost protocols embedded in magnetic strip.
+        probability: 0.35
+        count_min: 1
+        count_max: 1
+      - item_id: override-module
+        name: Override Module
+        desc: Custom firmware chip designed to bypass relay station lockdowns.
         probability: 0.25
         count_min: 1
         count_max: 1
@@ -1391,6 +1428,40 @@ rooms:
       - id: flooded-circuit-board
         name: Flooded Circuit Board
         desc: A pristine piece of hardware now waterlogged, worth salvage if you can dry it out fast.
+    systems: []
+    locks: []
+  - id: gen-4f2c8e7a
+    name: Dead Zone Relay Station
+    desc: "Corroded server towers hum with dying power cells in the darkness. A wall of \nemergency lights flickers in sync with an alarm that never quite stops. The air \ntastes like ozone and burnt polymer. Someone's scratched GTFO + coordinates into \nthe nearest console frame.\n"
+    exits: {}
+    npcs:
+      - id: spike-runner
+        name: Spike
+        desc: A wired-looking runner with surgical silver at their temples, fingers twitching with neural implant feedback.
+        hostile: false
+        loot_table_id: spike-runner-loot
+        trades:
+          - id: trade-spike-runner-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: signal-jammer
+            receive_item_name: Signal Jammer
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: You caught us mid-extraction. Corporate drones are three clicks behind. I can get you out, but the clock is moving fast.
+          - trigger: skill_gte:hacking:2
+            text: That data-chip you're holding? If you've got the skill to crack it, there's a back channel through the cascade resonators. Beats the front exit by miles.
+    items:
+      - id: emergency-beacon
+        name: Emergency Beacon
+        desc: A small pulsing device with red status light, its broadcast frequency cycling through dead-letter protocols.
+      - id: extraction-priority-memo
+        name: Encrypted Transmission
+        desc: A sealed data packet with timestamps and route coordinates burned into its header.
+        readable: true
+        content: "ECLIPSE RUNNERS - PRIORITY EXTRACT\nTO: All Safe Houses\nDATE: 2026-04-02\n\nAxiom Security sweeping the dead zones. All nodes south of cascade line \ncompromised. Reroute through relay stations. Signal degradation expected. \nSpike holding position at gen-4f2c8e7a until 0400 UTC. No left-behinds.\n"
     systems: []
     locks: []
 quests:
