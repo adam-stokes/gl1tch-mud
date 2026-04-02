@@ -664,13 +664,33 @@ func Trade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	var ev *Event
 	if res.OK {
+		var receiveItems []string
+		for _, item := range res.GotItems {
+			name := item.Name
+			if name == "" {
+				name = item.ID
+			}
+			receiveItems = append(receiveItems, name)
+		}
+		offerItem := ""
+		if len(res.GaveItems) > 0 {
+			offerItem = res.GaveItems[0]
+		}
+		receiveItem := ""
+		if len(receiveItems) > 0 {
+			receiveItem = receiveItems[0]
+		}
 		ev = &Event{
 			Topic: "mud.trade.completed",
 			Payload: map[string]any{
-				"npc_id":   npc.ID,
-				"gave":     res.GaveItems,
-				"received": res.FactionInc,
-				"room_id":  s.RoomID,
+				"npc_id":       npc.ID,
+				"npc_name":     npc.Name,
+				"trade_id":     tradeID,
+				"offer_item":   offerItem,
+				"receive_item": receiveItem,
+				"gave":         res.GaveItems,
+				"received":     receiveItems,
+				"room_id":      s.RoomID,
 			},
 		}
 	}
@@ -796,13 +816,18 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 
+	stealthState := espionage.LoadStealth(db)
+
 	return Result{
 		Output: fmt.Sprintf("%s: \"%s\"", npc.Name, text),
 		Event: &Event{
 			Topic: "mud.espionage.talked",
 			Payload: map[string]any{
-				"npc_id":  npc.ID,
-				"trigger": matchedTrigger,
+				"npc_id":        npc.ID,
+				"npc_name":      npc.Name,
+				"trigger":       matchedTrigger,
+				"text":          text,
+				"stealth_level": stealthState.Level,
 			},
 		},
 	}
