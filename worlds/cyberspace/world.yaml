@@ -800,6 +800,19 @@ rooms:
         is_augment: true
         augment_skill: hacking
         augment_bonus: 5
+      - id: ceasefire-accord-memo
+        name: Intercepted Memo
+        desc: Sealed datapad with encrypted key-exchange protocols and timestamp validation layers partially decrypted.
+        readable: true
+        content: |-
+          AXIOM-SEC INTERNAL | CLASSIFICATION: IRON CURTAIN
+          TO: Command Echelon | FROM: Negotiation Detail | DATE: 2026-03-28
+
+          Temporary cessation agreement finalized with null-collective. Terms hold through 2026-04-15. Both parties standing down proxy operations in northeast corridor. Null-collective gains unrestricted access to three ice-farms in exchange for non-interference in our blacksite expansion.
+
+          This window opens leverage against phantom-collective. They move now, we execute coordinated strike with null assets. If they hold position, we consolidate and prepare phase-two dominion plays.
+
+          Do not communicate external. Ghost-protocol still unaware. Maintain cover operations.
     systems: []
     locks: []
   - id: gen-a7f2e4d9
