@@ -52,6 +52,13 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: signal-collective
+    name: Signal Collective
+    desc: A distributed network of hackers, pirates, and paranoid operators who architect blackout zones and trade in signal-dead tech. They see ubiquitous RF surveillance as an existential threat and build sanctuaries from it.
+    agenda: Expand dead zones across the grid until corporate signal dominance collapses.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -117,6 +124,17 @@ crafting_recipes:
       id: cache-breaker
       name: Cache Breaker
       desc: "A volatile silicon construct suspended in reactive coolant, engineered to corrupt \ndigital caches and purge surveillance logs. Temporary but effective for covering tracks \nin monitored systems.\n"
+    skill_req: 2
+  - id: recipe-ghost-cloak
+    name: Ghost Cloak
+    ingredients:
+      - {id: rf-dampener-core, count: 1}
+      - {id: copper-wire, count: 3}
+      - {id: response-dampener, count: 1}
+    output:
+      id: ghost-cloak-mk1
+      name: Ghost Cloak
+      desc: A wearable electromagnetic veil that masks RF signatures for short bursts. Walk silent, disappear from corporate sensors. Lasts until you transmit.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -223,6 +241,26 @@ loot_tables:
         name: Coolant Cartridge
         desc: A half-spent pressurized canister, still cold to the touch.
         probability: 0.4
+        count_min: 1
+        count_max: 1
+  - id: cipher-runner-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.6
+        count_min: 1
+        count_max: 2
+      - item_id: copper-wire
+        name: Copper Wire
+        desc: High-purity conductor, salvaged from a signal-dampening array.
+        probability: 0.35
+        count_min: 2
+        count_max: 3
+      - item_id: rf-dampener-core
+        name: RF Dampener Core
+        desc: A crystalline lattice matrix, still warm, engineered to absorb electromagnetic radiation across multiple frequencies.
+        probability: 0.25
         count_min: 1
         count_max: 1
 rooms:
@@ -494,5 +532,48 @@ rooms:
           Exfil confirmed 2026-03-29 0400Z. Security response window closed by 0430Z.
           Corporate forensics still running circular audits. They don't know scope.
           Next phase: sell through Consensus-3 dark market. Zero-day window closes 2026-04-05.
+    systems: []
+    locks: []
+  - id: gen-b4e9f2a6
+    name: The Blackout Refuge
+    desc: A Faraday-lined chamber carved from concrete and reinforced lead. No signal penetrates here—no wireless, no drones, no ghosts in the machine. The silence is almost physical, a pressure against the skin. Copper mesh wraps the walls like a nervous system, and the air tastes of ozone and old fear.
+    exits: {}
+    npcs:
+      - id: cipher-runner
+        name: Cipher
+        desc: Gaunt figure in a modified hazmat suit, fingers stained with solder flux, augmented eyes cycling through IR and RF spectrum overlays.
+        hostile: false
+        loot_table_id: cipher-runner-loot
+        trades:
+          - id: trade-cipher-runner-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: packet-sniffer
+            receive_item_name: Packet Sniffer
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: Signals die in here. That's the whole point. If you need to stay invisible, you need dead air. What brings you to the void?
+          - trigger: skill_gte:hacking:2
+            text: Your heat signature is clean. You know how to move dark. Axiom Security's been flooding the district with RF scanners. The corps want everything tagged, tracked, triangulated. This chamber buys you time.
+    items:
+      - id: rf-dampener-core
+        name: RF Dampener Core
+        desc: A crystalline lattice matrix, still warm, engineered to absorb electromagnetic radiation across multiple frequencies.
+      - id: axiom-comms-log
+        name: Encrypted Transmission Log
+        desc: A watermarked internal memo on polymer stock, heavily redacted, bearing the Axiom Security timestamp.
+        readable: true
+        content: |
+          AXIOM SECURITY OPERATIONS — EYES ONLY
+          2026-03-28 | SECTOR 7 BLANKING EVENT
+
+          Hostile signal-jammer detected in commercial sector. Traces suggest Signal Collective fabrication. Recommend immediate RF mapping and physical breach protocol. Target location unknown. Encryption key required for asset recovery. Authorized personnel: Harker, Reeves, Morrison.
+
+          Status: ONGOING. Escalate to Hunter Division.
+      - id: shielded-cache
+        name: Shielded Data Cache
+        desc: A tungsten-lined box, no wireless interface, designed for long-term storage of sensitive materials in complete electromagnetic isolation.
     systems: []
     locks: []
