@@ -32,16 +32,6 @@ crafting_recipes:
       name: "Decryption Key"
       desc: "Synthesised from captured traffic. Unlocks encrypted partitions."
     skill_req: 2
-  - id: test-synthesis-001
-    name: Widget Synthesis
-    ingredients:
-      - {id: data-chip, count: 1}
-      - {id: test-widget, count: 1}
-    output:
-      id: test-synthesized-widget
-      name: Synthesized Widget
-      desc: A widget improved through hacking intuition.
-    skill_req: 1
   - id: recipe-resonator-key
     name: Cascade Resonator
     ingredients:
@@ -95,20 +85,6 @@ loot_tables:
         probability: 0.9
         count_min: 2
         count_max: 5
-  - id: test-npc-001-loot
-    entries:
-      - item_id: test-widget
-        name: Test Widget
-        desc: A purpose-built widget for testing.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.5
-        count_min: 1
-        count_max: 3
   - id: keeper-vault-loot
     entries:
       - item_id: server-core
@@ -283,35 +259,6 @@ rooms:
       - id: ice-fragment
         name: "Black ICE Fragment"
         desc: "A shard of deactivated Black ICE. Still warm. Useful for advanced crafting."
-  - id: gen-test1234
-    name: Test Injection Chamber
-    desc: A test room. Smells like burnt solder and data.
-    exits: {}
-    npcs:
-      - id: test-npc-001
-        name: Test Ghost
-        desc: A flickering data construct in a worn leather jacket.
-        hostile: false
-        loot_table_id: test-npc-001-loot
-        trades:
-          - id: trade-test-npc-001-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: test-widget
-            receive_item_name: Test Widget
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: You look lost. Most people are, in here.
-          - trigger: skill_gte:hacking:2
-            text: Nice ICE-breaker. Where'd you get the firmware?
-    items:
-      - id: test-widget
-        name: Test Widget
-        desc: A purpose-built widget for testing.
-    systems: []
-    locks: []
   - id: gen-f7c2e419
     name: Decommissioned Mainframe Chamber
     desc: Floor-to-ceiling server racks hum with dying electronics, their indicator lights strobing through dust like dying fireflies. The air tastes of copper and ozone, recycled through vents that haven't been cleaned in years. Cables snake across the concrete, pooling in places where coolant has crystallized into rust-colored cakes.
