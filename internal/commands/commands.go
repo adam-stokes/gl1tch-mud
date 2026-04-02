@@ -9,13 +9,18 @@ import (
 
 	"github.com/adam-stokes/gl1tch-mud/internal/augments"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
+	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/espionage"
+	"github.com/adam-stokes/gl1tch-mud/internal/events"
+	"github.com/adam-stokes/gl1tch-mud/internal/factions"
 	"github.com/adam-stokes/gl1tch-mud/internal/generation"
 	"github.com/adam-stokes/gl1tch-mud/internal/hacking"
+	"github.com/adam-stokes/gl1tch-mud/internal/hideout"
 	"github.com/adam-stokes/gl1tch-mud/internal/locking"
 	"github.com/adam-stokes/gl1tch-mud/internal/looting"
 	"github.com/adam-stokes/gl1tch-mud/internal/mods"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
+	"github.com/adam-stokes/gl1tch-mud/internal/quests"
 	"github.com/adam-stokes/gl1tch-mud/internal/skills"
 	"github.com/adam-stokes/gl1tch-mud/internal/trading"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -78,6 +83,15 @@ var Registry = map[string]HandlerFunc{
 	"install":   Install,
 	"mod":       Mod,
 	"blueprint": Blueprint,
+	// New systems
+	"quests":  Quests,
+	"quest":   Quests,
+	"events":  Events,
+	"faction": Faction,
+	"recruit": Recruit,
+	"hideout": Hideout,
+	"upgrade": Upgrade,
+	"credits": Credits,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
@@ -118,12 +132,25 @@ func Look(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	visited := player.HasVisited(db, s.RoomID)
 	player.MarkVisited(db, s.RoomID)
 
+	// Expire stale world events
+	var actionCnt int
+	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&actionCnt) //nolint:errcheck
+	events.ExpireOld(db, actionCnt)                                             //nolint:errcheck
+
 	// Check for low-stealth auto-detection
 	detection := checkStealthDetection(db, s, room)
 
 	output := room.Render(visited)
 	if detection != "" {
 		output += "\n" + detection
+	}
+
+	// Active world event warning for this room
+	activeEvs, _ := events.Active(db)
+	for _, ev := range activeEvs {
+		if ev.TargetRoom == room.ID {
+			output += fmt.Sprintf("\n[EVENT] %s — %s", ev.Title, ev.Description)
+		}
 	}
 
 	return Result{
@@ -260,8 +287,14 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			if err := player.AddItem(db, item.ID, item.Name, item.Desc); err != nil {
 				return Result{Output: fmt.Sprintf("can't take %s — already carrying it.", item.Name)}
 			}
+			out := fmt.Sprintf("you pick up %s.", item.Name)
+			// Quest retrieve check
+			readyQuests, _ := quests.CheckRetrieve(db, item.ID)
+			for _, q := range readyQuests {
+				out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
+			}
 			return Result{
-				Output: fmt.Sprintf("you pick up %s.", item.Name),
+				Output: out,
 				Event: &Event{
 					Topic: "mud.item.found",
 					Payload: map[string]any{
@@ -339,6 +372,12 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 					},
 				}
 			}
+
+			// Quest kill check
+			readyQuests, _ := quests.CheckKill(db, npc.ID)
+			for _, q := range readyQuests {
+				out.WriteString(fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID))
+			}
 		} else {
 			player.SetNPCHP(db, s.RoomID, npc.ID, npcHP) //nolint:errcheck
 			out.WriteString(fmt.Sprintf("\n%s retaliates for %d. your HP: %d/%d.", npc.Name, npc.Attack, s.HP, s.MaxHP))
@@ -391,30 +430,37 @@ func Inventory(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 // Help lists available commands.
 func Help(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	return Result{Output: `commands:
-  look / l          — describe current room
-  go <dir>          — move (north/south/east/west, or just: n/s/e/w)
-  examine <thing>   — examine an NPC or item
-  take <item>       — pick up an item
-  attack <npc>      — attack an enemy
-  inventory / i     — list carried items
-  skills            — show skill levels and XP
-  hack <system>     — attempt to hack a system in the room
-  pick <lock>       — attempt to pick a lock
-  unlock <lock>     — use a key to unlock a lock
-  offers <npc>      — list what an NPC will trade
-  trade <trade-id>  — execute a trade with an NPC in the room
-  craft <recipe>    — craft an item from ingredients
-  hide              — attempt to increase stealth
-  disguise <item>   — equip a disguise item
-  talk <npc>        — speak to an NPC
-  explore <dir>     — explore an unmapped direction (may generate new rooms)
-  read <item>       — read a readable item in the room
-  search <item>     — search a container item in the room
-  install <item>    — install a neural augment
+  look / l              — describe current room
+  go <dir>              — move (north/south/east/west, or just: n/s/e/w)
+  examine <thing>       — examine an NPC or item
+  take <item>           — pick up an item
+  attack <npc>          — attack an enemy
+  inventory / i         — list carried items
+  skills                — show skill levels and XP
+  credits               — show credit balance
+  hack <system>         — attempt to hack a system in the room
+  pick <lock>           — attempt to pick a lock
+  unlock <lock>         — use a key to unlock a lock
+  offers <npc>          — list what an NPC will trade
+  trade <trade-id>      — execute a trade with an NPC in the room
+  craft <recipe>        — craft an item from ingredients
+  hide                  — attempt to increase stealth
+  disguise <item>       — equip a disguise item
+  talk <npc>            — speak to an NPC (may auto-accept quests)
+  explore <dir>         — explore an unmapped direction
+  read <item>           — read a readable item in the room
+  search <item>         — search a container item in the room
+  install <item>        — install a neural augment
   mod <item> with <mod> — apply a mod to an item
-  blueprint <item>  — decode a blueprint to unlock a recipe
-  help / ?          — this list
-  quit              — disconnect`}
+  blueprint <item>      — decode a blueprint to unlock a recipe
+  quests / quest        — list active quests; 'quest complete <id>' to turn in
+  events                — list active world events; 'events join <id>' for briefing
+  faction               — show faction status; 'faction create <name> [agenda]'
+  recruit <npc-id>      — recruit an NPC into your faction
+  hideout               — teleport to your faction hideout
+  upgrade list          — list hideout upgrades; 'upgrade buy <id>' to purchase
+  help / ?              — this list
+  quit                  — disconnect`}
 }
 
 // Read reads a readable item in the current room.
@@ -519,6 +565,11 @@ func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 				"system_id": systemID,
 				"room_id":   s.RoomID,
 			},
+		}
+		// Quest hack check
+		readyQuests, _ := quests.CheckHack(db, systemID)
+		for _, q := range readyQuests {
+			out.WriteString(fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID))
 		}
 	}
 
@@ -852,19 +903,52 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	text := espionage.EvalDialogue(npc.Dialogue, ctx)
 	espionage.RecordMemory(db, npc.ID, "talked") //nolint:errcheck
 
-	// Find matched trigger for event
+	// Find matched line for event and quest auto-accept
 	matchedTrigger := "none"
+	matchedQuestID := ""
 	for _, line := range npc.Dialogue {
 		if line.Text == text {
 			matchedTrigger = line.Trigger
+			matchedQuestID = line.QuestID
 			break
+		}
+	}
+
+	output := fmt.Sprintf("%s: \"%s\"", npc.Name, text)
+
+	// Auto-accept quest if the dialogue line has a quest_id
+	if matchedQuestID != "" {
+		wq := w.FindQuest(matchedQuestID)
+		if wq != nil {
+			q := quests.Quest{
+				ID:             wq.ID,
+				Title:          wq.Title,
+				Description:    wq.Description,
+				ObjType:        wq.ObjType,
+				ObjTarget:      wq.ObjTarget,
+				ObjRoom:        wq.ObjRoom,
+				ObjCount:       wq.ObjCount,
+				RewardCredits:  wq.RewardCredits,
+				RewardXPSkill:  wq.RewardXPSkill,
+				RewardXPAmount: wq.RewardXPAmount,
+				RewardItemID:   wq.RewardItemID,
+				RewardItemName: wq.RewardItemName,
+				RewardItemDesc: wq.RewardItemDesc,
+				GiverNPCID:     npc.ID,
+			}
+			if err := quests.Accept(db, q); err == nil {
+				output += fmt.Sprintf("\n[QUEST ACCEPTED] %s", wq.Title)
+				if wq.Description != "" {
+					output += "\n" + wq.Description
+				}
+			}
 		}
 	}
 
 	stealthState := espionage.LoadStealth(db)
 
 	return Result{
-		Output: fmt.Sprintf("%s: \"%s\"", npc.Name, text),
+		Output: output,
 		Event: &Event{
 			Topic: "mud.espionage.talked",
 			Payload: map[string]any{
@@ -1083,4 +1167,492 @@ func buildSkillMap(db *sql.DB) map[string]int {
 		m[skill] = lv[0]
 	}
 	return m
+}
+
+// actionCount returns the player's current action count.
+func actionCount(db *sql.DB) int {
+	var c int
+	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&c) //nolint:errcheck
+	return c
+}
+
+// Credits shows the player's current credit balance.
+func Credits(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	bal := credits.Get(db)
+	return Result{Output: fmt.Sprintf("credits: %d ¢", bal)}
+}
+
+// Quests lists active quests or completes one.
+func Quests(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) >= 2 && args[0] == "complete" {
+		return questComplete(db, args[1])
+	}
+
+	active, err := quests.Active(db)
+	if err != nil {
+		return Result{Output: "error loading quests."}
+	}
+	if len(active) == 0 {
+		return Result{Output: "no active quests. talk to NPCs to find work."}
+	}
+
+	var b strings.Builder
+	b.WriteString("active quests:\n")
+	for _, q := range active {
+		bar := fmt.Sprintf("[%d/%d]", q.ObjProgress, q.ObjCount)
+		room := ""
+		if q.ObjRoom != "" {
+			room = fmt.Sprintf(" in %s", q.ObjRoom)
+		}
+		b.WriteString(fmt.Sprintf("  (%s) %s %s %s%s\n", q.ID, bar, q.ObjType, q.ObjTarget, room))
+		b.WriteString(fmt.Sprintf("      %s\n", q.Title))
+	}
+	return Result{Output: strings.TrimRight(b.String(), "\n")}
+}
+
+func questComplete(db *sql.DB, id string) Result {
+	q, err := quests.Get(db, id)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("no quest %q found.", id)}
+	}
+	if q.Status != "active" {
+		return Result{Output: fmt.Sprintf("quest %q is already %s.", id, q.Status)}
+	}
+	if q.ObjProgress < q.ObjCount {
+		return Result{Output: fmt.Sprintf(
+			"quest not ready: need %d/%d %s %s.",
+			q.ObjProgress, q.ObjCount, q.ObjType, q.ObjTarget,
+		)}
+	}
+
+	if err := quests.Complete(db, id); err != nil {
+		return Result{Output: "error completing quest."}
+	}
+
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("quest complete: %s\n", q.Title))
+	out.WriteString("rewards:\n")
+
+	if q.RewardCredits > 0 {
+		credits.Add(db, q.RewardCredits) //nolint:errcheck
+		out.WriteString(fmt.Sprintf("  + %d credits\n", q.RewardCredits))
+	}
+
+	if q.RewardXPSkill != "" && q.RewardXPAmount > 0 {
+		awardRes, err := skills.Award(db, q.RewardXPSkill, q.RewardXPAmount)
+		if err == nil {
+			out.WriteString(fmt.Sprintf("  + %d %s XP\n", q.RewardXPAmount, q.RewardXPSkill))
+			if awardRes.LeveledUp {
+				out.WriteString(awardRes.LevelUpMsg + "\n")
+			}
+		}
+	}
+
+	if q.RewardItemID != "" {
+		name := q.RewardItemName
+		if name == "" {
+			name = q.RewardItemID
+		}
+		desc := q.RewardItemDesc
+		if desc == "" {
+			desc = "quest reward"
+		}
+		if err := player.AddItem(db, q.RewardItemID, name, desc); err == nil {
+			out.WriteString(fmt.Sprintf("  + item: %s\n", name))
+		}
+	}
+
+	return Result{Output: strings.TrimRight(out.String(), "\n")}
+}
+
+// Events lists active world events or joins one.
+func Events(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) >= 2 && args[0] == "join" {
+		return eventJoin(db, args[1])
+	}
+	if len(args) >= 2 && args[0] == "complete" {
+		return eventComplete(db, args[1])
+	}
+
+	active, err := events.Active(db)
+	if err != nil {
+		return Result{Output: "error loading events."}
+	}
+
+	// Seed events if none active
+	if len(active) == 0 {
+		e1, _ := events.SeedRandom(db, w)
+		if e1 != nil {
+			active = append(active, *e1)
+		}
+		// Seed a second event
+		e2, _ := events.SeedRandom(db, w)
+		if e2 != nil {
+			active = append(active, *e2)
+		}
+	}
+
+	if len(active) == 0 {
+		return Result{Output: "no active world events."}
+	}
+
+	var b strings.Builder
+	b.WriteString("active world events:\n")
+	for _, ev := range active {
+		b.WriteString(fmt.Sprintf("  [%s] %s\n", ev.ID, ev.Title))
+		b.WriteString(fmt.Sprintf("      type: %s | room: %s | faction: %s\n", ev.Type, ev.TargetRoom, ev.Faction))
+		b.WriteString(fmt.Sprintf("      payout: %d credits + %s\n", ev.PayoutCredits, ev.PayoutItemName))
+		b.WriteString(fmt.Sprintf("      expires in ~%d actions\n", ev.ExpiresActions))
+		b.WriteString(fmt.Sprintf("      %s\n", ev.Description))
+	}
+	return Result{Output: strings.TrimRight(b.String(), "\n")}
+}
+
+func eventJoin(db *sql.DB, id string) Result {
+	ev, err := events.Get(db, id)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("no event %q found.", id)}
+	}
+	if ev.Status != "active" {
+		return Result{Output: fmt.Sprintf("event %q is %s.", id, ev.Status)}
+	}
+	return Result{Output: fmt.Sprintf(
+		"[EVENT BRIEFING] %s\n%s\ntarget room: %s\npayout: %d credits + %s\ngo to the target room and complete the objective.",
+		ev.Title, ev.Description, ev.TargetRoom, ev.PayoutCredits, ev.PayoutItemName,
+	)}
+}
+
+func eventComplete(db *sql.DB, id string) Result {
+	ev, err := events.Get(db, id)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("no event %q found.", id)}
+	}
+	if ev.Status != "active" {
+		return Result{Output: fmt.Sprintf("event %q is already %s.", id, ev.Status)}
+	}
+	if err := events.Complete(db, id); err != nil {
+		return Result{Output: "error completing event."}
+	}
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("[EVENT COMPLETE] %s\n", ev.Title))
+	if ev.PayoutCredits > 0 {
+		credits.Add(db, ev.PayoutCredits) //nolint:errcheck
+		out.WriteString(fmt.Sprintf("  + %d credits\n", ev.PayoutCredits))
+	}
+	if ev.PayoutItemID != "" {
+		name := ev.PayoutItemName
+		if name == "" {
+			name = ev.PayoutItemID
+		}
+		player.AddItem(db, ev.PayoutItemID, name, ev.PayoutItemDesc) //nolint:errcheck
+		out.WriteString(fmt.Sprintf("  + item: %s\n", name))
+	}
+	return Result{Output: strings.TrimRight(out.String(), "\n")}
+}
+
+// Faction shows faction status or creates a faction.
+func Faction(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) >= 1 && args[0] == "create" {
+		name := ""
+		agenda := ""
+		if len(args) >= 2 {
+			name = args[1]
+		}
+		if len(args) >= 3 {
+			agenda = strings.Join(args[2:], " ")
+		}
+		if name == "" {
+			return Result{Output: "usage: faction create <name> [agenda]"}
+		}
+		return factionCreate(db, s, w, name, agenda)
+	}
+
+	exists, err := factions.Exists(db)
+	if err != nil || !exists {
+		return Result{Output: "you have no faction. use 'faction create <name> [agenda]' to start one."}
+	}
+
+	f, err := factions.Get(db)
+	if err != nil {
+		return Result{Output: "error loading faction."}
+	}
+	count, _ := factions.MemberCount(db)
+	bal := credits.Get(db)
+	hideoutInfo := f.HideoutRoomID
+	if hideoutInfo == "" {
+		hideoutInfo = "(none set)"
+	}
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("faction: %s\n", f.FactionName))
+	if f.Agenda != "" {
+		b.WriteString(fmt.Sprintf("agenda: %s\n", f.Agenda))
+	}
+	b.WriteString(fmt.Sprintf("members: %d\n", count))
+	b.WriteString(fmt.Sprintf("hideout: %s\n", hideoutInfo))
+	b.WriteString(fmt.Sprintf("credits: %d ¢\n", bal))
+	return Result{Output: strings.TrimRight(b.String(), "\n")}
+}
+
+func factionCreate(db *sql.DB, s *player.State, w *world.World, name, agenda string) Result {
+	exists, _ := factions.Exists(db)
+	if exists {
+		return Result{Output: "you already have a faction."}
+	}
+	f, err := factions.Create(db, name, agenda)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("failed to create faction: %v", err)}
+	}
+
+	// Generate and add hideout room
+	room := hideout.GenerateHideout(name)
+	w.AddRoom(&room)
+	if err := factions.SetHideout(db, room.ID); err != nil {
+		return Result{Output: fmt.Sprintf("faction created but hideout failed: %v", err)}
+	}
+
+	return Result{
+		Output: fmt.Sprintf(
+			"faction created: %s (id: %s)\nhideout: %s (%s)\nuse 'hideout' to go there.",
+			f.FactionName, f.FactionID, room.Name, room.ID,
+		),
+		Event: &Event{
+			Topic: "mud.faction.created",
+			Payload: map[string]any{
+				"faction_id":   f.FactionID,
+				"faction_name": f.FactionName,
+				"hideout_room": room.ID,
+			},
+		},
+	}
+}
+
+// Recruit recruits an NPC in the current room into the player's faction.
+func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) == 0 {
+		return Result{Output: "recruit <npc-id> — recruit an NPC into your faction"}
+	}
+	npcID := args[0]
+
+	exists, _ := factions.Exists(db)
+	if !exists {
+		return Result{Output: "you need a faction first. use 'faction create <name>'."}
+	}
+
+	f, err := factions.Get(db)
+	if err != nil {
+		return Result{Output: "error loading faction."}
+	}
+
+	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "you are nowhere."}
+	}
+
+	var npc *world.NPC
+	for i := range room.NPCs {
+		if room.NPCs[i].ID == npcID || strings.Contains(strings.ToLower(room.NPCs[i].Name), npcID) {
+			npc = &room.NPCs[i]
+			break
+		}
+	}
+	if npc == nil {
+		return Result{Output: fmt.Sprintf("no NPC %q here.", npcID)}
+	}
+	if !player.NPCAlive(db, s.RoomID, npc.ID) {
+		return Result{Output: fmt.Sprintf("%s is dead. you can't recruit a corpse.", npc.Name)}
+	}
+
+	// Check reputation with any faction (any rep >= 3)
+	rows, err := db.Query(`SELECT faction, value FROM player_reputation WHERE value >= 3`)
+	if err != nil {
+		return Result{Output: "error checking reputation."}
+	}
+	defer rows.Close()
+	hasRep := rows.Next()
+	rows.Close()
+	if !hasRep {
+		return Result{Output: "you lack the standing to recruit anyone. build reputation with a faction first (rep >= 3)."}
+	}
+
+	// Cost 200 credits
+	if _, err := credits.Deduct(db, 200); err != nil {
+		return Result{Output: "you need 200 credits to recruit."}
+	}
+
+	if err := factions.Recruit(db, npc.ID, npc.Name, npc.Desc, "associate"); err != nil {
+		// Refund on error
+		credits.Add(db, 200) //nolint:errcheck
+		return Result{Output: fmt.Sprintf("recruit failed: %v", err)}
+	}
+
+	// Station them at hideout if set
+	if f.HideoutRoomID != "" {
+		db.Exec(`UPDATE faction_members SET stationed_room=? WHERE npc_id=?`, f.HideoutRoomID, npc.ID) //nolint:errcheck
+	}
+
+	return Result{
+		Output: fmt.Sprintf(
+			"%s sizes you up, then nods. \"Alright. I'm in.\"\n%s is now part of %s. (-200 credits)",
+			npc.Name, npc.Name, f.FactionName,
+		),
+		Event: &Event{
+			Topic: "mud.faction.recruited",
+			Payload: map[string]any{
+				"npc_id":      npc.ID,
+				"npc_name":    npc.Name,
+				"faction_id":  f.FactionID,
+				"room_id":     s.RoomID,
+			},
+		},
+	}
+}
+
+// Hideout teleports the player to their faction hideout.
+func Hideout(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	exists, _ := factions.Exists(db)
+	if !exists {
+		return Result{Output: "you have no faction hideout. create a faction first."}
+	}
+	f, err := factions.Get(db)
+	if err != nil {
+		return Result{Output: "error loading faction."}
+	}
+	if f.HideoutRoomID == "" {
+		return Result{Output: "no hideout set for your faction."}
+	}
+
+	room := w.Room(f.HideoutRoomID)
+	if room == nil {
+		return Result{Output: fmt.Sprintf("hideout room %q not found in world.", f.HideoutRoomID)}
+	}
+
+	s.RoomID = f.HideoutRoomID
+	player.Save(db, s) //nolint:errcheck
+
+	var out strings.Builder
+	out.WriteString(room.Render(true))
+
+	// Apply hideout upgrade bonuses
+	if has, _ := hideout.HasUpgrade(db, "med-bay"); has {
+		s.HP = s.MaxHP
+		player.Save(db, s) //nolint:errcheck
+		out.WriteString("\n[med-bay] wounds patched. HP restored to full.")
+	}
+	if has, _ := hideout.HasUpgrade(db, "signal-jammer"); has {
+		st := espionage.LoadStealth(db)
+		if st.Level < 80 {
+			st.Level = 80
+			espionage.SaveStealth(db, st) //nolint:errcheck
+		}
+		out.WriteString("\n[signal-jammer] stealth reset to 80.")
+	}
+	if has, _ := hideout.HasUpgrade(db, "training-deck"); has {
+		awardRes, err := skills.Award(db, "hacking", 50)
+		if err == nil {
+			out.WriteString(fmt.Sprintf("\n[training-deck] +50 hacking XP."))
+			if awardRes.LeveledUp {
+				out.WriteString("\n" + awardRes.LevelUpMsg)
+			}
+		}
+	}
+
+	// Show installed upgrades
+	installed, _ := hideout.Installed(db)
+	if len(installed) > 0 {
+		out.WriteString("\ninstalled upgrades: " + strings.Join(installed, ", "))
+	}
+
+	return Result{Output: out.String()}
+}
+
+// Upgrade lists or purchases hideout upgrades.
+func Upgrade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) == 0 {
+		return Result{Output: "upgrade list — show upgrades\nupgrade buy <id> — purchase an upgrade"}
+	}
+	switch args[0] {
+	case "list":
+		return upgradeList(db)
+	case "buy":
+		if len(args) < 2 {
+			return Result{Output: "upgrade buy <id>"}
+		}
+		return upgradeBuy(db, args[1])
+	default:
+		return Result{Output: "upgrade list | upgrade buy <id>"}
+	}
+}
+
+func upgradeList(db *sql.DB) Result {
+	installed, _ := hideout.Installed(db)
+	installedSet := make(map[string]bool, len(installed))
+	for _, id := range installed {
+		installedSet[id] = true
+	}
+	bal := credits.Get(db)
+	hackLevel := skills.Level(db, "hacking")
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("hideout upgrades (balance: %d ¢, hacking level: %d):\n", bal, hackLevel))
+	for _, u := range hideout.Catalog {
+		status := "available"
+		if installedSet[u.ID] {
+			status = "INSTALLED"
+		} else if hackLevel < u.SkillReq {
+			status = fmt.Sprintf("locked (hacking level %d required)", u.SkillReq)
+		}
+		b.WriteString(fmt.Sprintf("  [%s] %s — %d ¢  [%s]\n", u.ID, u.Name, u.Cost, status))
+		b.WriteString(fmt.Sprintf("      %s\n", u.Desc))
+	}
+	return Result{Output: strings.TrimRight(b.String(), "\n")}
+}
+
+func upgradeBuy(db *sql.DB, id string) Result {
+	u, err := hideout.FindUpgrade(id)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("unknown upgrade %q. use 'upgrade list' to see options.", id)}
+	}
+
+	has, _ := hideout.HasUpgrade(db, id)
+	if has {
+		return Result{Output: fmt.Sprintf("%s is already installed.", u.Name)}
+	}
+
+	hackLevel := skills.Level(db, "hacking")
+	if hackLevel < u.SkillReq {
+		return Result{Output: fmt.Sprintf(
+			"%s requires hacking level %d (you have %d).",
+			u.Name, u.SkillReq, hackLevel,
+		)}
+	}
+
+	if _, err := credits.Deduct(db, u.Cost); err != nil {
+		bal := credits.Get(db)
+		return Result{Output: fmt.Sprintf(
+			"not enough credits. %s costs %d ¢, you have %d ¢.",
+			u.Name, u.Cost, bal,
+		)}
+	}
+
+	if err := hideout.Install(db, id); err != nil {
+		credits.Add(db, u.Cost) //nolint:errcheck
+		return Result{Output: fmt.Sprintf("install failed: %v", err)}
+	}
+
+	flavorMap := map[string]string{
+		"workbench":      "Guts spill across the table surface — circuits, tools, salvage. The workbench is live.",
+		"armory":         "The rack slots into the wall. Weapons hang silent and ready.",
+		"med-bay":        "The med-bay hums to life, diagnostic lights cycling green. You can rest easy here.",
+		"signal-jammer":  "A low-frequency buzz fills the room briefly, then dies. Nothing gets in or out.",
+		"training-deck":  "The deck boots up, running ghost scenarios. Time to get sharper.",
+		"intel-hub":      "Feeds scroll across the display. The whole grid is visible from here.",
+		"vault":          "The vault door locks with a satisfying thunk. Your stash is secure.",
+	}
+	flavor := flavorMap[id]
+	if flavor == "" {
+		flavor = fmt.Sprintf("%s installed.", u.Name)
+	}
+
+	return Result{Output: fmt.Sprintf("[UPGRADE INSTALLED] %s (--%d ¢)\n%s", u.Name, u.Cost, flavor)}
 }

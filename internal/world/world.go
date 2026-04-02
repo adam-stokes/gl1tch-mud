@@ -34,6 +34,7 @@ type Lock struct {
 type DialogueLine struct {
 	Trigger string `yaml:"trigger"`
 	Text    string `yaml:"text"`
+	QuestID string `yaml:"quest_id,omitempty"`
 }
 
 // TradeIngredient is an item required or offered in a trade.
@@ -143,6 +144,24 @@ type Room struct {
 	Locks   []Lock            `yaml:"locks,omitempty"`
 }
 
+// WorldQuest is a pre-defined quest loaded from world YAML.
+type WorldQuest struct {
+	ID             string `yaml:"id"`
+	Title          string `yaml:"title"`
+	Description    string `yaml:"description"`
+	GiverNPCID     string `yaml:"giver_npc_id"`
+	ObjType        string `yaml:"obj_type"`
+	ObjTarget      string `yaml:"obj_target"`
+	ObjRoom        string `yaml:"obj_room,omitempty"`
+	ObjCount       int    `yaml:"obj_count"`
+	RewardCredits  int    `yaml:"reward_credits"`
+	RewardXPSkill  string `yaml:"reward_xp_skill,omitempty"`
+	RewardXPAmount int    `yaml:"reward_xp_amount,omitempty"`
+	RewardItemID   string `yaml:"reward_item_id,omitempty"`
+	RewardItemName string `yaml:"reward_item_name,omitempty"`
+	RewardItemDesc string `yaml:"reward_item_desc,omitempty"`
+}
+
 // World holds all rooms for a loaded world.
 type World struct {
 	Name            string           `yaml:"name"`
@@ -152,6 +171,7 @@ type World struct {
 	CraftingRecipes []CraftingRecipe `yaml:"crafting_recipes,omitempty"`
 	LootTables      []LootTable      `yaml:"loot_tables,omitempty"`
 	Factions        []Faction        `yaml:"factions,omitempty"`
+	Quests          []WorldQuest     `yaml:"quests,omitempty"`
 	index           map[string]*Room
 }
 
@@ -217,6 +237,16 @@ func (w *World) FindRecipe(id string) *CraftingRecipe {
 	for i := range w.CraftingRecipes {
 		if w.CraftingRecipes[i].ID == id {
 			return &w.CraftingRecipes[i]
+		}
+	}
+	return nil
+}
+
+// FindQuest returns the pre-defined quest with the given ID, or nil.
+func (w *World) FindQuest(id string) *WorldQuest {
+	for i := range w.Quests {
+		if w.Quests[i].ID == id {
+			return &w.Quests[i]
 		}
 	}
 	return nil
