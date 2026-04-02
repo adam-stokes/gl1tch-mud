@@ -115,6 +115,13 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: signal-dead
+    name: Signal Dead
+    desc: A network of paranoid engineers and exiled netrunners who believe the only safe signal is no signal. They harvest cascade-resonators from corporate sites and fold RF shielding into cages. Obsessed with signal-dead zones and the mathematics of invisible transmission.
+    agenda: Build a grid of disconnected chambers where the surveilled can disappear, one faraday grave at a time.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -422,6 +429,17 @@ crafting_recipes:
       id: signal-tap-module
       name: Signal Tap Module
       desc: A repurposed sniffer tuned to bleed idle bandwidth. Lets you ghost through monitored relays without triggering hardened alerts.
+    skill_req: 2
+  - id: recipe-deadzone-anchor
+    name: Deadzone Anchor
+    ingredients:
+      - {id: faraday-mesh, count: 2}
+      - {id: cascade-resonator, count: 1}
+      - {id: rf-detuner, count: 1}
+    output:
+      id: signal-deadzone-anchor
+      name: Signal Deadzone Anchor
+      desc: A compact RF well that collapses all transmission into static. Plant it. Watch the surveillance drones search the void. Paranoia becomes probability in the dark.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -936,6 +954,26 @@ loot_tables:
         name: Relay Bleed Packet
         desc: Compressed partition of data that leaked during a reroute.
         probability: 0.20
+        count_min: 1
+        count_max: 1
+  - id: static-ghost-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: Blacklisted telemetry packet, encrypted in an old standard.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: rf-detuner
+        name: RF Detuner
+        desc: Hand-wound coil assembly that whispers dead frequencies into the mesh.
+        probability: 0.35
+        count_min: 1
+        count_max: 1
+      - item_id: ice-fragment
+        name: Ice Fragment
+        desc: Corrupted ICE shard, inert outside the cage, dangerous within.
+        probability: 0.25
         count_min: 1
         count_max: 1
 rooms:
@@ -1622,6 +1660,49 @@ rooms:
           Null Collective claimed three nodes already. Ghost Protocol silent.
           All borrowed bandwidth flagged. Recommend cache purge within 72 hours.
           Dispatch Unit 4 standing by.
+    systems: []
+    locks: []
+  - id: gen-7fa2e84c
+    name: Faraday Grave
+    desc: Walls layered in copper mesh and degraded RF shielding hum with residual static. A repurposed server cabinet serves as workbench, stripped of its guts. The air tastes like ozone and paranoia. No signal reaches here—no uplink, no trace, no escape.
+    exits: {}
+    npcs:
+      - id: static-ghost
+        name: Static Ghost
+        desc: Lean frame wrapped in a grounding vest, eyes reflexive with the tic of old signal-sickness.
+        hostile: false
+        loot_table_id: static-ghost-loot
+        trades:
+          - id: trade-static-ghost-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: faraday-mesh
+            receive_item_name: Faraday Mesh
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: They don't call me Ghost for the encryption. The cage eats signal. In here, you're invisible to everything that hunts by frequency.
+          - trigger: skill_gte:hacking:2
+            text: I've got cascade-resonator scrap in back. Enough to daisy-chain five cages. Corporate surveillance has a range limit when you fold the mesh right. Interested?
+    items:
+      - id: signal-clamp
+        name: Signal Clamp
+        desc: Rusted ferrite ring studded with solder burns, deadens RF leakage at the junction.
+      - id: jammed-freq-log
+        name: Jammed Frequency Log
+        desc: Watermarked printout, dense with marginalia and redaction.
+        readable: true
+        content: |
+          SIGNAL DEAD OPERATIONAL LOG - FRAGMENT
+          2026-03-28 0447hrs UTC
+
+          Cascade resonator harvested from Axiom Security perimeter sweep. Frequency bleed detected
+          on 2.4GHz band correlates to neural-surveillance drone traffic. Recommend RF detuning
+          before integration into mainland cage network.
+
+          Phantom Collective claims they own the north grid. They don't. We own the silence.
+          - Static
     systems: []
     locks: []
 quests:
