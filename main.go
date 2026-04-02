@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/term"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
@@ -42,7 +44,10 @@ func main() {
 		"world":   s.World,
 	})
 
-	fmt.Println(`
+	interactive := term.IsTerminal(int(os.Stdin.Fd()))
+
+	if interactive {
+		fmt.Println(`
   ██████  ██      ██ ████████  ██████ ██   ██       ███    ███ ██    ██ ██████
  ██       ██      ██    ██    ██      ██   ██       ████  ████ ██    ██ ██   ██
  ██   ███ ██      ██    ██    ██      ███████ █████ ██ ████ ██ ██    ██ ██   ██
@@ -52,16 +57,19 @@ func main() {
   jack in. ghost the gibson. don't get traced.
   type 'help' for commands.`)
 
-	// Show the starting room.
-	res := commands.Look(database, s, w, nil)
-	fmt.Println(res.Output)
-	if res.Event != nil {
-		bus.Publish(res.Event.Topic, res.Event.Payload)
+		// Show the starting room only in interactive mode.
+		res := commands.Look(database, s, w, nil)
+		fmt.Println(res.Output)
+		if res.Event != nil {
+			bus.Publish(res.Event.Topic, res.Event.Payload)
+		}
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Print("> ")
+		if interactive {
+			fmt.Print("> ")
+		}
 		if !scanner.Scan() {
 			break
 		}
@@ -74,7 +82,9 @@ func main() {
 				"player":  s.Name,
 				"room_id": s.RoomID,
 			})
-			fmt.Println("disconnecting from The Gibson.")
+			if interactive {
+				fmt.Println("disconnecting from The Gibson.")
+			}
 			break
 		}
 
