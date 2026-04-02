@@ -25,7 +25,7 @@ WORLD_PATH = os.path.expanduser(
     )
 )
 
-MERGE_KEYS = ["rooms", "loot_tables", "crafting_recipes"]
+MERGE_KEYS = ["rooms", "loot_tables", "crafting_recipes", "factions"]
 
 
 def strip_fences(text: str) -> str:

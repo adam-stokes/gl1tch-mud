@@ -15,6 +15,7 @@ factions:
     allies: []
     enemies:
       - axiom-security
+
   - id: null-collective
     name: "Null Collective"
     desc: |
@@ -29,6 +30,7 @@ factions:
     allies: []
     enemies:
       - axiom-security
+
   - id: axiom-security
     name: "Axiom Security Division"
     desc: |
@@ -45,13 +47,7 @@ factions:
     enemies:
       - ghost-protocol
       - null-collective
-  - id: phantom-collective
-    name: Phantom Collective
-    desc: Silent operators who map legacy infrastructure before corporate audits can catch up. They move like ghosts through dormant systems, leaving ghost processes that phone home on random intervals. Their specialty is reconnaissance that stays hidden long enough to matter.
-    agenda: Control the information architecture before the corporations realize what they've lost.
-    territory: []
-    allies: []
-    enemies: []
+
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -156,20 +152,6 @@ loot_tables:
         probability: 0.55
         count_min: 2
         count_max: 4
-  - id: keeper-moth-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: coolant-cartridge
-        name: Coolant Cartridge
-        desc: A half-spent pressurized canister, still cold to the touch.
-        probability: 0.4
-        count_min: 1
-        count_max: 1
 rooms:
   - id: net-0
     name: "The Gibson — Entry Node"
@@ -370,45 +352,5 @@ rooms:
           Entry 2089-07-22 — Axiom contractors on-site. Did not ask what they installed in node-seven.
           Entry 2091-01-04 — Power draw tripled overnight. No work order on record. Nobody answers the line anymore.
           Entry 2094-08-30 — I think whatever is in node-seven is still running. I don't check anymore.
-    systems: []
-    locks: []
-  - id: gen-a7f2e4d9
-    name: Cold Storage Archive Level Three
-    desc: Rows of silent server racks stretch into darkness, their status LEDs long burned out. Fluorescent tubes flicker in a dying rhythm, casting sickly green light over dusty cable trays and pooled coolant. The air tastes like ozone and regret.
-    exits: {}
-    npcs:
-      - id: keeper-moth
-        name: Moth
-        desc: A thin figure in a faded Hexagon Solutions windbreaker, fingers perpetually stained with thermal paste and old blood.
-        hostile: false
-        loot_table_id: keeper-moth-loot
-        trades:
-          - id: trade-keeper-moth-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: hexagon-audit-log
-            receive_item_name: Hexagon Audit Log Fragment
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: These boxes still hum in their sleep. Phantom Collective hit the design vault three weeks ago. Hexagon doesn't know how deep it goes yet. They're sending hunters now.
-          - trigger: skill_gte:hacking:2
-            text: The real score is the firmware. Rust Prophets are already in the bootloader tables. They're patient. Financial system doesn't know what's coming in seventy-two hours.
-    items:
-      - id: hexagon-audit-log
-        name: Hexagon Audit Log Fragment
-        desc: A brittle printout, margins yellow with age, stamped CLASSIFIED.
-      - id: phantom-raid-intercept
-        name: Encrypted Transmission
-        desc: A data slate with a decryption-key jacked into the port, still warm.
-        readable: true
-        content: |
-          PHANTOM COLLECTIVE OPERATIONAL BRIEF 2026-03-28
-          Target: Hexagon Solutions design vault, Arlington facility subsystem.
-          Payload secured. Design docs routed through three ghost proxies.
-          Exfil confirmed 2026-03-29 0400Z. Security response window closed by 0430Z.
-          Corporate forensics still running circular audits. They don't know scope.
-          Next phase: sell through Consensus-3 dark market. Zero-day window closes 2026-04-05.
     systems: []
     locks: []

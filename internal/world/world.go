@@ -94,12 +94,25 @@ type NPC struct {
 	Dialogue    []DialogueLine `yaml:"dialogue,omitempty"`
 }
 
+// Faction is a political or criminal organisation in the world.
+type Faction struct {
+	ID        string   `yaml:"id"`
+	Name      string   `yaml:"name"`
+	Desc      string   `yaml:"desc"`
+	Agenda    string   `yaml:"agenda"`
+	Territory []string `yaml:"territory,omitempty"`
+	Allies    []string `yaml:"allies,omitempty"`
+	Enemies   []string `yaml:"enemies,omitempty"`
+}
+
 // Item is a collectable object in a room.
 type Item struct {
 	ID         string `yaml:"id"`
 	Name       string `yaml:"name"`
 	Desc       string `yaml:"desc"`
 	IsDisguise bool   `yaml:"is_disguise,omitempty"`
+	Readable   bool   `yaml:"readable,omitempty"`
+	Content    string `yaml:"content,omitempty"`
 }
 
 // Room is a single location in the world.
@@ -122,6 +135,7 @@ type World struct {
 	Rooms           []Room           `yaml:"rooms"`
 	CraftingRecipes []CraftingRecipe `yaml:"crafting_recipes,omitempty"`
 	LootTables      []LootTable      `yaml:"loot_tables,omitempty"`
+	Factions        []Faction        `yaml:"factions,omitempty"`
 	index           map[string]*Room
 }
 
@@ -160,6 +174,16 @@ func (w *World) AddRoom(r *Room) {
 	}
 	w.Rooms = append(w.Rooms, *r)
 	w.index[r.ID] = &w.Rooms[len(w.Rooms)-1]
+}
+
+// FindFaction returns the faction with the given ID, or nil.
+func (w *World) FindFaction(id string) *Faction {
+	for i := range w.Factions {
+		if w.Factions[i].ID == id {
+			return &w.Factions[i]
+		}
+	}
+	return nil
 }
 
 // FindLootTable returns the loot table with the given ID, or nil.

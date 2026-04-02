@@ -71,6 +71,7 @@ var Registry = map[string]HandlerFunc{
 	"disguise": Disguise,
 	"talk":     Talk,
 	"explore":  Explore,
+	"read":     Read,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
@@ -401,8 +402,30 @@ func Help(db *sql.DB, s *player.State, w *world.World, args []string) Result {
   disguise <item>   — equip a disguise item
   talk <npc>        — speak to an NPC
   explore <dir>     — explore an unmapped direction (may generate new rooms)
+  read <item>       — read a readable item in the room
   help / ?          — this list
   quit              — disconnect`}
+}
+
+// Read reads a readable item in the current room.
+func Read(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) == 0 {
+		return Result{Output: "read what?"}
+	}
+	target := strings.Join(args, " ")
+	room := w.Room(s.RoomID)
+	if room == nil {
+		return Result{Output: "nothing to read here."}
+	}
+	for _, item := range room.Items {
+		if strings.Contains(strings.ToLower(item.Name), target) || strings.EqualFold(item.ID, target) {
+			if !item.Readable || item.Content == "" {
+				return Result{Output: "Nothing readable on it."}
+			}
+			return Result{Output: fmt.Sprintf("--- %s ---\n%s", item.Name, item.Content)}
+		}
+	}
+	return Result{Output: "You don't see that here."}
 }
 
 // Skills prints the player's skill levels and XP.
