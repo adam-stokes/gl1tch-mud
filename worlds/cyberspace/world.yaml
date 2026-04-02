@@ -416,6 +416,36 @@ loot_tables:
         probability: 0.22
         count_min: 1
         count_max: 1
+      - item_id: daemon-core-fragment
+        name: Daemon Core Fragment
+        desc: Smoldering piece of a defeated security daemon, still radiating defensive protocols.
+        probability: 0.38
+        count_min: 1
+        count_max: 3
+      - item_id: firewall-shard
+        name: Firewall Shard
+        desc: Jagged crystalline remnant of a perimeter defense system, sharp enough to cut through data walls.
+        probability: 0.32
+        count_min: 1
+        count_max: 2
+      - item_id: encryption-lattice
+        name: Encryption Lattice
+        desc: Intricate geometric structure of locked cryptographic material, partially degraded but still potent.
+        probability: 0.25
+        count_min: 1
+        count_max: 2
+      - item_id: locked-instruction
+        name: Locked Instruction
+        desc: Single sealed command pulled from a daemon's core, its true function hidden behind multiple encryption layers.
+        probability: 0.12
+        count_min: 1
+        count_max: 1
+      - item_id: cache-ghost
+        name: Cache Ghost
+        desc: Phantom memory trace containing echoes of processed data, useful for reconstructing ice patterns.
+        probability: 0.29
+        count_min: 1
+        count_max: 2
   - id: trace-program-loot
     entries:
       - item_id: copper-wire
@@ -448,6 +478,30 @@ loot_tables:
         probability: 0.20
         count_min: 1
         count_max: 2
+      - item_id: signal-ghost
+        name: Signal Ghost
+        desc: Ethereal trace fragment that flickers between coherence and noise, worth salvaging for pattern analysis.
+        probability: 0.35
+        count_min: 1
+        count_max: 2
+      - item_id: void-packet
+        name: Void Packet
+        desc: Corrupted data shell containing fragments of a routed command, decryptable with the right tools.
+        probability: 0.28
+        count_min: 1
+        count_max: 3
+      - item_id: trace-splinter
+        name: Trace Splinter
+        desc: Razor-edged shard of crystallized trace data that cuts through data obfuscation.
+        probability: 0.42
+        count_min: 1
+        count_max: 2
+      - item_id: filter-matrix
+        name: Filter Matrix
+        desc: Latticed code structure used to obscure traffic patterns, valuable for network masking.
+        probability: 0.19
+        count_min: 1
+        count_max: 1
   - id: shepherd-loot
     entries:
       - item_id: carbon-blade
