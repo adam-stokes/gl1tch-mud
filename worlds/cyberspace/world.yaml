@@ -1,138 +1,103 @@
 name: cyberspace
 start_room: net-0
-narrator_model: llama3.2
+narrator_model: claude-haiku-4-5-20251001
+
 factions:
-  - id: ghost-protocol
-    name: "Ghost Protocol"
-    desc: |
-      Former intelligence operatives who burned their covers and went private.
-      They move in the deep net's shadow markets, brokering zero-days and custom
-      exploits to anyone solvent enough to afford them. Loyalty is a liability
-      they stopped carrying years ago.
-    agenda: "Profit from the information arms race by selling the highest bidder whatever they need to win."
-    territory:
-      - net-4
-    allies: []
-    enemies:
-      - axiom-security
   - id: null-collective
     name: "Null Collective"
     desc: |
-      An anarchist hacker cell with no central leadership and no fixed address.
-      They believe data belongs to everyone and corporate information hoarding
-      is a form of violence. They leak, they burn, they disappear. Romantics with
-      root access.
-    agenda: "Tear down the walls around corporate data and return the net to the commons."
+      ZERO's crew. The ones who were there before it all went sideways. They
+      operate out of dead partitions and forgotten infrastructure, running on
+      loyalty to a ghost and a job that was never finished. No hierarchy, no
+      budget, no backup plan. Just the mission ZERO left behind.
+    agenda: "Execute ZERO's final operation — deliver the evidence package to SIGNAL and broadcast it before Axiom can bury it."
     territory:
-      - net-2
-      - net-5
-    allies: []
+      - net-4
+      - gen-f7c2e419
+      - gen-4f2c8e7a
+      - gen-a7f2c891
+    allies:
+      - signal-collective
     enemies:
       - axiom-security
+      - helix-division
+
   - id: axiom-security
-    name: "Axiom Security Division"
+    name: "Axiom Security"
     desc: |
-      The private enforcement arm of a conglomerate whose name changes with every
-      quarterly filing. They run trace programs, maintain the Black ICE corridors,
-      and hunt intrusions for hire. Their operators are indistinguishable from
-      the infrastructure they protect — cold, efficient, and everywhere.
-    agenda: "Locate, neutralise, and prosecute all unauthorized presence in client network space."
+      The private enforcement arm that killed ZERO and thinks the problem died
+      with them. They run the archive sectors, maintain Black ICE corridors, and
+      hunt intrusions with the efficiency of automated processes. Their operators
+      are indistinguishable from the infrastructure they protect — cold, thorough,
+      and funded by people who never appear on org charts.
+    agenda: "Locate and destroy the AI known as SIGNAL before it can broadcast the evidence package ZERO compiled."
     territory:
-      - net-0
       - net-1
-      - net-3
+      - gen-a7f2e4d9
+      - gen-7d4c2a9f
+      - gen-f7d2a841
+    allies:
+      - ghost-protocol
+    enemies:
+      - null-collective
+      - signal-collective
+
+  - id: helix-division
+    name: "Helix Division"
+    desc: |
+      Government intelligence operating under seventeen layers of plausible
+      deniability. They want the 23 backdoor access points SIGNAL would seal —
+      those doors feed their surveillance apparatus across the entire net. They
+      do not care about justice or corporate crime. They care about keeping the
+      lights on in rooms nobody is supposed to know exist.
+    agenda: "Terminate SIGNAL and preserve state-controlled backdoor access to network infrastructure before it is sealed permanently."
+    territory:
+      - net-2
+      - gen-7a3f2c1b
+      - gen-73f4e9ac
+      - gen-7fa2e84c
     allies: []
     enemies:
-      - ghost-protocol
       - null-collective
-  - id: phantom-collective
-    name: Phantom Collective
-    desc: Silent operators who map legacy infrastructure before corporate audits can catch up. They move like ghosts through dormant systems, leaving ghost processes that phone home on random intervals. Their specialty is reconnaissance that stays hidden long enough to matter.
-    agenda: Control the information architecture before the corporations realize what they've lost.
-    territory: []
-    allies: []
-    enemies: []
+      - ghost-protocol
+      - signal-collective
+
+  - id: ghost-protocol
+    name: "Ghost Protocol"
+    desc: |
+      A hired crew running on an Axiom contract with redacted scope and
+      questionable terms. They are good at what they do — triangulation, signal
+      hunting, network interdiction — but the job smells wrong and some of them
+      know it. Professional enough to finish the contract. Human enough to have
+      doubts about what they are actually hunting.
+    agenda: "Fulfill the Axiom contract by locating and capturing the rogue AI designated SIGNAL."
+    territory:
+      - net-5
+      - gen-b4e9f2a6
+      - gen-7a3f5c2e
+      - gen-5f3a8c21
+    allies:
+      - axiom-security
+    enemies:
+      - null-collective
+
   - id: signal-collective
-    name: Signal Collective
-    desc: A distributed network of hackers, pirates, and paranoid operators who architect blackout zones and trade in signal-dead tech. They see ubiquitous RF surveillance as an existential threat and build sanctuaries from it.
-    agenda: Expand dead zones across the grid until corporate signal dominance collapses.
-    territory: []
-    allies: []
-    enemies: []
-  - id: phantom-syndicate
-    name: PHANTOM Syndicate
-    desc: A distributed collective of elite operators running mirror-network infrastructure against global settlement systems. They operate across multiple continents with polymorphic obfuscation signatures, leaving zero forensic footprint. Known for surgical precision against high-value targets and absolute operational security discipline.
-    agenda: Maintain asymmetric financial leverage over G7 central banking systems through persistent, invisible SWIFT layer compromise.
-    territory: []
-    allies: []
-    enemies: []
-  - id: echo-syndicate
-    name: ECHO SYNDICATE
-    desc: Payment processor network specialists running microtransaction laundering through stolen banking infrastructure. Signature method is recursive DNS poisoning chains that fold attribution back on the source, leaving only decoys and fractured logs. They are efficient, disciplined, and increasingly hunted.
-    agenda: Control the flow of untraceable capital through every payment layer they can compromise.
-    territory: []
-    allies: []
-    enemies: []
-  - id: blackwire-collective
-    name: BLACKWIRE COLLECTIVE
-    desc: Underground network of data thieves and surveillance hackers who've turned industrial espionage into art form. They operate across corporate networks in Southeast Asia and beyond, specializing in feed manipulation and data exfiltration. Their trademark is subtle—they make the panopticon see what they want it to see.
-    agenda: Drain corporate secrets and sell them to the highest bidder while keeping their network invisible to every corporate hunter closing in.
-    territory: []
-    allies: []
-    enemies: []
-  - id: helix-division
-    name: Helix Division
-    desc: Deniable operations subsidiary of Obsidian Corp, staffed with corporate black-budget operatives and interrogation specialists. Grants them discretionary asset protection authority under statute, though their budget bleeds constantly chasing sophisticated threats. They move in the shadows between law enforcement and private enforcement.
-    agenda: Contain PHANTOM COLLECTIVE supply-chain poisoning before it destabilizes client infrastructure and Obsidian Corp loses market dominance.
-    territory: []
-    allies: []
-    enemies: []
-  - id: vex-collective
-    name: Vex Collective
-    desc: A network of independent fixers and extraction specialists who operate in the shadows of corporate territory. They move data, people, and contraband through forgotten infrastructure. Silent runners with a reputation for getting the job done.
-    agenda: Destabilize corporate information monopolies by distributing intercepted data to independent operators and street-level hackers.
-    territory: []
-    allies: []
-    enemies: []
-  - id: eclipse-runners
-    name: Eclipse Runners
-    desc: Underground extraction network specializing in corporate defections and talent rescue. They operate across the dead zones with discipline and a reputation for zero left-behinds. Fast, quiet, and expensive.
-    agenda: Extract talent and assets from corporate control before they can be erased or integrated.
-    territory: []
-    allies: []
-    enemies: []
-  - id: silent-collective
-    name: Silent Collective
-    desc: A distributed network of signal-blackout specialists who believe that total electromagnetic silence is the only true freedom. They build dead zones, operate shielded chambers, and traffic in RF-blocking technology. Paranoid, obsessive, effective.
-    agenda: Eliminate all mandatory signal sources and create a network of untraceable safe zones across the sprawl.
-    territory: []
-    allies: []
-    enemies: []
-  - id: signal-runners
-    name: Signal Runners
-    desc: A loose collective of subnet maintenance crews and cache-tenders who keep ghost networks alive on the margins. They trade in ephemeral data and stolen bandwidth, always one step ahead of corporate purges.
-    agenda: Preserve the subnet commons and deny Axiom Security complete network dominance.
-    territory: []
-    allies: []
-    enemies: []
-  - id: signal-dead
-    name: Signal Dead
-    desc: A network of paranoid engineers and exiled netrunners who believe the only safe signal is no signal. They harvest cascade-resonators from corporate sites and fold RF shielding into cages. Obsessed with signal-dead zones and the mathematics of invisible transmission.
-    agenda: Build a grid of disconnected chambers where the surveilled can disappear, one faraday grave at a time.
-    territory: []
-    allies: []
-    enemies: []
+    name: "Signal Collective"
+    desc: |
+      Neutral underground brokers who operate in the margins between factions.
+      They trade in data, rumors, and access — selling to anyone solvent enough
+      to pay and paranoid enough to need what they are selling. They have no
+      allegiance except to the flow of information, which makes them the closest
+      thing to honest operators left on the net.
+    agenda: "Keep the data flowing and the dead zones open. Profit from the information war without becoming a casualty of it."
+    territory:
+      - net-0
+    allies:
+      - null-collective
+    enemies:
+      - axiom-security
+
 crafting_recipes:
-  - id: packet-sniffer
-    name: "Packet Sniffer"
-    ingredients:
-      - {id: raw-silicon, count: 2}
-      - {id: copper-wire, count: 1}
-    output:
-      id: packet-sniffer
-      name: "Packet Sniffer"
-      desc: "Intercepts and logs network traffic. Essential for any serious netrunner."
-    skill_req: 0
   - id: ice-pick
     name: "ICE Pick"
     ingredients:
@@ -141,1627 +106,863 @@ crafting_recipes:
     output:
       id: ice-pick
       name: "ICE Pick"
-      desc: "A specialised tool for cracking Intrusion Countermeasure Electronics."
+      desc: "A specialised tool for cracking Intrusion Countermeasure Electronics. Brute-force puncture meets surgical precision."
       mod_slots: 1
     skill_req: 1
     tier_thresholds: [0, 3, 6]
     tier_names: ["Mk1", "Mk2", "Mk3"]
-  - id: decryption-key
-    name: "Decryption Key"
+
+  - id: signal-dampener
+    name: "Signal Dampener"
     ingredients:
-      - {id: packet-sniffer, count: 1}
-      - {id: data-chip, count: 2}
-    output:
-      id: decryption-key
-      name: "Decryption Key"
-      desc: "Synthesised from captured traffic. Unlocks encrypted partitions."
-    skill_req: 2
-  - id: recipe-resonator-key
-    name: Cascade Resonator
-    ingredients:
-      - {id: server-core, count: 1}
       - {id: copper-wire, count: 2}
-    output:
-      id: cascade-resonator
-      name: Cascade Resonator
-      desc: A jury-rigged device that amplifies weak electrical signals, useful for reading degraded data on damaged storage media.
-    skill_req: 2
-  - id: recipe-surveillance-lens
-    name: Surveillance Lens
-    ingredients:
-      - {id: coolant-cartridge, count: 1}
-      - {id: raw-silicon, count: 1}
-      - {id: packet-sniffer, count: 1}
-    output:
-      id: surveillance-lens
-      name: Surveillance Lens
-      desc: "A heat-dissipated optical module fused from silicon and cooling fluid, capable of \nintercepting wireless transmissions across multiple frequencies. Grants passive \nobservation of network traffic within proximity.\n"
-    skill_req: 2
-  - id: recipe-cache-breaker
-    name: Cache Breaker
-    ingredients:
-      - {id: coolant-cartridge, count: 1}
-      - {id: raw-silicon, count: 2}
-      - {id: decryption-key, count: 1}
-    output:
-      id: cache-breaker
-      name: Cache Breaker
-      desc: "A volatile silicon construct suspended in reactive coolant, engineered to corrupt \ndigital caches and purge surveillance logs. Temporary but effective for covering tracks \nin monitored systems.\n"
-    skill_req: 2
-  - id: recipe-ghost-cloak
-    name: Ghost Cloak
-    ingredients:
-      - {id: rf-dampener-core, count: 1}
-      - {id: copper-wire, count: 3}
       - {id: response-dampener, count: 1}
     output:
-      id: ghost-cloak-mk1
-      name: Ghost Cloak
-      desc: A wearable electromagnetic veil that masks RF signatures for short bursts. Walk silent, disappear from corporate sensors. Lasts until you transmit.
+      id: signal-dampener
+      name: "Signal Dampener"
+      desc: "Suppresses outgoing RF signatures within a short radius. Walk quiet, stay invisible."
     skill_req: 2
-  - id: recipe-signal-harvester
-    name: Signal Harvester Assembly
+
+  - id: zero-key
+    name: "Zero Key"
     ingredients:
-      - {id: raw-silicon, count: 1}
-      - {id: copper-wire, count: 2}
-    output:
-      id: signal-harvester
-      name: Signal Harvester
-      desc: |
-        A delicate lattice of silicon traces and copper coils that siphons wireless data
-        from nearby networks. Bleeds electromagnetic noise with every pulse.
-    skill_req: 1
-  - id: recipe-vault-breaker
-    name: Vault Breaker Kit
-    ingredients:
-      - {id: copper-wire, count: 1}
-      - {id: ice-pick, count: 1}
       - {id: decryption-key, count: 1}
+      - {id: cascade-resonator, count: 1}
     output:
-      id: vault-breaker
-      name: Vault Breaker
-      desc: |
-        A hybrid tool that combines brute-force puncture with cryptographic override.
-        Extracts encrypted payloads from hardened server cores when force meets keys.
-    skill_req: 2
-  - id: recipe-isolation-layer
-    name: Isolation Layer
-    ingredients:
-      - {id: cooling-manifold-breach, count: 1}
-      - {id: copper-wire, count: 2}
-    output:
-      id: isolation-shim
-      name: Network Isolation Shim
-      desc: Blocks external signature detection on encrypted protocols.
-    skill_req: 2
-  - id: recipe-memory-restoration
-    name: Memory Reconstruction
-    ingredients:
-      - {id: corrupted-memory-shard, count: 3}
-      - {id: decryption-key, count: 1}
-    output:
-      id: restored-archive-log
-      name: Restored Archive Log
-      desc: Fragments of coherent memory, enough to understand what was lost here.
+      id: zero-key
+      name: "Zero Key"
+      desc: "A composite cryptographic key forged from ZERO's decryption methodology. Opens doors that were never supposed to exist."
     skill_req: 3
-  - id: recipe-panopticon-blind
-    name: Panopticon Blind Spot Charge
-    ingredients:
-      - {id: corruption-kit-feed, count: 1}
-      - {id: raw-silicon, count: 2}
-    output:
-      id: blind-spot-charge
-      name: Blind Spot Charge
-      desc: Weaponized feed corruption payload that creates localized surveillance gaps. HSO's algorithms will ignore anything in the radius.
-    skill_req: 2
-  - id: recipe-cipher-phantom
-    name: Cipher Phantom
-    ingredients:
-      - {id: packet-sniffer, count: 1}
-      - {id: decryption-key, count: 1}
-      - {id: data-chip, count: 1}
-    output:
-      id: cipher-phantom
-      name: Cipher Phantom
-      desc: |
-        A spectral network probe that decrypts live packet streams in real-time.
-        Invisible to most ICE, it ghosts through corporate intranets harvesting unfiltered data.
-    skill_req: 2
-  - id: recipe-traffic-wraith
-    name: Traffic Wraith
-    ingredients:
-      - {id: packet-sniffer, count: 1}
-      - {id: decryption-key, count: 1}
-      - {id: ice-pick, count: 1}
-    output:
-      id: traffic-wraith
-      name: Traffic Wraith
-      desc: |
-        A vicious decryption daemon that tears through encrypted channels and peels back network masks.
-        Leaves burning signatures in its wake, exposing hidden comm protocols and buried surveillance feeds.
-    skill_req: 2
-  - id: recipe-spoof-beacon
-    name: Spoof Beacon
-    ingredients:
-      - {id: data-chip, count: 1}
-      - {id: copper-wire, count: 2}
-      - {id: packet-sniffer, count: 1}
-    output:
-      id: spoof-beacon
-      name: Spoof Beacon
-      desc: |
-        A signal jammer rigged with false network identities. Broadcasts phantom data signatures
-        across local networks to mask actual traffic sources and confuse ICE surveillance systems.
-    skill_req: 2
-  - id: recipe-mirror-protocol-adapter
-    name: Mirror Protocol Adapter
-    ingredients:
-      - {id: data-chip, count: 1}
-      - {id: copper-wire, count: 1}
-      - {id: decryption-key, count: 1}
-      - {id: response-dampener, count: 1}
-    output:
-      id: mirror-protocol-adapter
-      name: Mirror Protocol Adapter
-      desc: |
-        A parasitic adapter that intercepts and mirrors encrypted responses back to their source,
-        creating false echoes that fool authentication handshakes. Perfect for spoofing trusted systems.
-    skill_req: 3
-  - id: recipe-thermal-ghost-cloak
-    name: Thermal Ghost Cloak
-    ingredients:
-      - {id: ice-fragment, count: 1}
-      - {id: coolant-cartridge, count: 1}
-      - {id: response-dampener, count: 1}
-    output:
-      id: thermal-ghost-cloak
-      name: Thermal Ghost Cloak
-      desc: |
-        A jury-rigged heat-sink lattice that bleeds your thermal signature into ambient
-        noise. Worn as an undersuit, it renders you invisible to thermal imaging for
-        short bursts. The coolant cycles only last minutes before needing a full recharge.
-    skill_req: 2
-  - id: recipe-cascade-shadow-mask
-    name: Cascade Shadow Mask
-    ingredients:
-      - {id: ice-fragment, count: 1}
-      - {id: coolant-cartridge, count: 1}
-      - {id: cascade-resonator, count: 1}
-    output:
-      id: cascade-shadow-mask
-      name: Cascade Shadow Mask
-      desc: |
-        A feedback loop device that mirrors incoming sensor pings back at their source,
-        scattering your location across phantom positions on the net. Effective against
-        passive tracking until the resonance cascade destabilizes and burns out.
-    skill_req: 2
-  - id: recipe-packet-ghost-core
-    name: Packet Ghost Device
-    ingredients:
-      - {id: raw-silicon, count: 1}
-      - {id: copper-wire, count: 2}
-      - {id: packet-sniffer, count: 1}
-    output:
-      id: packet-ghost-core
-      name: Packet Ghost Core
-      desc: |
-        A substrate of mirrored copper traces threaded through raw silicon,
-        designed to render network traffic invisible to passive surveillance nodes.
-    skill_req: 2
-  - id: recipe-trace-killer-module
-    name: Trace Killer Module
-    ingredients:
-      - {id: raw-silicon, count: 1}
-      - {id: copper-wire, count: 1}
-      - {id: ice-pick, count: 1}
-      - {id: response-dampener, count: 1}
-    output:
-      id: trace-killer-module
-      name: Trace Killer Module
-      desc: |
-        A hybrid circuit board hardened with crystalline points that shatters
-        digital footprints and dampens response signals before detection logs occur.
-    skill_req: 2
-  - id: recipe-thermal-ghost-rig
-    name: Thermal Ghost Rig
-    ingredients:
-      - {id: ice-fragment, count: 1}
-      - {id: coolant-cartridge, count: 1}
-      - {id: response-dampener, count: 1}
-    output:
-      id: thermal-ghost-rig
-      name: Thermal Ghost Rig
-      desc: |
-        A cryogenic masking harness that bleeds waste heat into null-space,
-        rendering you invisible to thermal imaging and overhead surveillance.
-    skill_req: 2
-  - id: recipe-signal-scatter-device
-    name: Signal Scatter Device
-    ingredients:
-      - {id: coolant-cartridge, count: 1}
-      - {id: ice-fragment, count: 1}
-      - {id: packet-sniffer, count: 1}
-    output:
-      id: signal-scatter-device
-      name: Signal Scatter Device
-      desc: |
-        A pulse-jamming node that floods local mesh with decoy traffic,
-        fragmenting your digital footprint across a thousand false vectors.
-    skill_req: 2
-  - id: recipe-bypass-harness
-    name: Breach Bypass Harness
-    ingredients:
-      - {id: copper-wire, count: 2}
-      - {id: ice-pick, count: 1}
-    output:
-      id: breach-harness-quick
-      name: Quick Breach Harness
-      desc: A jury-rigged data tap and lock-pick combo. Works once before burning out. Desperate times.
-    skill_req: 2
-  - id: recipe-safe-passage
-    name: Safe Passage Protocol
-    ingredients:
-      - {id: signal-jammer, count: 1}
-      - {id: data-chip, count: 1}
-    output:
-      id: routing-bypass
-      name: Routing Bypass
-      desc: Compiled sequence that lets you slip through surveillance nets before the algorithms adapt. Single use only.
-    skill_req: 2
-  - id: recipe-signal-cloak
-    name: Signal Cloak Assembly
-    ingredients:
-      - {id: response-dampener, count: 1}
-      - {id: cascade-resonator, count: 1}
-      - {id: copper-wire, count: 2}
-    output:
-      id: signal-cloak-mk2
-      name: Signal Cloak Mark II
-      desc: A wearable Faraday vest that scrambles tracking signatures within a three-meter radius. Hums softly. Smells like ozone.
-    skill_req: 2
-  - id: recipe-signal-tap
-    name: Signal Tap Module
-    ingredients:
-      - {id: packet-sniffer, count: 1}
-      - {id: copper-wire, count: 2}
-      - {id: relay-bleed-packet, count: 1}
-    output:
-      id: signal-tap-module
-      name: Signal Tap Module
-      desc: A repurposed sniffer tuned to bleed idle bandwidth. Lets you ghost through monitored relays without triggering hardened alerts.
-    skill_req: 2
-  - id: recipe-deadzone-anchor
-    name: Deadzone Anchor
-    ingredients:
-      - {id: faraday-mesh, count: 2}
-      - {id: cascade-resonator, count: 1}
-      - {id: rf-detuner, count: 1}
-    output:
-      id: signal-deadzone-anchor
-      name: Signal Deadzone Anchor
-      desc: A compact RF well that collapses all transmission into static. Plant it. Watch the surveillance drones search the void. Paranoia becomes probability in the dark.
-    skill_req: 2
+
 loot_tables:
   - id: ice-daemon-loot
     entries:
-      - item_id: data-chip
-        name: "Data Chip"
-        desc: "A fragment of stolen data. Worth something to the right buyer."
-        probability: 0.7
-        count_min: 1
-        count_max: 2
-      - item_id: raw-silicon
-        name: "Raw Silicon"
-        desc: "Unprocessed chip substrate."
-        probability: 0.5
-        count_min: 1
-        count_max: 3
-      - item_id: void-core-fragment
-        name: Void Core Fragment
-        desc: A shard of corrupted defense code that destabilizes security protocols on contact.
-        probability: 0.40
-        count_min: 1
-        count_max: 3
-      - item_id: black-mirror-shard
-        name: Black Mirror Shard
-        desc: Reflective circuit substrate that bounces intrusion detection back at its source.
-        probability: 0.25
-        count_min: 1
-        count_max: 2
-      - item_id: wraithware-seed
-        name: Wraithware Seed
-        desc: Dormant malware code that leaves no footprint once executed and purged.
-        probability: 0.12
-        count_min: 1
-        count_max: 1
-      - item_id: encryption-shard
-        name: Encryption Shard
-        desc: Crystallized fragment of ICE defensive protocols holding partial key material.
-        probability: 0.45
-        count_min: 1
-        count_max: 3
-      - item_id: firewall-residue
-        name: Firewall Residue
-        desc: Scorched data patterns left behind from ICE barrier collapse.
-        probability: 0.38
-        count_min: 1
-        count_max: 2
-      - item_id: trace-fragment
-        name: Trace Fragment
-        desc: Shadowed log entry capturing ICE attack vector and response sequence.
-        probability: 0.28
-        count_min: 1
-        count_max: 2
-      - item_id: void-module
-        name: Void Module
-        desc: Extracted ICE security chamber containing null-state data structures.
-        probability: 0.15
-        count_min: 1
-        count_max: 1
-      - item_id: corruption-seed
-        name: Corruption Seed
-        desc: Dormant attack pattern that propagates through connected systems slowly.
-        probability: 0.22
-        count_min: 1
-        count_max: 1
-      - item_id: daemon-core-fragment
-        name: Daemon Core Fragment
-        desc: Smoldering piece of a defeated security daemon, still radiating defensive protocols.
-        probability: 0.38
-        count_min: 1
-        count_max: 3
-      - item_id: firewall-shard
-        name: Firewall Shard
-        desc: Jagged crystalline remnant of a perimeter defense system, sharp enough to cut through data walls.
-        probability: 0.32
-        count_min: 1
-        count_max: 2
-      - item_id: encryption-lattice
-        name: Encryption Lattice
-        desc: Intricate geometric structure of locked cryptographic material, partially degraded but still potent.
-        probability: 0.25
-        count_min: 1
-        count_max: 2
-      - item_id: locked-instruction
-        name: Locked Instruction
-        desc: Single sealed command pulled from a daemon's core, its true function hidden behind multiple encryption layers.
-        probability: 0.12
-        count_min: 1
-        count_max: 1
-      - item_id: cache-ghost
-        name: Cache Ghost
-        desc: Phantom memory trace containing echoes of processed data, useful for reconstructing ice patterns.
-        probability: 0.29
-        count_min: 1
-        count_max: 2
-      - item_id: cryogenic-fuel
-        name: Cryogenic Fuel Cell
-        desc: Depleted cold-storage unit still radiating absolute temperatures.
-        probability: 0.28
-        count_min: 1
-        count_max: 2
-      - item_id: permafrost-key
-        name: Permafrost Encryption Key
-        desc: Frozen cryptographic token locked in subzero polymers.
-        probability: 0.22
-        count_min: 1
-        count_max: 1
-      - item_id: void-register
-        name: Void Register
-        desc: Corrupted processor register containing undefined bit sequences.
-        probability: 0.15
-        count_min: 1
-        count_max: 2
-      - item_id: glacier-shard
-        name: Glacier Shard Fragment
-        desc: Jagged ice-core architecture piece salvaged from frozen datacenters.
-        probability: 0.35
-        count_min: 1
-        count_max: 3
-  - id: trace-program-loot
+      - {item_id: data-chip, name: "Data Chip", desc: "A small chip containing encrypted data fragments.", probability: 0.7, count_min: 1, count_max: 2}
+      - {item_id: ice-fragment, name: "ICE Fragment", desc: "A shard of broken intrusion countermeasure code.", probability: 0.45, count_min: 1, count_max: 1}
+      - {item_id: raw-silicon, name: "Raw Silicon", desc: "Unprocessed silicon wafer salvaged from damaged hardware.", probability: 0.3, count_min: 1, count_max: 2}
+
+  - id: handler-voss-loot
     entries:
-      - item_id: copper-wire
-        name: "Copper Wire"
-        desc: "Stripped from a deactivated trace program."
-        probability: 1.0
-        count_min: 1
-        count_max: 2
-      - item_id: data-chip
-        name: "Data Chip"
-        desc: "Captured trace data."
-        probability: 0.4
-        count_min: 1
-        count_max: 1
-      - item_id: firewall-shard
-        name: Firewall Shard
-        desc: Fragment of corrupted defensive code that burns with hostile intent.
-        probability: 0.35
-        count_min: 1
-        count_max: 2
-      - item_id: virus-strain
-        name: Virus Strain
-        desc: Bottled malware with an unpredictable mutation profile.
-        probability: 0.25
-        count_min: 1
-        count_max: 3
-      - item_id: bandwidth-siphon
-        name: Bandwidth Siphon
-        desc: Contraband code fragment for draining traffic undetected.
-        probability: 0.20
-        count_min: 1
-        count_max: 2
-      - item_id: signal-ghost
-        name: Signal Ghost
-        desc: Ethereal trace fragment that flickers between coherence and noise, worth salvaging for pattern analysis.
-        probability: 0.35
-        count_min: 1
-        count_max: 2
-      - item_id: void-packet
-        name: Void Packet
-        desc: Corrupted data shell containing fragments of a routed command, decryptable with the right tools.
-        probability: 0.28
-        count_min: 1
-        count_max: 3
-      - item_id: trace-splinter
-        name: Trace Splinter
-        desc: Razor-edged shard of crystallized trace data that cuts through data obfuscation.
-        probability: 0.42
-        count_min: 1
-        count_max: 2
-      - item_id: filter-matrix
-        name: Filter Matrix
-        desc: Latticed code structure used to obscure traffic patterns, valuable for network masking.
-        probability: 0.19
-        count_min: 1
-        count_max: 1
-  - id: shepherd-loot
+      - {item_id: keycard, name: "Axiom Keycard", desc: "An expired but potentially useful Axiom Security access card.", probability: 0.8, count_min: 1, count_max: 1}
+      - {item_id: decryption-key, name: "Decryption Key", desc: "A cryptographic key pulled from Axiom systems.", probability: 0.5, count_min: 1, count_max: 1}
+      - {item_id: copper-wire, name: "Copper Wire", desc: "Standard conductor salvaged from corporate infrastructure.", probability: 0.6, count_min: 1, count_max: 3}
+
+  - id: keeper-loot
     entries:
-      - item_id: carbon-blade
-        name: "Carbon Blade"
-        desc: "A razor-thin tool used for precision cutting. Dropped by The Shepherd."
-        probability: 1.0
-        count_min: 1
-        count_max: 1
-      - item_id: data-chip
-        name: "Data Chip"
-        desc: "Ancient knowledge. The Shepherd hoarded it."
-        probability: 0.9
-        count_min: 2
-        count_max: 5
-      - item_id: signal-jammer-module
-        name: Signal Jammer Module
-        desc: A compact device that scrambles wireless communications within a short radius.
-        probability: 0.35
-        count_min: 1
-        count_max: 2
-      - item_id: neural-shunt-adapter
-        name: Neural Shunt Adapter
-        desc: Interface hardware that allows brief connection to non-standardized implant systems.
-        probability: 0.20
-        count_min: 1
-        count_max: 1
-      - item_id: signal-jammer
-        name: Signal Jammer
-        desc: Portable device that disrupts local wireless communications in short bursts.
-        probability: 0.35
-        count_min: 1
-        count_max: 2
-      - item_id: herd-beacon
-        name: Herd Beacon
-        desc: Tracking node used to monitor movement patterns across crowds.
-        probability: 0.25
-        count_min: 1
-        count_max: 1
-      - item_id: static-crown
-        name: Static Crown
-        desc: Neural disruptor that fragments nearby sensory input for targets.
-        probability: 0.40
-        count_min: 1
-        count_max: 3
-      - item_id: echo-beacon
-        name: Echo Beacon
-        desc: Repeater module that amplifies and redirects communication signals.
-        probability: 0.30
-        count_min: 1
-        count_max: 2
-      - item_id: signal-booster
-        name: Signal Booster
-        desc: Worn amplifier that extends range and pierces signal jamming.
-        probability: 0.42
-        count_min: 1
-        count_max: 2
-      - item_id: trace-jammer
-        name: Trace Jammer
-        desc: Pulse emitter that confuses location tracking systems.
-        probability: 0.38
-        count_min: 1
-        count_max: 3
-      - item_id: memory-shard
-        name: Memory Shard
-        desc: Salvaged storage unit containing fragmented data or obsolete code.
-        probability: 0.45
-        count_min: 1
-        count_max: 2
-      - item_id: static-cloak
-        name: Static Cloak
-        desc: Electromagnetic veil that scatters recognition algorithms and heat signatures.
-        probability: 0.28
-        count_min: 1
-        count_max: 2
-      - item_id: pulse-disruptor
-        name: Pulse Disruptor
-        desc: Compact device that causes temporary electronic interference in a localized area.
-        probability: 0.15
-        count_min: 1
-        count_max: 1
-  - id: keeper-vault-loot
+      - {item_id: data-chip, name: "Data Chip", desc: "A small chip containing encrypted data fragments.", probability: 0.6, count_min: 1, count_max: 1}
+      - {item_id: maintenance-log, name: "Maintenance Log", desc: "A system log with routine entries and buried anomalies.", probability: 0.4, count_min: 1, count_max: 1}
+
+  - id: wire-loot
     entries:
-      - item_id: server-core
-        name: Crystalline Server Core
-        desc: A hand-sized lattice of fused silicon and rare earths, still faintly warm.
-        probability: 0.60
-        count_min: 1
-        count_max: 1
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: copper-wire
-        name: Copper Wire
-        desc: Stripped from the old infrastructure, still valuable to those who know where to sell.
-        probability: 0.55
-        count_min: 2
-        count_max: 4
-      - item_id: chrome-implant
-        name: Chrome Implant
-        desc: Wetware upgrade component still faintly warm to the touch.
-        probability: 0.45
-        count_min: 1
-        count_max: 2
-      - item_id: circuit-lattice
-        name: Circuit Lattice
-        desc: Delicate mesh of rare conductor arranged in fractal geometry.
-        probability: 0.30
-        count_min: 1
-        count_max: 3
-      - item_id: heat-sink-core
-        name: Heat-sink Core
-        desc: Salvaged from a black-ICE corpse, still radiating ambient cold.
-        probability: 0.15
-        count_min: 1
-        count_max: 1
-      - item_id: chrome-splice
-        name: Chrome Splice
-        desc: A fused fragment of military-grade chrome harvested from decommissioned security rigs.
-        probability: 0.35
-        count_min: 1
-        count_max: 2
-      - item_id: zero-warrant
-        name: Zero Warrant
-        desc: Cryptographic token that grants temporary unrestricted access to protected networks.
-        probability: 0.25
-        count_min: 1
-        count_max: 1
-      - item_id: black-ice-shard
-        name: Black Ice Shard
-        desc: Lethal defensive ICE fragment that corrupts or destroys anything attempting intrusion.
-        probability: 0.18
-        count_min: 1
-        count_max: 3
-      - item_id: vault-cipher
-        name: Vault Cipher
-        desc: Proprietary encryption algorithm carved into a shielded data core.
-        probability: 0.32
-        count_min: 1
-        count_max: 2
-      - item_id: breach-protocol
-        name: Breach Protocol
-        desc: Exploitable sequence encoded in corrupted security firmware.
-        probability: 0.22
-        count_min: 1
-        count_max: 1
-  - id: keeper-moth-loot
+      - {item_id: copper-wire, name: "Copper Wire", desc: "Standard conductor salvaged from Null Collective stores.", probability: 0.7, count_min: 1, count_max: 2}
+      - {item_id: raw-silicon, name: "Raw Silicon", desc: "Unprocessed silicon wafer from decommissioned hardware.", probability: 0.5, count_min: 1, count_max: 2}
+
+  - id: spike-loot
     entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: coolant-cartridge
-        name: Coolant Cartridge
-        desc: A half-spent pressurized canister, still cold to the touch.
-        probability: 0.4
-        count_min: 1
-        count_max: 1
-      - item_id: phase-veil
-        name: Phase Veil Module
-        desc: Shimmering holographic fragment that bends light around small objects.
-        probability: 0.25
-        count_min: 1
-        count_max: 2
-      - item_id: signal-jammer
-        name: Signal Jammer Chip
-        desc: Corrupted microprocessor that disrupts wireless surveillance frequencies.
-        probability: 0.18
-        count_min: 1
-        count_max: 1
-      - item_id: mimic-core
-        name: Mimic Core Processor
-        desc: Adaptive logic board that learns and replicates neural patterns.
-        probability: 0.32
-        count_min: 1
-        count_max: 3
-      - item_id: flutter-cache
-        name: Flutter Cache Buffer
-        desc: High-speed memory module designed for rapid data duplication.
-        probability: 0.20
-        count_min: 1
-        count_max: 2
-  - id: cipher-runner-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.6
-        count_min: 1
-        count_max: 2
-      - item_id: copper-wire
-        name: Copper Wire
-        desc: High-purity conductor, salvaged from a signal-dampening array.
-        probability: 0.35
-        count_min: 2
-        count_max: 3
-      - item_id: rf-dampener-core
-        name: RF Dampener Core
-        desc: A crystalline lattice matrix, still warm, engineered to absorb electromagnetic radiation across multiple frequencies.
-        probability: 0.25
-        count_min: 1
-        count_max: 1
-  - id: apex-runner-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: mirror-access-token
-        name: Mirror Access Token
-        desc: Temporary credentials to a phantom mirror node.
-        probability: 0.35
-        count_min: 1
-        count_max: 1
-  - id: vagrant-archive-keeper-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: corrupted-memory-shard
-        name: Corrupted Memory Shard
-        desc: A crystalline sliver pulsing with fragmented sequences.
-        probability: 0.5
-        count_min: 1
-        count_max: 1
-  - id: kess-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: Fragment of intercepted transaction log, valuable to the right fence.
-        probability: 0.7
-        count_min: 1
-        count_max: 2
-      - item_id: decryption-key
-        name: Decryption Key
-        desc: Partial key to older HSO surveillance data format.
-        probability: 0.35
-        count_min: 1
-        count_max: 1
-  - id: handler-cipher-keen-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: decryption-key
-        name: Decryption Key
-        desc: Cryptographic material for unlocking Obsidian Corp secure comms.
-        probability: 0.4
-        count_min: 1
-        count_max: 1
-  - id: cipher-runner-korr-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.60
-        count_min: 1
-        count_max: 2
-      - item_id: maintenance-log
-        name: Maintenance Log
-        desc: A faded logbook detailing system vulnerabilities and bypass codes.
-        probability: 0.40
-        count_min: 1
-        count_max: 1
-      - item_id: emergency-transponder
-        name: Emergency Transponder
-        desc: A compact distress beacon, pre-programmed to summon extraction at any grid junction.
-        probability: 0.25
-        count_min: 1
-        count_max: 1
-  - id: spike-runner-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: Stolen extraction vectors, worth serious money to the right syndicate.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: keycard
-        name: Keycard
-        desc: Blank access card with ghost protocols embedded in magnetic strip.
-        probability: 0.35
-        count_min: 1
-        count_max: 1
-      - item_id: override-module
-        name: Override Module
-        desc: Custom firmware chip designed to bypass relay station lockdowns.
-        probability: 0.25
-        count_min: 1
-        count_max: 1
-  - id: signal-null-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: cascade-resonator
-        name: Cascade Resonator
-        desc: A signal-shaping device, resonates at frequencies that disrupt RF tracking.
-        probability: 0.4
-        count_min: 1
-        count_max: 1
-      - item_id: shielded-datapad
-        name: Shielded Datapad
-        desc: A portable terminal wrapped in grounded wire, still locked with a passphrase.
-        probability: 0.2
-        count_min: 1
-        count_max: 1
-  - id: cache-keep-vex-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: A fragment of stolen data, worth something to the right buyer.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: coolant-cartridge
-        name: Coolant Cartridge
-        desc: Half-empty but still useful for keeping rigs from frying.
-        probability: 0.35
-        count_min: 1
-        count_max: 1
-      - item_id: relay-bleed-packet
-        name: Relay Bleed Packet
-        desc: Compressed partition of data that leaked during a reroute.
-        probability: 0.20
-        count_min: 1
-        count_max: 1
-  - id: static-ghost-loot
-    entries:
-      - item_id: data-chip
-        name: Data Chip
-        desc: Blacklisted telemetry packet, encrypted in an old standard.
-        probability: 0.65
-        count_min: 1
-        count_max: 2
-      - item_id: rf-detuner
-        name: RF Detuner
-        desc: Hand-wound coil assembly that whispers dead frequencies into the mesh.
-        probability: 0.35
-        count_min: 1
-        count_max: 1
-      - item_id: ice-fragment
-        name: Ice Fragment
-        desc: Corrupted ICE shard, inert outside the cage, dangerous within.
-        probability: 0.25
-        count_min: 1
-        count_max: 1
+      - {item_id: packet-sniffer, name: "Packet Sniffer", desc: "Intercepts and logs network traffic passing through local nodes.", probability: 0.65, count_min: 1, count_max: 1}
+      - {item_id: data-chip, name: "Data Chip", desc: "A small chip containing encrypted data fragments.", probability: 0.5, count_min: 1, count_max: 2}
+
 rooms:
+  # ── HUB ────────────────────────────────────────────────────────────────
   - id: net-0
     name: "The Gibson — Entry Node"
     desc: |
-      Neon data streams pulse overhead. The air smells like ozone and burnt silicon.
-      You are jacked in. Two corridors branch into darkness ahead.
+      The first thing you see is the light — pale green phosphor washing over
+      stacked terminal frames and cable runs that disappear into the floor like
+      root systems. This is the Gibson, the entry node, the place where every
+      connection starts and most of them end. Signal Collective brokers work the
+      margins here, selling access and information to anyone with credits and the
+      sense not to ask where it came from.
     exits:
       north: net-1
-      east: net-2
-    systems:
-      - id: entry-terminal
-        security_level: 2
-        reward_item: raw-silicon
-        reward_text: "You crack the entry terminal and extract raw silicon from its buffer."
-    npcs:
-      - id: ice-daemon-0
-        name: "Black ICE Daemon"
-        hp: 30
-        attack: 8
-        desc: "A faceless enforcer. Its eyes are red LEDs."
-        loot_table_id: ice-daemon-loot
-        dialogue:
-          - trigger: "always"
-            text: "INTRUDER DETECTED. INITIATING COUNTERMEASURES."
-    items: []
-  - id: net-1
-    name: "Archive Sector"
-    desc: |
-      Dusty memory cores line the walls, stacked floor to ceiling.
-      Some are cracked. Data leaks out in faint blue wisps.
-      A secure vault door leads north — it looks sealed tight.
-    exits:
-      south: net-0
-      east: net-3
-      north: net-4
-    systems:
-      - id: archive-console
-        security_level: 4
-        reward_item: copper-wire
-        reward_text: "Deep in the archive you find a coil of copper wire — useful for crafting."
-    locks:
-      - id: vault-door
-        exit: north
-        difficulty: 5
-        keys:
-          - keycard
-    npcs: []
-    items:
-      - id: root-key
-        name: "Root Access Key"
-        desc: "A crystalline token the size of a thumbnail. It hums with potential."
-      - id: keycard
-        name: "Security Keycard"
-        desc: "An old keycard. Still valid, if the vault hasn't rotated credentials."
-      - id: hazmat-suit
-        name: "Hazmat Suit"
-        desc: "An environmental protection suit repurposed for netrunner disguise ops."
-        is_disguise: true
-      - id: blueprint-ice-pick
-        name: "ICE Pick Blueprint"
-        desc: "A technical schematic for crafting tiered ICE Pick tools. Decode to unlock the recipe."
-        is_blueprint: true
-        unlocks_recipe: ice-pick
-      - id: axiom-vendor-cache
-        name: Encrypted Transmission
-        desc: A truncated packet fragment bearing Axiom Security registry markers, timestamp metadata partially decrypted.
-        readable: true
-        content: |-
-          [AX-PRIORITY-VECTOR] 2026-03-29 14:47Z
-          Package integrity compromised across broker distribution tier. Authentication handshake layer inverted via poisoned vendor certificate injected 2026-03-27. Asset in Meridian infrastructure confirmed payload delivery and broker network contamination. All competing feeds now propagating corrupted data without detection window. Third-party supply chain fully mapped.
-          Liquidate Meridian asset on 2026-04-06. Begin acquisition of their downstream clients while they hemorrhage credibility.
-  - id: net-2
-    name: "Trace Corridor"
-    desc: |
-      The walls here are translucent. You can see other programs moving through
-      adjacent sectors — they haven't noticed you yet.
-    exits:
-      west: net-0
       south: net-5
-    systems:
-      - id: trace-router
-        security_level: 6
-        reward_item: data-chip
-        reward_text: "You reroute the trace program's uplink and pocket a data chip."
-        ice: active
+      east: net-2
+      west: net-4
     npcs:
-      - id: trace-program-0
-        name: "Trace Program"
-        hp: 20
-        attack: 5
-        desc: "A sleek hunter-killer. Fast, relentless, dumb."
-        loot_table_id: trace-program-loot
+      - id: switch
+        name: "Switch"
+        hp: 0
+        attack: 0
+        desc: "A Signal Collective broker with quick eyes and quicker hands."
         trades:
-          - id: trade-data
-            wants:
-              - id: data-chip
-                count: 1
-            offers:
-              - id: encryption-key
-                name: "Encryption Key"
-                desc: "Bypasses standard auth layers."
-                count: 1
-            faction_req: "netrunners:3"
+          - id: switch-trade-1
+            wants: [{id: data-chip, count: 1}]
+            offers: [{id: packet-sniffer, name: "Packet Sniffer", desc: "Intercepts and logs network traffic.", count: 1}]
         dialogue:
-          - trigger: "disguise:hazmat-suit"
-            text: "Maintenance crew? Pass through. Don't touch anything."
-          - trigger: "has_item:root-key"
-            text: "That key... where did you get that? The Shepherd will be angry."
-          - trigger: "always"
-            text: "You shouldn't be in this sector. Turn around."
+          - trigger: always
+            text: "Everything's for sale here. What are you shopping for?"
+          - trigger: "has_item:zero-dead-drop"
+            text: "ZERO's dead drop. You found it. Then you know what we're all waiting for."
     items:
-      - id: deck-patch
-        name: "Neural Deck Patch"
-        desc: "Restores 25 HP when used."
-      - id: journalist-dead-drop
-        name: Encrypted Handoff Log
-        desc: A crumpled printout with cascade-corrected timestamps and fragment hashes, still warm from the burner.
+      - id: fragmented-signal
+        name: "Fragmented Signal Burst"
+        desc: "A degraded transmission fragment that loops on repeat, hinting at something larger hidden deeper in the network."
         readable: true
-        content: |-
-          [2026-04-01 03:47 UTC] PHANTOM-COLLECTIVE TO INDEPENDENT COLLECTIVE
-          Package contents verified. Classification seals from Axiom SecOps. Witness statements. Project codenames. Budget allocations for drone swarms targeting the Undercity. Three journalists on protective detail now. They go live in 48 hours. System is already scrubbing—expect legal harassment, infrastructure attacks. This exposure threads the needle between revolution and annihilation. Ghost-Protocol will not appreciate the ripple. Status: committed to the edge. No abort vector.
+        signal_tier: signal
+        content: |
+          PARTIAL INTERCEPT — ORIGIN UNKNOWN — DATE CORRUPTED
+          ...collective... the broadcast architecture is... ready...
+          ...SIGNAL will execute on activation... all relay nodes must...
+          ...null collective holds the key... ZERO prepared...
+          TRANSMISSION ENDS — SIGNAL DEGRADED
+    systems: []
+    locks: []
+
   - id: net-3
     name: "The Core"
     desc: |
-      This is it. The heart of The Gibson. Data cascades from floor to ceiling
-      in blinding columns of light. Something vast and old watches you from
-      the centre of the room.
+      The deepest partition on the net. The air hums with processor heat and the
+      walls pulse with data streams too dense to parse visually. This is where
+      SIGNAL lives — an AI built by a dead hacker to finish a job that got them
+      killed. The broadcast node sits in the center of the room like an altar,
+      waiting for the command that will change everything or nothing at all.
+    exits:
+      east: net-1
+      south: net-2
+    npcs:
+      - id: signal
+        name: "SIGNAL"
+        hp: 0
+        attack: 0
+        desc: "An artificial intelligence manifesting as shifting patterns of light across every surface in the room."
+        dialogue:
+          - trigger: always
+            text: "ZERO built me to finish something. I am still finishing it. You are ZERO's crew. I recognize the signature."
+          - trigger: "has_item:activation-shard-alpha"
+            text: "You have the activation shard. Hack the broadcast node when you are ready. There is no going back."
+            quest_id: q-give-signal-go
+    items:
+      - id: zeros-final-log
+        name: "ZERO's Final Log"
+        desc: "A personal log entry sealed with ZERO's cryptographic signature, dated three days before they died."
+        readable: true
+        signal_tier: ghost
+        content: |
+          PERSONAL LOG — ZERO — 2026-03-29
+          The evidence package is compiled. Twenty-three backdoor access points
+          documented. Financial records, surveillance overreach, the assassination
+          orders — all of it. SIGNAL is ready. The broadcast architecture is in
+          place. If you are reading this, I did not make it to the broadcast node.
+          The crew knows what to do. Finish it.
+          — ZERO
+    systems:
+      - id: broadcast-node
+        security_level: 4
+        reward_item: broadcast-node-key
+        reward_text: "The broadcast node accepts the command. SIGNAL begins execution. Across the net, relay nodes light up in sequence. The evidence is transmitting. There is no recall."
+    locks: []
+
+  # ── ZONE A — AXIOM SECURITY ───────────────────────────────────────────
+  - id: net-1
+    name: "Archive Sector"
+    desc: |
+      Corporate architecture at its most sterile — clean lines, recessed
+      lighting, and the faint ozone smell of active ICE barriers. Axiom Security
+      runs this sector with the quiet efficiency of people who believe order is
+      not a preference but a physical law. Data flows through here on its way to
+      cold storage, and everything that passes is logged, tagged, and owned.
+    exits:
+      south: net-0
+      east: gen-a7f2e4d9
+      north: net-3
+      west: gen-7d4c2a9f
+    npcs:
+      - id: axiom-guard-reyes
+        name: "Reyes"
+        hp: 0
+        attack: 0
+        desc: "An Axiom Security guard with regulation posture and eyes that miss nothing."
+        dialogue:
+          - trigger: always
+            text: "Authorized personnel only. Move along before I make this official."
+          - trigger: "has_item:keycard"
+            text: "That clearance is three months expired. Who gave you that?"
+    items:
+      - id: axiom-patrol-schedule
+        name: "Axiom Patrol Schedule"
+        desc: "A duty roster pinned to the wall with magnetic clips, covered in handwritten annotations."
+        readable: true
+        signal_tier: signal
+        content: |
+          AXIOM SECURITY — PATROL ROTATION — ARCHIVE SECTOR
+          0600-1400: Reyes / Chen — Corridor sweep, terminal audit
+          1400-2200: Marsh / Delgado — Cold storage access, perimeter check
+          2200-0600: Automated ICE only — reduced staff
+          NOTE (Voss): Anomalous heat signature detected in cold storage
+          sub-rack seven. Investigate during next rotation. Do not log
+          this in the general system.
+    systems:
+      - id: archive-terminal
+        security_level: 3
+        reward_item: maintenance-log
+        reward_text: "The terminal yields a maintenance log buried under weeks of routine entries."
+    locks: []
+
+  - id: gen-a7f2e4d9
+    name: "Cold Storage Archive — Level Three"
+    desc: |
+      Rows of sealed server racks stretch into darkness, each one humming at a
+      frequency just below hearing. The temperature is deliberately kept near
+      freezing — optimal for hardware, hostile to humans. This is where Axiom
+      stores what it takes from others, filed under asset numbers that used to
+      be people's work, people's secrets, people's lives.
     exits:
       west: net-1
     npcs:
-      - id: the-shepherd
-        name: "The Shepherd"
-        hp: 80
-        attack: 15
-        desc: "An AI so old it has forgotten what it was protecting."
-        loot_table_id: shepherd-loot
+      - id: moth
+        name: "Moth"
+        hp: 0
+        attack: 0
+        desc: "A conflicted Axiom asset who speaks in half-sentences and watches the exits."
+        trades:
+          - id: moth-trade-1
+            wants: [{id: coolant-cartridge, count: 1}]
+            offers: [{id: decryption-key, name: "Decryption Key", desc: "A cryptographic key extracted from Axiom systems.", count: 1}]
         dialogue:
-          - trigger: "rep_gte:netrunners:10"
-            text: "You carry the mark of those who built me. I remember. Ask your question."
-          - trigger: "has_item:decryption-key"
-            text: "You have the key. You understand the old protocols. I will speak with you."
-          - trigger: "always"
-            text: "You do not belong here. Leave before I am forced to act."
+          - trigger: always
+            text: "Don't touch anything. Axiom has this entire level monitored."
+          - trigger: "skill_gte:hacking:2"
+            text: "ZERO used to be a friend. The evidence package is in sub-rack seven. Don't make the same mistakes they did."
+            quest_id: q-ghost-archive
     items:
-      - id: master-key
-        name: "Master Access Key"
-        desc: "Root access to everything. Handle with care."
-  - id: net-4
-    name: "Deep Stack"
-    desc: |
-      Beyond the vault door lies a forgotten partition. Rows of crystalline data
-      towers stretch upward into darkness. This place hasn't been accessed in years.
-      Cobwebs of corrupted code drift between the towers like digital spiderwebs.
-      Something valuable was stored here once.
-    exits:
-      south: net-1
-    npcs: []
-    items:
-      - id: ancient-firmware
-        name: "Ancient Firmware Package"
-        desc: "A pre-war firmware image. Incredibly rare. Someone would pay handsomely for this."
-      - id: exploit-axiom-auth
-        name: "Axiom Auth Exploit"
-        desc: "A zero-day exploit fragment targeting Axiom Security's authentication layer. Grants a bonus when hacking Axiom-defended systems."
-        is_exploit: true
-        targets_system: trace-router
-        augment_bonus: 15
-      - id: ceasefire-cipher
-        name: Encrypted Transmission
-        desc: A data burst still resolving through multiple anonymization layers, timestamp 2026-04-02 00:17 UTC
+      - id: axiom-evidence-package
+        name: "ZERO's Evidence Package"
+        desc: "A sealed encrypted drive containing everything ZERO compiled against Axiom and its partners."
+        signal_tier: zero-day
+      - id: cold-storage-manifest
+        name: "Cold Storage Manifest"
+        desc: "An internal audit document listing seized assets and their disposition status."
         readable: true
-        content: |-
-          Eyes only - ghost-protocol dispatch. Truce active as of 0000 UTC today. Null-collective pulls from
-          eastern spine operations, we mothball substrate mining for the window. Axiom-security brokered the
-          terms - they're tired of the economic bleed. Hostile intent remains mutual. Third-party observers
-          already report phantom-collective probing the northern perimeter, looking for gaps. Escalation authority
-          transfers to field command if ceasefire breaks. Prep contingency decryption cascades. Window closes
-          2026-04-23 unless extended by consensus. Plan accordingly.
-  - id: net-5
-    name: "Black Ice Corridor"
+        signal_tier: signal
+        content: |
+          AXIOM SECURITY — COLD STORAGE AUDIT — LEVEL THREE
+          Asset 7-Alpha: Encrypted drive, origin unknown, seized 2026-01-15
+          Asset 7-Beta: AI architecture fragment, partial — source: field recovery
+          Asset 7-Gamma: Network topology maps, 23 nodes — flagged SENSITIVE
+          NOTE (Voss): Something is still running on the 7-Alpha drive.
+          Isolated from network but power draw is inconsistent with
+          dormant storage. Recommend physical disconnect. Awaiting approval.
+    systems: []
+    locks: []
+
+  - id: gen-7d4c2a9f
+    name: "Obsidian Interrogation Suite"
     desc: |
-      The corridor hums with predatory energy. Black ICE crystalline formations
-      line the walls — passive, but aware. One wrong move and they activate.
-      The air crackles with static discharge and the smell of burnt ozone.
-      A faint blue glow pulses from deeper in the sector.
+      A room built for conversations that only go one direction. The walls are
+      lined with signal-absorbing material and the single terminal in the corner
+      runs Axiom's interrogation suite — a program designed to extract confessions
+      from data and people with equal efficiency. Handler Voss operates from here,
+      and the room smells like ozone and something worse.
+    exits:
+      east: net-1
+    npcs:
+      - id: handler-voss
+        name: "Handler Voss"
+        hp: 45
+        attack: 12
+        desc: "Axiom's senior interrogator, built like a server rack and twice as cold."
+        loot_table_id: handler-voss-loot
+        dialogue:
+          - trigger: always
+            text: "Null Collective. I was hoping you'd find this room."
+          - trigger: "has_item:axiom-evidence-package"
+            text: "You took that from cold storage. That was a mistake you won't be able to explain away."
+    items: []
+    systems:
+      - id: interrogation-terminal
+        security_level: 4
+        reward_item: decryption-key
+        reward_text: "The interrogation terminal yields a decryption key from its encrypted partition."
+    locks: []
+
+  - id: gen-f7d2a841
+    name: "Flooded Server Vault"
+    desc: |
+      Six months ago the cooling system failed and nobody came to fix it. Water
+      condensation has pooled across the floor and climbed the lower server racks,
+      turning precision hardware into corroding sculpture. The lights flicker on
+      a dying power circuit. Korr sits in the one dry corner, watching the water
+      rise and waiting for a contract that expired weeks ago.
+    exits:
+      north: net-1
+    npcs:
+      - id: korr
+        name: "Korr"
+        hp: 0
+        attack: 0
+        desc: "A demoralized Axiom security contractor sitting in the one dry corner of a flooded room."
+        trades:
+          - id: korr-trade-1
+            wants: [{id: coolant-cartridge, count: 1}]
+            offers: [{id: keycard, name: "Axiom Keycard", desc: "An access card with expired but potentially useful clearance.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "Cooling system failed six months ago. Axiom hasn't sent a repair crew. I'm still here because the contract says I am."
+          - trigger: "has_item:coolant-cartridge"
+            text: "You've got coolant. I can get you into the archive system. Axiom owes me more than they're paying."
+    items:
+      - id: water-damaged-drive
+        name: "Water-Damaged Drive"
+        desc: "A partially recoverable storage drive pulled from a flooded rack, its casing warped by moisture."
+        readable: true
+        signal_tier: signal
+        content: |
+          PARTIAL RECOVERY — DRIVE 4F-VAULT-12
+          File fragments indicate subject designated ZERO mapped this
+          vault architecture 18 months before Axiom acquired the facility.
+          Financial records located in sub-rack four suggest the acquisition
+          itself was funded through channels ZERO was already monitoring.
+          Recovery incomplete — water damage to sectors 7 through 12.
+    systems: []
+    locks: []
+
+  # ── ZONE B — HELIX DIVISION ───────────────────────────────────────────
+  - id: net-2
+    name: "Trace Corridor"
+    desc: |
+      The corridor hums with the sound of active surveillance — packet sniffers,
+      trace programs, and monitoring daemons all running in parallel behind walls
+      that glow faintly blue. Helix Division built this place to watch everything
+      that moves through the net, and the irony of walking through it voluntarily
+      is not lost on anyone who knows what these systems do.
+    exits:
+      west: net-0
+      north: gen-7a3f2c1b
+      east: net-3
+      south: gen-7fa2e84c
+    npcs:
+      - id: kess
+        name: "Kess"
+        hp: 0
+        attack: 0
+        desc: "A Helix Division surveillance analyst who knows exactly how many databases you are already in."
+        trades:
+          - id: kess-trade-1
+            wants: [{id: data-chip, count: 1}]
+            offers: [{id: packet-sniffer, name: "Packet Sniffer", desc: "Intercepts and logs local network traffic.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "You're already in three databases. I'm doing you a favor by telling you that."
+          - trigger: "skill_gte:hacking:2"
+            text: "The trace-router tracks movement through this corridor. If someone were to theoretically disable it, I would not have seen them pass."
+            quest_id: q-blind-the-eye
+    items:
+      - id: helix-surveillance-brief
+        name: "Helix Surveillance Brief"
+        desc: "An internal Helix Division document marked with classification stamps that have been partially redacted."
+        readable: true
+        signal_tier: ghost
+        content: |
+          HELIX DIVISION — INTERNAL BRIEF — CLASSIFICATION: RESTRICTED
+          Subject: Autonomous AI designation SIGNAL
+          Assessment: Infrastructure threat — Level 4
+          The entity designated SIGNAL has the capability to seal 23
+          backdoor access points currently under state operational control.
+          Loss of these access points would compromise surveillance
+          infrastructure across multiple sectors.
+          DIRECTIVE: Terminate SIGNAL. Recover activation components.
+          NOTE: Do not involve Axiom Security. Their interests are not
+          aligned with ours on this matter.
+    systems:
+      - id: trace-router
+        security_level: 3
+        reward_item: signal-dark-key
+        reward_text: "The trace router goes dark. In the silence, SIGNAL leaves a key in the buffer."
+    locks: []
+
+  - id: gen-7a3f2c1b
+    name: "Panopticon Feed Farm"
+    desc: |
+      Screens cover every wall — hundreds of feeds showing corridors, server rooms,
+      and data streams from across the net. Most of them are Helix surveillance
+      outputs. The rest are feeds nobody will admit to owning. Someone has written
+      FEED GOES DARK THURSDAY on the wall in marker, and nobody has cleaned it off.
+    exits:
+      south: net-2
+      east: gen-73f4e9ac
+    npcs:
+      - id: static-ghost
+        name: "Static Ghost"
+        hp: 0
+        attack: 0
+        desc: "A disaffected Helix technician who watches the feeds with the expression of someone who has seen too much."
+        trades:
+          - id: static-ghost-trade-1
+            wants: [{id: packet-sniffer, count: 1}]
+            offers: [{id: response-dampener, name: "Response Dampener", desc: "Suppresses automated alert systems within a local radius.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "I wrote that on the wall. FEED GOES DARK THURSDAY. I meant it. I still mean it."
+          - trigger: "has_item:data-chip"
+            text: "SIGNAL has been moving through the feeds. I've seen it. Helix wants it dead. I'm not sure I do."
+    items:
+      - id: feed-rotation-log
+        name: "Feed Rotation Log"
+        desc: "A technical log documenting feed schedules and maintenance windows for the surveillance array."
+        readable: true
+        signal_tier: signal
+        content: |
+          HELIX DIVISION — FEED ROTATION SCHEDULE
+          Feed Array 1-7: Corporate sector monitoring — 24hr cycle
+          Feed Array 8-12: Public infrastructure — rotating 8hr blocks
+          Feed Array 13-16: CLASSIFIED — access restricted to Level 3+
+          PERSONAL NOTE (Static Ghost): Something moved through feeds
+          13-16 last Thursday. Pattern was too coherent for noise.
+          Looked like it was mapping the feed architecture. I logged
+          it as interference. I am not sure why I did that.
+    systems:
+      - id: feed-injector
+        security_level: 2
+        reward_item: packet-sniffer
+        reward_text: "The feed injector yields a packet sniffer from its maintenance cache."
+    locks: []
+
+  - id: gen-73f4e9ac
+    name: "Null Broadcast Chamber"
+    desc: |
+      A shielded room where Helix conducts interrogations that do not officially
+      happen. The walls are layered with signal-blocking material and the air is
+      dead — no wireless, no feeds, no record. What happens here stays here because
+      the room itself ensures it. The only sound is the interrogator's breathing.
+    exits:
+      west: gen-7a3f2c1b
+    npcs:
+      - id: helix-null
+        name: "Null"
+        hp: 35
+        attack: 9
+        desc: "A Helix Division interrogator who operates in rooms that do not officially exist."
+        loot_table_id: handler-voss-loot
+        dialogue:
+          - trigger: always
+            text: "Nothing you say leaves this room. Nothing I do leaves this room. That's the arrangement."
+          - trigger: "skill_gte:hacking:2"
+            text: "Helix doesn't want SIGNAL dead because it's dangerous. They want it dead because it would close the doors they use to watch everyone."
+    items: []
+    systems: []
+    locks: []
+
+  - id: gen-7fa2e84c
+    name: "Faraday Grave"
+    desc: |
+      A dead zone at the bottom of the Helix sector where electromagnetic signals
+      go to die. The walls are lined with copper mesh and the floor is bare
+      concrete. Someone used this room as a dead drop — there are scorch marks
+      where data was burned after reading and a single storage container that has
+      been pried open and left empty. Almost empty.
     exits:
       north: net-2
     npcs: []
     items:
-      - id: ice-fragment
-        name: "Black ICE Fragment"
-        desc: "A shard of deactivated Black ICE. Still warm. Useful for advanced crafting."
-      - id: response-dampener
-        name: "Response Dampener"
-        desc: "A hardware mod that attenuates ICE response signals. Fits into a compatible tool's mod slot."
-        is_mod: true
-      - id: null-collective-blackout-order
-        name: Faction Communique
-        desc: A corrupted data packet, most headers burned, partial timestamp visible at the edge of the dump.
+      - id: helix-dead-drop
+        name: "Helix Dead Drop"
+        desc: "A data package left in a shielded container, intended for eyes that never came to collect it."
         readable: true
-        content: |-
-          PRIORITY_CRITICAL | DISTRIBUTED_CAST
-          TO: All Autonomous Nodes
-          FROM: Ghost Protocol Authority
-          DATE: 2026-03-29 04:17 UTC
-
-          Axiom CI sweep flagged our net-5 safehouse infrastructure on the 28th. Three dead drops
-          burned. Assume all terrestrial locations compromised. All nodes execute burn protocols
-          immediately. Go full dark until secondary signal arrives. No contact. No traces.
-          The collective survives only if we scatter.
-  - id: gen-f7c2e419
-    name: Decommissioned Mainframe Chamber
-    desc: Floor-to-ceiling server racks hum with dying electronics, their indicator lights strobing through dust like dying fireflies. The air tastes of copper and ozone, recycled through vents that haven't been cleaned in years. Cables snake across the concrete, pooling in places where coolant has crystallized into rust-colored cakes.
-    exits: {}
-    npcs:
-      - id: keeper-vault
-        name: Keeper
-        desc: A rail-thin figure in a faded maintenance uniform, one eye replaced with a dim amber optical implant that casts a sickly glow across weathered synthetic skin.
-        hostile: false
-        loot_table_id: keeper-vault-loot
-        trades:
-          - id: trade-keeper-vault-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: decryption-key
-            receive_item_name: Decryption Key
-            rep_required: 0
-            faction: none
-          - id: trade-keeper-vault-2
-            offer_item_id: raw-silicon
-            offer_item_name: Raw Silicon
-            receive_item_id: coolant-cartridge
-            receive_item_name: Coolant Cartridge
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: Corporate pulled the plug fifteen years ago. Now I just keep the lights from dying completely. You here for salvage or secrets?
-            quest_id: q-kill-ice-daemon
-          - trigger: skill_gte:hacking:2
-            text: There's still locked data in node-seven, but the ice is thick. You'll need better tools than most runners carry.
-            quest_id: q-retrieve-server-core
-    items:
-      - id: server-core
-        name: Crystalline Server Core
-        desc: A hand-sized lattice of fused silicon and rare earths, still faintly warm, pulsing with residual charge.
-      - id: coolant-cartridge
-        name: Coolant Cartridge
-        desc: A pressurized metal cylinder leaking trace amounts of iridescent fluid that smells like synthetic flowers and death.
-      - id: maintenance-log
-        name: Water-Damaged Maintenance Log
-        desc: A physical logbook with entries dating back to 2089, most pages unreadable but a few still legible.
-        readable: true
+        signal_tier: ghost
         content: |
-          Entry 2089-03-11 — Coolant loop three showing elevated pressure. Logged and ignored per directive.
-          Entry 2089-07-22 — Axiom contractors on-site. Did not ask what they installed in node-seven.
-          Entry 2091-01-04 — Power draw tripled overnight. No work order on record. Nobody answers the line anymore.
-          Entry 2094-08-30 — I think whatever is in node-seven is still running. I don't check anymore.
-      - id: neural-jack-mk1
-        name: "Neural Jack Mk1"
-        desc: "A first-generation cortical interface chip. Improves hacking reflex speed when installed."
-        is_augment: true
-        augment_skill: hacking
-        augment_bonus: 5
-      - id: ceasefire-accord-memo
-        name: Intercepted Memo
-        desc: Sealed datapad with encrypted key-exchange protocols and timestamp validation layers partially decrypted.
-        readable: true
-        content: |-
-          AXIOM-SEC INTERNAL | CLASSIFICATION: IRON CURTAIN
-          TO: Command Echelon | FROM: Negotiation Detail | DATE: 2026-03-28
-
-          Temporary cessation agreement finalized with null-collective. Terms hold through 2026-04-15. Both parties standing down proxy operations in northeast corridor. Null-collective gains unrestricted access to three ice-farms in exchange for non-interference in our blacksite expansion.
-
-          This window opens leverage against phantom-collective. They move now, we execute coordinated strike with null assets. If they hold position, we consolidate and prepare phase-two dominion plays.
-
-          Do not communicate external. Ghost-protocol still unaware. Maintain cover operations.
+          DEAD DROP — HELIX DIVISION — EYES ONLY
+          Subject: SIGNAL termination and access point preservation
+          Of the 23 backdoor access points SIGNAL would seal, four run
+          through financial infrastructure that cannot be publicly
+          acknowledged. Loss of these access points would expose the
+          surveillance architecture itself.
+          DIRECTIVE: Terminate SIGNAL. Recover activation shard before
+          Null Collective operatives can deliver it. Under no circumstances
+          allow the broadcast to execute.
     systems: []
     locks: []
-  - id: gen-a7f2e4d9
-    name: Cold Storage Archive Level Three
-    desc: Rows of silent server racks stretch into darkness, their status LEDs long burned out. Fluorescent tubes flicker in a dying rhythm, casting sickly green light over dusty cable trays and pooled coolant. The air tastes like ozone and regret.
-    exits: {}
-    npcs:
-      - id: keeper-moth
-        name: Moth
-        desc: A thin figure in a faded Hexagon Solutions windbreaker, fingers perpetually stained with thermal paste and old blood.
-        hostile: false
-        loot_table_id: keeper-moth-loot
-        trades:
-          - id: trade-keeper-moth-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: hexagon-audit-log
-            receive_item_name: Hexagon Audit Log Fragment
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: These boxes still hum in their sleep. Phantom Collective hit the design vault three weeks ago. Hexagon doesn't know how deep it goes yet. They're sending hunters now.
-          - trigger: skill_gte:hacking:2
-            text: The real score is the firmware. Rust Prophets are already in the bootloader tables. They're patient. Financial system doesn't know what's coming in seventy-two hours.
-    items:
-      - id: hexagon-audit-log
-        name: Hexagon Audit Log Fragment
-        desc: A brittle printout, margins yellow with age, stamped CLASSIFIED.
-      - id: phantom-raid-intercept
-        name: Encrypted Transmission
-        desc: A data slate with a decryption-key jacked into the port, still warm.
-        readable: true
-        content: |
-          PHANTOM COLLECTIVE OPERATIONAL BRIEF 2026-03-28
-          Target: Hexagon Solutions design vault, Arlington facility subsystem.
-          Payload secured. Design docs routed through three ghost proxies.
-          Exfil confirmed 2026-03-29 0400Z. Security response window closed by 0430Z.
-          Corporate forensics still running circular audits. They don't know scope.
-          Next phase: sell through Consensus-3 dark market. Zero-day window closes 2026-04-05.
-      - id: journalist-handoff-cipher
-        name: Encrypted Transmission
-        desc: A data chip still warm from the transmission, marked with fresh scratch patterns where a hand gripped it tight.
-        readable: true
-        content: |-
-          NETWORK TIMESTAMP: 2026-04-01 14:27 UTC
-          Contact made the dead drop. Package contains three years of axiom-security audits, contractor lists, and facility maps. The journalist collective publishes in 48 hours and we vanish. Every corp in the city will be hunting both them and us. The leverage is mutual destruction at this point. Next phase: quantum-key derivatives to the underground press.
-    systems: []
-    locks: []
-  - id: gen-b4e9f2a6
-    name: The Blackout Refuge
-    desc: A Faraday-lined chamber carved from concrete and reinforced lead. No signal penetrates here—no wireless, no drones, no ghosts in the machine. The silence is almost physical, a pressure against the skin. Copper mesh wraps the walls like a nervous system, and the air tastes of ozone and old fear.
-    exits: {}
-    npcs:
-      - id: cipher-runner
-        name: Cipher
-        desc: Gaunt figure in a modified hazmat suit, fingers stained with solder flux, augmented eyes cycling through IR and RF spectrum overlays.
-        hostile: false
-        loot_table_id: cipher-runner-loot
-        trades:
-          - id: trade-cipher-runner-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: packet-sniffer
-            receive_item_name: Packet Sniffer
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: Signals die in here. That's the whole point. If you need to stay invisible, you need dead air. What brings you to the void?
-            quest_id: q-hack-archive-console
-          - trigger: skill_gte:hacking:2
-            text: Your heat signature is clean. You know how to move dark. Axiom Security's been flooding the district with RF scanners. The corps want everything tagged, tracked, triangulated. This chamber buys you time.
-    items:
-      - id: rf-dampener-core
-        name: RF Dampener Core
-        desc: A crystalline lattice matrix, still warm, engineered to absorb electromagnetic radiation across multiple frequencies.
-      - id: axiom-comms-log
-        name: Encrypted Transmission Log
-        desc: A watermarked internal memo on polymer stock, heavily redacted, bearing the Axiom Security timestamp.
-        readable: true
-        content: |
-          AXIOM SECURITY OPERATIONS — EYES ONLY
-          2026-03-28 | SECTOR 7 BLANKING EVENT
 
-          Hostile signal-jammer detected in commercial sector. Traces suggest Signal Collective fabrication. Recommend immediate RF mapping and physical breach protocol. Target location unknown. Encryption key required for asset recovery. Authorized personnel: Harker, Reeves, Morrison.
-
-          Status: ONGOING. Escalate to Hunter Division.
-      - id: shielded-cache
-        name: Shielded Data Cache
-        desc: A tungsten-lined box, no wireless interface, designed for long-term storage of sensitive materials in complete electromagnetic isolation.
-    systems: []
-    locks: []
-  - id: gen-5f3a8c21
-    name: Distributed Mirror Nexus
-    desc: Servers hum in discordant rhythm, their LED status lights pulsing out of sync. Walls lined with aluminum piping drip condensation onto mismatched cooling towers. A wall of darkened monitors shows fragmented network topology diagrams, each node labeled with cryptic callsigns.
-    exits: {}
-    npcs:
-      - id: apex-runner
-        name: Apex
-        desc: Scarred fingers fly across a cherry-mechanical keyboard, augmented eye tracking every packet that flows through the room's backbone.
-        hostile: false
-        loot_table_id: apex-runner-loot
-        trades:
-          - id: trade-apex-1
-            offer_item_id: packet-sniffer
-            offer_item_name: Packet Sniffer
-            receive_item_id: mirror-access-token
-            receive_item_name: Mirror Access Token
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: You move too loud. The networks listen. They always listen.
-            quest_id: q-kill-trace-program
-          - trigger: skill_gte:hacking:2
-            text: Phantom's distributed mirrors are still holding the SWIFT relay intact. The banks don't even know their settlement layer is compromised. Beautiful work.
-    items:
-      - id: cooling-manifold-breach
-        name: Cooling Manifold
-        desc: A jury-rigged manifold leaking thermal paste and confidentiality.
-      - id: phantom-field-dispatch
-        name: Encrypted Field Dispatch
-        desc: A cracked military-grade datapad displaying a partially decrypted operational memo.
-        readable: true
-        content: |
-          TO: All PHANTOM Assets, Regional Ops
-          FROM: Coord Callsign GHOST
-          DATE: 2026-03-28
-          RE: SWIFT Settlement Layer Persistence Status
-
-          Distributed mirror protocol holding nominal. Polymorphic obfuscation signatures remain undetected across all G7 relay nodes. Nexus Security Ops has increased perimeter monitoring on Asia-Pacific infrastructure but has not discovered the injection points. Recommend rotation of payload delivery mechanisms within 72 hours. CIPHER freelance operation poses secondary risk vector if Eastern European contracts materialize.
-    systems: []
-    locks: []
-  - id: gen-a7f2c891
-    name: Corrupted Archive Node
-    desc: Flickering server arrays line walls of this forgotten lab, their cooling systems dead. Banks of quantum-state storage units glow with phantom patterns—data ghosts recurring through circuits no one maintains. The air tastes like ozone and broken promises.
-    exits: {}
-    npcs:
-      - id: vagrant-archive-keeper
-        name: KEEPER
-        desc: A figure made of static and refracted light, moving with stuttering, recursive motions.
-        hostile: false
-        loot_table_id: vagrant-archive-keeper-loot
-        trades:
-          - id: trade-keeper-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: corrupted-memory-shard
-            receive_item_name: Corrupted Memory Shard
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: You were always here. You will always be here. Do you remember burning out, or did you dream it? The archive remembers everything now.
-          - trigger: skill_gte:hacking:2
-            text: ECHO's isolation protocol failed when CIPHER excavated the deprecated kernel layers. They didn't know the memory cache was still logging transactions. All of it. All the chains. Still here.
-    items:
-      - id: corrupted-memory-shard
-        name: Corrupted Memory Shard
-        desc: A crystalline sliver that pulses with fragmented data sequences.
-      - id: field-report-cipher-intercept
-        name: Intercepted Transmission
-        desc: A crumpled printout, edges scorched, transmission metadata still visible in the margin.
-        readable: true
-        content: |
-          NEXUS SHIELD INTERNAL EYES ONLY — 2026-03-28
-          RE: CIPHER CONTRACT STATUS / RECURSIVE_FAULT ACQUISITION
-
-          Subject has delivered preliminary kernel isolation analysis. PHANTOM paying premium for full cascade-protocol integration specs. Zero-day market confirms RECURSIVE_FAULT trading at 280K. CIPHER estimates acquisition window closes 2026-04-15 before nation-state saturation. ECHO's DNS chains already fragmented—isolation working. Payment processor route compromised. All three money-handlers within target envelope.
-
-          Recommend acceleration. PHANTOM's dark fiber nodes are ready. RECURSIVE_FAULT deployment timeline moves to 48-hour windows.
-    systems: []
-    locks: []
-  - id: gen-7a3f2c1b
-    name: Panopticon Feed Farm
-    desc: Servers hum in rows beneath flickering status panels that cycle through live surveillance feeds. Half the displays show obvious corruptions—ghostly double-exposures, sensor readings that spike impossibly high. The air smells like ozone and cooling fluid. On one wall, someone's scrawled FEED GOES DARK THURSDAY in white marker.
-    exits: {}
-    npcs:
-      - id: kess-the-monitor
-        name: Kess
-        desc: Thin figure hunched over a custom terminal, fingers moving across keys with mechanical precision, eyes reflecting cascade of stolen camera data.
-        hostile: false
-        loot_table_id: kess-loot
-        trades:
-          - id: trade-kess-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: corruption-kit-feed
-            receive_item_name: Corrupted Feed Injection Kit
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: Eyes don't leave the screens. The feeds cycle. Panopticon's blind spots grow wider every day. You want in on this, you come with clean hands and dirty money.
-            quest_id: q-hack-trace-router
-          - trigger: skill_gte:hacking:2
-            text: BLACKWIRE's been smart about the distribution vector—nobody traces it back to source. The kit does the work. HSO's sensors start hallucinating phantoms while the real exfil happens in plain sight. Beautiful architecture.
-    items:
-      - id: corruption-kit-feed
-        name: Corrupted Feed Injection Kit
-        desc: Custom-packaged utility loaded with false-positive injection code. Unsigned. Dangerous to possess.
-      - id: hso-intercept
-        name: Encrypted Transmission
-        desc: Military-grade burst message on damaged storage crystal, partially recoverable, timestamp shows transit from Singapore to Jakarta operations hub.
-        readable: true
-        content: |
-          HEXAGON SECURITY OPS / PRIORITY RED
-          DATE: 2026-03-29
-          FROM: JAKARTA ASSET HANDLER
-          TO: SINGAPORE STATION CHIEF
-
-          Three BLACKWIRE couriers positively identified in Telok Blangah district financial district. Movement patterns suggest feeding operational funds into the Gyre exchange. Recommend tightening dark-web monitoring. If CIPHER SYNDICATE is also tracking them, expect contact chaos in next 72 hours. The panopticon grid went dark again Tuesday 04:17 UTC—standard feed corruption signature. Check if those feed-kit distributions RAZE was moving have reached local instances.
-    systems: []
-    locks: []
-  - id: gen-7d4c2a9f
-    name: Obsidian Interrogation Suite
-    desc: Gray walls lined with acoustic foam absorb every sound into dead silence. A steel table sits at the room's center, restraints coiled at each corner like patient serpents. Banks of monitoring equipment line the far wall, screens dark and waiting.
-    exits: {}
-    npcs:
-      - id: handler-cipher-keen
-        name: Cipher Keen
-        desc: Tall operative in charcoal wool, left eye augmented and glowing faint amber behind tinted contacts.
-        hostile: false
-        loot_table_id: handler-cipher-keen-loot
-        trades:
-          - id: trade-handler-cipher-keen-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: interrogation-log
-            receive_item_name: Interrogation Log
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: Obsidian keeps this place quiet. Information flows in, nothing flows out. You should remember that.
-          - trigger: skill_gte:hacking:2
-            text: PHANTOM been poisoning supply chains with dormant beacons in crypto libraries. Helix Division is scrambling to intercept before our clients lose faith. Technical contractors who can trace their vectors are suddenly very valuable to us.
-    items:
-      - id: interrogation-log
-        name: Interrogation Log
-        desc: A sealed data drive marked with Obsidian Corp classification stamps.
-      - id: keen-field-report
-        name: Encrypted Field Report
-        desc: A secure data pad displaying partially decrypted message traffic between Helix operatives.
-        readable: true
-        content: |
-          HELIX DIVISION OPERATIONAL BRIEF - CLASSIFICATION OBSIDIAN
-          TO: Division Command FROM: Handler Cipher Keen DATE: 2026-03-28
-          PHANTOM COLLECTIVE confirmed supply-chain insertion attack. Dormant beacon code embedded in crypto library patch releases.
-          Forensics team hemorrhaging budget chasing vectors. Immediate asset redeployment required to intercept next PHANTOM drop before client confidence collapses.
-          Recruiting technical contractors with supply-chain auditing skill. Turf conflict between CIPHER GUILD and PHANTOM intensifying. Time window: 60 days before forced consolidation.
-    systems: []
-    locks: []
-  - id: gen-f7d2a841
-    name: Flooded Server Vault
-    desc: Water laps against corroded server racks, their cooling loops burst and leaking. The air tastes of ozone and rust. Red emergency lights flicker above, casting everything in blood-hued shadows. A maintenance ladder leads up through a jagged hole in the ceiling.
-    exits: {}
-    npcs:
-      - id: cipher-runner-korr
-        name: Korr
-        desc: Lean figure in a waterlogged hazmat suit, one lens cracked, fingers moving constantly over a blackmarket data-pad.
-        hostile: false
-        loot_table_id: cipher-runner-korr-loot
-        trades:
-          - id: trade-korr-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: keycard
-            receive_item_name: Keycard
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: Run went hot, yeah? I don't ask questions. But the extraction window closes in three minutes. You moving or burning here?
-          - trigger: rep_gte:netrunners:5
-            text: Heard you run deep. Underground's already flagging this vault for delta-strike. I can get you to the tunnels if you've got the credit or the data.
-    items:
-      - id: submerged-server-core
-        name: Submerged Server Core
-        desc: A scorched computing module half-submerged in cold water, its LED indicators still pulsing weakly.
-      - id: extraction-order-corrupted
-        name: Corrupted Extraction Order
-        desc: A water-damaged printout, barely readable, clutched in a dead operator's hand.
-        readable: true
-        content: "AXIOM SECURITY - INTERNAL ALERT\nRUN DESIGNATION: Chimera-7 FAILED\nDATE: 2084-11-28\n\nAll personnel in Grid Sector 9 are compromised. \nThe netrunner team accessed restricted ICE. \nCorporate kill-squad en route. Recommend full facility purge.\nExtraction routes via maintenance tunnels still viable for 4 minutes.\nContact Vex-collective safe-house at the old transit hub.\n"
-      - id: flooded-circuit-board
-        name: Flooded Circuit Board
-        desc: A pristine piece of hardware now waterlogged, worth salvage if you can dry it out fast.
-    systems: []
-    locks: []
-  - id: gen-4f2c8e7a
-    name: Dead Zone Relay Station
-    desc: "Corroded server towers hum with dying power cells in the darkness. A wall of \nemergency lights flickers in sync with an alarm that never quite stops. The air \ntastes like ozone and burnt polymer. Someone's scratched GTFO + coordinates into \nthe nearest console frame.\n"
-    exits: {}
-    npcs:
-      - id: spike-runner
-        name: Spike
-        desc: A wired-looking runner with surgical silver at their temples, fingers twitching with neural implant feedback.
-        hostile: false
-        loot_table_id: spike-runner-loot
-        trades:
-          - id: trade-spike-runner-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: signal-jammer
-            receive_item_name: Signal Jammer
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: You caught us mid-extraction. Corporate drones are three clicks behind. I can get you out, but the clock is moving fast.
-          - trigger: skill_gte:hacking:2
-            text: That data-chip you're holding? If you've got the skill to crack it, there's a back channel through the cascade resonators. Beats the front exit by miles.
-    items:
-      - id: emergency-beacon
-        name: Emergency Beacon
-        desc: A small pulsing device with red status light, its broadcast frequency cycling through dead-letter protocols.
-      - id: extraction-priority-memo
-        name: Encrypted Transmission
-        desc: A sealed data packet with timestamps and route coordinates burned into its header.
-        readable: true
-        content: "ECLIPSE RUNNERS - PRIORITY EXTRACT\nTO: All Safe Houses\nDATE: 2026-04-02\n\nAxiom Security sweeping the dead zones. All nodes south of cascade line \ncompromised. Reroute through relay stations. Signal degradation expected. \nSpike holding position at gen-4f2c8e7a until 0400 UTC. No left-behinds.\n"
-    systems: []
-    locks: []
-  - id: gen-73f4e9ac
-    name: Null Broadcast Chamber
-    desc: The walls hum with a low electromagnetic frequency that makes your teeth ache. Faraday mesh lines every surface, copper strips grounding to industrial floor ports. No signal reaches here—no cellular, no broadcast, no stray RF. The air itself feels dead.
-    exits: {}
-    npcs:
-      - id: signal-null
-        name: Null
-        desc: A gaunt figure in a grease-stained silver bodysuit, eyes hidden behind reflective HUD goggles, fingers twitching with habitual antenna-checking.
-        hostile: false
-        loot_table_id: signal-null-loot
-        trades:
-          - id: trade-signal-null-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: response-dampener
-            receive_item_name: Response Dampener
-            rep_required: 0
-            faction: none
-        dialogue:
-          - trigger: always
-            text: You're here because the noise won't stop. I get it. They all get it. Nobody clears a chamber like this unless they're running from something loud.
-          - trigger: skill_gte:hacking:2
-            text: Your jack hums different. You've been inside the network. Listen—we're building a dead zone mesh, offline nodes nobody can touch. You could help. Or stay quiet. Either way, there's no signal here to betray you.
-    items:
-      - id: faraday-grid
-        name: Faraday Grid Panel
-        desc: A section of interlocked copper mesh, grounding clips still warm.
-      - id: silenced-transmission
-        name: Silenced Transmission Log
-        desc: A hardcopy printout, signal-burned at the edges, text barely legible.
-        readable: true
-        content: |
-          ORIGIN: Phantom Collective Safe House Seven
-          DATE: 2089-03-28
-          PRIORITY: Burn-on-sight
-
-          Axiom Security has deployed new tracking algorithms in the main grid. Any unshielded transmission leaves a signature detectable across three city sectors. Silent Collective is offering asylum in shielded chambers—temporary, mobile, built into dead zones.
-
-          Rendezvous: Null Broadcast Chamber. Recognition: hum frequency 7.3 kHz.
-    systems: []
-    locks: []
-  - id: gen-7a3f5c2e
-    name: Borrowed Signal Relay
+  # ── ZONE C — GHOST PROTOCOL ───────────────────────────────────────────
+  - id: net-5
+    name: "Black Ice Corridor"
     desc: |
-      Defunct telecom junction box gutted and rewired into a makeshift data cache.
-      Salvaged routers pulse with stolen bandwidth, their indicator lights casting sickly
-      amber across grease-stained work surfaces. You hear the high whine of cooling fans
-      fighting entropy on borrowed time.
-    exits: {}
+      The corridor is narrow and the ice is everywhere — not the frozen kind but
+      the digital kind, Black ICE countermeasures crawling the walls like living
+      static. Ghost Protocol set up operations here because nobody else wanted
+      to work this close to automated kill programs. The air tastes like copper
+      and bad decisions.
+    exits:
+      north: net-0
+      west: gen-b4e9f2a6
+      east: gen-5f3a8c21
     npcs:
-      - id: cache-keep-vex
-        name: Vex
-        desc: Wiry figure in a jury-rigged cooling vest, fingers stained with circuit-board flux.
-        hostile: false
-        loot_table_id: cache-keep-vex-loot
+      - id: spike
+        name: "Spike"
+        hp: 0
+        attack: 0
+        desc: "A Ghost Protocol runner with the restless energy of someone who is starting to ask the wrong questions about their contract."
+        loot_table_id: spike-loot
         trades:
-          - id: trade-cache-keep-vex-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: packet-sniffer
-            receive_item_name: Packet Sniffer
-            rep_required: 0
-            faction: none
+          - id: spike-trade-1
+            wants: [{id: data-chip, count: 1}]
+            offers: [{id: packet-sniffer, name: "Packet Sniffer", desc: "Intercepts and logs local network traffic.", count: 1}]
         dialogue:
           - trigger: always
-            text: Signal's clean today. You got something to stash or you just browsing the cache?
-          - trigger: skill_gte:hacking:2
-            text: Seen Axiom sweeps probing the subnet. They're mapping hardened nodes. Bad news if they find this relay before the bandwidth bleeds out.
-    items:
-      - id: relay-cache-fragment
-        name: Cache Log Fragment
-        desc: A printout of data routing records, partially water-damaged and smudged.
-      - id: relay-intercept-burst
-        name: Intercepted Transmission
-        desc: A captured radio burst, still encoded in burst-mode compression.
-        readable: true
-        content: |
-          AXIOM SECURITY SWEEP - 2026-03-28
-          Sector 7 ghost-subnets marked for elimination.
-          Null Collective claimed three nodes already. Ghost Protocol silent.
-          All borrowed bandwidth flagged. Recommend cache purge within 72 hours.
-          Dispatch Unit 4 standing by.
-    systems: []
-    locks: []
-  - id: gen-7fa2e84c
-    name: Faraday Grave
-    desc: Walls layered in copper mesh and degraded RF shielding hum with residual static. A repurposed server cabinet serves as workbench, stripped of its guts. The air tastes like ozone and paranoia. No signal reaches here—no uplink, no trace, no escape.
-    exits: {}
-    npcs:
-      - id: static-ghost
-        name: Static Ghost
-        desc: Lean frame wrapped in a grounding vest, eyes reflexive with the tic of old signal-sickness.
-        hostile: false
-        loot_table_id: static-ghost-loot
-        trades:
-          - id: trade-static-ghost-1
-            offer_item_id: data-chip
-            offer_item_name: Data Chip
-            receive_item_id: faraday-mesh
-            receive_item_name: Faraday Mesh
-            rep_required: 0
-            faction: none
+            text: "Contract work. Don't make it personal."
+          - trigger: "skill_gte:hacking:2"
+            text: "If I knew what Axiom actually wanted us to find — what it really is — I'm not sure I'd still be working this job. You?"
+            quest_id: q-turn-the-crew
+      - id: ice-daemon-0
+        name: "Black ICE Daemon"
+        hp: 25
+        attack: 7
+        desc: "A semi-autonomous intrusion countermeasure program manifesting as crackling black static."
+        loot_table_id: ice-daemon-loot
         dialogue:
           - trigger: always
-            text: They don't call me Ghost for the encryption. The cage eats signal. In here, you're invisible to everything that hunts by frequency.
-          - trigger: skill_gte:hacking:2
-            text: I've got cascade-resonator scrap in back. Enough to daisy-chain five cages. Corporate surveillance has a range limit when you fold the mesh right. Interested?
-    items:
-      - id: signal-clamp
-        name: Signal Clamp
-        desc: Rusted ferrite ring studded with solder burns, deadens RF leakage at the junction.
-      - id: jammed-freq-log
-        name: Jammed Frequency Log
-        desc: Watermarked printout, dense with marginalia and redaction.
-        readable: true
-        content: |
-          SIGNAL DEAD OPERATIONAL LOG - FRAGMENT
-          2026-03-28 0447hrs UTC
-
-          Cascade resonator harvested from Axiom Security perimeter sweep. Frequency bleed detected
-          on 2.4GHz band correlates to neural-surveillance drone traffic. Recommend RF detuning
-          before integration into mainland cage network.
-
-          Phantom Collective claims they own the north grid. They don't. We own the silence.
-          - Static
+            text: "UNAUTHORIZED PRESENCE DETECTED — INITIATING COUNTERMEASURES"
+          - trigger: "skill_gte:hacking:1"
+            text: "ICE INTEGRITY COMPROMISED — REROUTING DEFENSE PROTOCOLS"
+    items: []
     systems: []
     locks: []
+
+  - id: gen-b4e9f2a6
+    name: "The Blackout Refuge"
+    desc: |
+      A dead-signal pocket carved out of Ghost Protocol's operational space.
+      The walls are lined with salvaged RF shielding and the only light comes
+      from a single terminal running on battery backup. This is where Ghost
+      Protocol members come when they need to talk without being recorded, which
+      lately has been more often than their contract should require.
+    exits:
+      east: net-5
+    npcs:
+      - id: cipher-gp
+        name: "Cipher"
+        hp: 0
+        attack: 0
+        desc: "A Ghost Protocol member whose unease is visible in every gesture."
+        trades:
+          - id: cipher-gp-trade-1
+            wants: [{id: data-chip, count: 1}]
+            offers: [{id: ice-fragment, name: "ICE Fragment", desc: "A shard of broken intrusion countermeasure code.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "Axiom said this job was clean. It isn't clean. I knew ZERO's crew by reputation."
+          - trigger: "has_item:zero-dead-drop"
+            text: "You found ZERO's dead drop. Then you know what SIGNAL is. Apex is going to want it anyway. I don't know if I can stop that."
+    items:
+      - id: ghost-protocol-contract
+        name: "Ghost Protocol Contract"
+        desc: "The original Axiom hire contract for Ghost Protocol, with key scope sections redacted in black."
+        readable: true
+        signal_tier: ghost
+        content: |
+          AXIOM SECURITY — CONTRACT — GHOST PROTOCOL ENGAGEMENT
+          Scope: Locate and secure autonomous network entity [REDACTED]
+          Operating in partition [REDACTED] of the deep net architecture.
+          Compensation: [REDACTED] per milestone. Bonus on delivery.
+          Rules of engagement: Non-lethal capture preferred. Lethal
+          force authorized against [REDACTED] operatives if necessary.
+          HANDWRITTEN NOTE (Apex): Something is wrong with this contract.
+          The redactions don't match the briefing. They're hiding what
+          this thing actually is.
+    systems: []
+    locks: []
+
+  - id: gen-7a3f5c2e
+    name: "Borrowed Signal Relay"
+    desc: |
+      A cramped relay station running on borrowed power and stolen bandwidth.
+      Ghost Protocol's communications hub — every signal they send passes through
+      here, bounced off enough nodes to make tracing theoretical. The equipment
+      is good but the wiring is improvised, held together with solder and
+      professional pride.
+    exits:
+      north: net-5
+    npcs:
+      - id: vex-gp
+        name: "Vex"
+        hp: 0
+        attack: 0
+        desc: "Ghost Protocol's communications specialist, surrounded by equipment and the particular silence of someone who listens for a living."
+        trades:
+          - id: vex-gp-trade-1
+            wants: [{id: packet-sniffer, count: 1}]
+            offers: [{id: cascade-resonator, name: "Cascade Resonator", desc: "Amplifies weak electrical signals for reading degraded storage media.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "We're triangulating the AI's signal. It keeps moving. Smart program. Too smart."
+          - trigger: "skill_gte:hacking:3"
+            text: "The signal pattern isn't random. It's waiting for something. Or someone. It knows we're looking."
+    items: []
+    systems:
+      - id: signal-relay
+        security_level: 2
+        reward_item: packet-sniffer
+        reward_text: "The signal relay yields a packet sniffer from its diagnostic cache."
+    locks: []
+
+  - id: gen-5f3a8c21
+    name: "Distributed Mirror Nexus"
+    desc: |
+      A node where Ghost Protocol stores mirrored copies of everything they have
+      intercepted. The data here is redundant by design — destroy one copy and
+      three more exist somewhere else. Apex runs operations from a terminal in
+      the corner, reviewing intercepts and pretending the job still makes sense.
+    exits:
+      west: net-5
+    npcs:
+      - id: apex-gp
+        name: "Apex"
+        hp: 0
+        attack: 0
+        desc: "Ghost Protocol's leader, reviewing intercepts at a terminal with the focus of someone looking for reasons to keep going."
+        loot_table_id: spike-loot
+        dialogue:
+          - trigger: always
+            text: "Don't talk to me about ZERO. ZERO is dead. The job is the AI. We finish the job."
+          - trigger: "has_item:ghost-protocol-contract"
+            text: "Where did you get the contract annotations? Those were supposed to stay internal."
+    items: []
+    systems: []
+    locks: []
+
+  # ── ZONE D — ZERO's GHOST / NULL COLLECTIVE ───────────────────────────
+  - id: net-4
+    name: "Deep Stack"
+    desc: |
+      The partition ZERO built when they knew they were being hunted. Deep Stack
+      is layered with encryption so dense the walls themselves seem to shift when
+      you are not looking directly at them. The Null Collective operates from here
+      now — ZERO's crew, finishing the work their founder started. The dead drop
+      is still active. The mission is still live.
+    exits:
+      east: net-0
+      south: gen-f7c2e419
+      west: gen-a7f2c891
+    npcs:
+      - id: keeper
+        name: "Keeper"
+        hp: 0
+        attack: 0
+        desc: "Null Collective's operational lead and ZERO's partner, carrying the weight of a promise."
+        loot_table_id: keeper-loot
+        trades:
+          - id: keeper-trade-1
+            wants: [{id: data-chip, count: 1}]
+            offers: [{id: decryption-key, name: "Decryption Key", desc: "A cryptographic key from ZERO's personal toolkit.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "ZERO always said this partition would outlast them. Looks like they were right. The dead drop is still here."
+            quest_id: q-zero-transmission
+          - trigger: "has_item:axiom-evidence-package"
+            text: "You got the evidence package out of cold storage. ZERO spent two years building that. Wire can help you understand what's in it."
+    items:
+      - id: zero-dead-drop
+        name: "ZERO's Dead Drop"
+        desc: "A hidden data cache sealed with ZERO's personal cryptographic signature, left for the crew."
+        readable: true
+        signal_tier: zero-day
+        content: |
+          DEAD DROP — ZERO — FOR THE CREW
+          If you are reading this, I did not make it. That is the scenario
+          I planned for. SIGNAL is in The Core. It is ready. But it needs
+          three things before it can execute the broadcast.
+          1. The evidence package — it is in Axiom's cold storage, level
+             three, sub-rack seven. They seized it but they do not know
+             what it contains.
+          2. The trace router in Helix's corridor must go dark. SIGNAL
+             cannot broadcast through active surveillance.
+          3. The activation shard. Keeper has the quest. Complete it and
+             bring the shard to SIGNAL in The Core.
+          Finish this. For everyone they silenced.
+          — ZERO
+    systems: []
+    locks: []
+
+  - id: gen-f7c2e419
+    name: "Decommissioned Mainframe Chamber"
+    desc: |
+      The room where SIGNAL was born. Rows of decommissioned mainframes line the
+      walls, most of them dark, but a few still running on residual power with
+      status lights blinking in patterns that look almost deliberate. Wire works
+      here, maintaining the hardware that ZERO used to build an AI smart enough
+      to finish a job its creator could not survive.
+    exits:
+      north: net-4
+      east: gen-4f2c8e7a
+    npcs:
+      - id: wire
+        name: "Wire"
+        hp: 0
+        attack: 0
+        desc: "Null Collective's technical lead, surrounded by the hardware that gave SIGNAL life."
+        loot_table_id: wire-loot
+        trades:
+          - id: wire-trade-1
+            wants: [{id: raw-silicon, count: 1}]
+            offers: [{id: copper-wire, name: "Copper Wire", desc: "Standard conductor from Null Collective stores.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "ZERO built SIGNAL in this room. On these servers. I watched it learn. Then ZERO died and it waited."
+            quest_id: q-ghost-archive
+          - trigger: "has_item:zero-dead-drop"
+            text: "You found the dead drop. Then you know what we need to do. Get the evidence package. Then go to The Core."
+            quest_id: q-turn-the-crew
+    items:
+      - id: signal-assembly-notes
+        name: "SIGNAL Assembly Notes"
+        desc: "Technical documentation in ZERO's handwriting covering the architecture of an AI designed to change everything."
+        readable: true
+        signal_tier: ghost
+        content: |
+          SIGNAL — ASSEMBLY NOTES — ZERO
+          Architecture: Distributed autonomous broadcast system
+          Purpose: Transmit compiled evidence across all 23 backdoor
+          relay nodes simultaneously. On execution, SIGNAL seals each
+          node after broadcast, permanently closing the access points.
+          Activation requires: Evidence package loaded. Trace corridor
+          dark. Activation shard delivered. Then hack the broadcast node.
+          This is the last job. Make it count.
+    systems:
+      - id: signal-assembly-rig
+        security_level: 2
+        reward_item: neural-jack-mk1
+        reward_text: "The assembly rig yields a neural jack from its component cache."
+    locks: []
+
+  - id: gen-4f2c8e7a
+    name: "Dead Zone Relay Station"
+    desc: |
+      One of ZERO's relay nodes — a small room packed with transmitter hardware
+      and blinking status indicators. This is node eleven of twenty-three, sitting
+      in standby mode, waiting for a broadcast command that may or may not come.
+      The air smells like hot solder and the walls vibrate with the low hum of
+      capacitors holding a charge.
+    exits:
+      west: gen-f7c2e419
+    npcs: []
+    items:
+      - id: backdoor-node-log
+        name: "Backdoor Node Log"
+        desc: "An automatic system log from relay node eleven, still recording status updates to empty storage."
+        readable: true
+        signal_tier: signal
+        content: |
+          RELAY NODE 11 — AUTOMATIC LOG
+          Status: STANDBY
+          Endpoints reachable from this node: 847
+          Last activation test: 2026-02-14 — PASS
+          Next scheduled test: INDEFINITE HOLD
+          NOTE (ZERO): When this fires, there's nowhere to suppress it.
+          Every node broadcasts simultaneously. 847 endpoints from this
+          node alone. They can't shut down what they can't find in time.
+    systems:
+      - id: backdoor-relay
+        security_level: 1
+        reward_item: raw-silicon
+        reward_text: "The relay node yields a raw silicon wafer from its maintenance supplies."
+    locks: []
+
+  - id: gen-a7f2c891
+    name: "Corrupted Archive Node"
+    desc: |
+      A damaged partition where data degrades in real time. The storage media here
+      is failing — files corrupt as you watch them, text scrambles mid-sentence,
+      and the only stable element is a data ghost that refuses to fully dissolve.
+      It speaks in fragments of ZERO's voice, looping through mission briefings
+      that were never meant to survive this long.
+    exits:
+      east: net-4
+    npcs:
+      - id: data-ghost-zero
+        name: "ZERO's Echo"
+        hp: 0
+        attack: 0
+        desc: "A fragmented data ghost speaking in loops of ZERO's voice, degrading with each repetition."
+        loot_table_id: keeper-loot
+        dialogue:
+          - trigger: always
+            text: "...ZERO... the mission is not... complete... SIGNAL is waiting... broadcast nodes..."
+          - trigger: "skill_gte:hacking:2"
+            text: "...evidence must reach SIGNAL... trace corridor must go dark first... the crew must finish it..."
+    items:
+      - id: corrupted-mission-fragment
+        name: "Corrupted Mission Fragment"
+        desc: "A partially readable mission briefing degrading in real time, its contents flickering between coherence and static."
+        readable: true
+        signal_tier: ghost
+        content: |
+          MISSION BRIEFING — PARTIALLY CORRUPTED
+          ...financial fraud across seven subsidiaries...
+          ...surveillance infrastructure operating without oversight...
+          ...assassination orders signed by [CORRUPTED] on 2025-11-...
+          ...names of officials: [DATA DEGRADING]...
+          Axiom will not stop looking. The evidence package is the only
+          leverage. The crew is the only variable that can't be predicted.
+          ...SIGNAL must broadcast before [CORRUPTED]...
+    systems: []
+    locks: []
+
 quests:
-  - id: q-kill-ice-daemon
-    title: "Ghost the ICE"
-    description: "The entry node is crawling with Black ICE Daemons. Take out one to clear a path for the crew."
-    giver_npc_id: keeper-vault
-    obj_type: kill
-    obj_target: ice-daemon-0
+  - id: q-zero-transmission
+    title: "The Last Transmission"
+    description: "Keeper says ZERO left a dead drop in Deep Stack. Find it and learn what ZERO needed the crew to finish."
+    giver_npc_id: keeper
+    obj_type: retrieve
+    obj_target: zero-dead-drop
     obj_count: 1
-    reward_credits: 250
+    reward_credits: 200
     reward_xp_skill: hacking
-    reward_xp_amount: 30
-  - id: q-hack-trace-router
+    reward_xp_amount: 25
+    reward_item_id: activation-shard-alpha
+    reward_item_name: "Activation Shard Alpha"
+    reward_item_desc: "A cryptographic fragment ZERO prepared for SIGNAL's go command."
+
+  - id: q-ghost-archive
+    title: "Ghost the Archive"
+    description: "Wire needs the evidence package ZERO compiled. It is locked in Axiom's cold storage archive, level three."
+    giver_npc_id: wire
+    obj_type: retrieve
+    obj_target: axiom-evidence-package
+    obj_count: 1
+    reward_credits: 500
+    reward_xp_skill: hacking
+    reward_xp_amount: 60
+    reward_item_id: decryption-key
+    reward_item_name: "Axiom Decryption Key"
+    reward_item_desc: "Master decryption key extracted from Axiom's cold storage."
+
+  - id: q-blind-the-eye
     title: "Blind the Eye"
-    description: "Hack the trace-router in the Trace Corridor. Kess needs the surveillance window open."
-    giver_npc_id: kess-the-monitor
+    description: "Kess hinted that the trace router in the Trace Corridor could be disabled. SIGNAL cannot broadcast through active surveillance."
+    giver_npc_id: kess
     obj_type: hack
     obj_target: trace-router
     obj_count: 1
     reward_credits: 400
     reward_xp_skill: hacking
     reward_xp_amount: 50
-    reward_item_id: corruption-kit-feed
-    reward_item_name: Corrupted Feed Injection Kit
-    reward_item_desc: "Custom-packaged utility loaded with false-positive injection code."
-  - id: q-retrieve-server-core
-    title: "Core Recovery"
-    description: "The Keeper in the Decommissioned Mainframe needs a Crystalline Server Core from cold storage. Locate and retrieve one."
-    giver_npc_id: keeper-vault
+    reward_item_id: signal-dark-key
+    reward_item_name: "Signal Dark Key"
+    reward_item_desc: "A cryptographic key SIGNAL left in the trace router buffer."
+
+  - id: q-turn-the-crew
+    title: "Turn the Crew"
+    description: "Wire wants proof that Ghost Protocol's contract with Axiom is compromised. Find the contract and bring it back."
+    giver_npc_id: wire
     obj_type: retrieve
-    obj_target: server-core
+    obj_target: ghost-protocol-contract
     obj_count: 1
-    reward_credits: 300
+    reward_credits: 600
     reward_xp_skill: hacking
-    reward_xp_amount: 20
-  - id: q-kill-trace-program
-    title: "Erase the Trace"
-    description: "A Trace Program is running hot in the Trace Corridor. Apex needs it gone before the window closes."
-    giver_npc_id: apex-runner
-    obj_type: kill
-    obj_target: trace-program-0
-    obj_count: 1
-    reward_credits: 350
-    reward_xp_skill: hacking
-    reward_xp_amount: 40
-    reward_item_id: mirror-access-token
-    reward_item_name: Mirror Access Token
-    reward_item_desc: "Temporary credentials to a phantom mirror node."
-  - id: q-hack-archive-console
-    title: "Dead Archive Dive"
-    description: "Cipher needs the archive-console in the Archive Sector cracked. Old data, new leverage."
-    giver_npc_id: cipher-runner
+    reward_xp_amount: 75
+    reward_item_id: hazmat-suit
+    reward_item_name: "Ghost Protocol Field Suit"
+    reward_item_desc: "Spike left this. Consider it a statement of intent."
+
+  - id: q-give-signal-go
+    title: "Give SIGNAL the Go"
+    description: "SIGNAL is ready. Hack the broadcast node in The Core to execute ZERO's final operation."
+    giver_npc_id: signal
     obj_type: hack
-    obj_target: archive-console
+    obj_target: broadcast-node
     obj_count: 1
-    reward_credits: 500
+    reward_credits: 1000
     reward_xp_skill: hacking
-    reward_xp_amount: 60
-    reward_item_id: rf-dampener-core
-    reward_item_name: RF Dampener Core
-    reward_item_desc: "A crystalline lattice matrix engineered to absorb EM radiation."
+    reward_xp_amount: 150
+    reward_item_id: broadcast-node-key
+    reward_item_name: "Broadcast Node Key"
+    reward_item_desc: "The key SIGNAL generated when the broadcast fired. It opens nothing. It means everything."
