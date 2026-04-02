@@ -327,6 +327,32 @@ crafting_recipes:
         A hybrid circuit board hardened with crystalline points that shatters
         digital footprints and dampens response signals before detection logs occur.
     skill_req: 2
+  - id: recipe-thermal-ghost-rig
+    name: Thermal Ghost Rig
+    ingredients:
+      - {id: ice-fragment, count: 1}
+      - {id: coolant-cartridge, count: 1}
+      - {id: response-dampener, count: 1}
+    output:
+      id: thermal-ghost-rig
+      name: Thermal Ghost Rig
+      desc: |
+        A cryogenic masking harness that bleeds waste heat into null-space,
+        rendering you invisible to thermal imaging and overhead surveillance.
+    skill_req: 2
+  - id: recipe-signal-scatter-device
+    name: Signal Scatter Device
+    ingredients:
+      - {id: coolant-cartridge, count: 1}
+      - {id: ice-fragment, count: 1}
+      - {id: packet-sniffer, count: 1}
+    output:
+      id: signal-scatter-device
+      name: Signal Scatter Device
+      desc: |
+        A pulse-jamming node that floods local mesh with decoy traffic,
+        fragmenting your digital footprint across a thousand false vectors.
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
