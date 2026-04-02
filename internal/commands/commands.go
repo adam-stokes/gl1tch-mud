@@ -291,6 +291,13 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			if err := player.AddItem(db, item.ID, item.Name, item.Desc); err != nil {
 				return Result{Output: fmt.Sprintf("can't take %s — already carrying it.", item.Name)}
 			}
+			// Remove the item from the room's item list.
+			for i, ri := range room.Items {
+				if ri.ID == item.ID {
+					room.Items = append(room.Items[:i], room.Items[i+1:]...)
+					break
+				}
+			}
 			out := fmt.Sprintf("you pick up %s.", item.Name)
 			// Quest retrieve check
 			readyQuests, _ := quests.CheckRetrieve(db, item.ID)
