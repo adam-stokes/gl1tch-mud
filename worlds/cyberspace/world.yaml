@@ -96,6 +96,28 @@ crafting_recipes:
       name: Cascade Resonator
       desc: A jury-rigged device that amplifies weak electrical signals, useful for reading degraded data on damaged storage media.
     skill_req: 2
+  - id: recipe-surveillance-lens
+    name: Surveillance Lens
+    ingredients:
+      - {id: coolant-cartridge, count: 1}
+      - {id: raw-silicon, count: 1}
+      - {id: packet-sniffer, count: 1}
+    output:
+      id: surveillance-lens
+      name: Surveillance Lens
+      desc: "A heat-dissipated optical module fused from silicon and cooling fluid, capable of \nintercepting wireless transmissions across multiple frequencies. Grants passive \nobservation of network traffic within proximity.\n"
+    skill_req: 2
+  - id: recipe-cache-breaker
+    name: Cache Breaker
+    ingredients:
+      - {id: coolant-cartridge, count: 1}
+      - {id: raw-silicon, count: 2}
+      - {id: decryption-key, count: 1}
+    output:
+      id: cache-breaker
+      name: Cache Breaker
+      desc: "A volatile silicon construct suspended in reactive coolant, engineered to corrupt \ndigital caches and purge surveillance logs. Temporary but effective for covering tracks \nin monitored systems.\n"
+    skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
     entries:
