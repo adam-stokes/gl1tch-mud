@@ -59,6 +59,34 @@ factions:
     territory: []
     allies: []
     enemies: []
+  - id: phantom-syndicate
+    name: PHANTOM Syndicate
+    desc: A distributed collective of elite operators running mirror-network infrastructure against global settlement systems. They operate across multiple continents with polymorphic obfuscation signatures, leaving zero forensic footprint. Known for surgical precision against high-value targets and absolute operational security discipline.
+    agenda: Maintain asymmetric financial leverage over G7 central banking systems through persistent, invisible SWIFT layer compromise.
+    territory: []
+    allies: []
+    enemies: []
+  - id: echo-syndicate
+    name: ECHO SYNDICATE
+    desc: Payment processor network specialists running microtransaction laundering through stolen banking infrastructure. Signature method is recursive DNS poisoning chains that fold attribution back on the source, leaving only decoys and fractured logs. They are efficient, disciplined, and increasingly hunted.
+    agenda: Control the flow of untraceable capital through every payment layer they can compromise.
+    territory: []
+    allies: []
+    enemies: []
+  - id: blackwire-collective
+    name: BLACKWIRE COLLECTIVE
+    desc: Underground network of data thieves and surveillance hackers who've turned industrial espionage into art form. They operate across corporate networks in Southeast Asia and beyond, specializing in feed manipulation and data exfiltration. Their trademark is subtle—they make the panopticon see what they want it to see.
+    agenda: Drain corporate secrets and sell them to the highest bidder while keeping their network invisible to every corporate hunter closing in.
+    territory: []
+    allies: []
+    enemies: []
+  - id: helix-division
+    name: Helix Division
+    desc: Deniable operations subsidiary of Obsidian Corp, staffed with corporate black-budget operatives and interrogation specialists. Grants them discretionary asset protection authority under statute, though their budget bleeds constantly chasing sophisticated threats. They move in the shadows between law enforcement and private enforcement.
+    agenda: Contain PHANTOM COLLECTIVE supply-chain poisoning before it destabilizes client infrastructure and Obsidian Corp loses market dominance.
+    territory: []
+    allies: []
+    enemies: []
 crafting_recipes:
   - id: packet-sniffer
     name: "Packet Sniffer"
@@ -160,6 +188,36 @@ crafting_recipes:
       desc: |
         A hybrid tool that combines brute-force puncture with cryptographic override.
         Extracts encrypted payloads from hardened server cores when force meets keys.
+    skill_req: 2
+  - id: recipe-isolation-layer
+    name: Isolation Layer
+    ingredients:
+      - {id: cooling-manifold-breach, count: 1}
+      - {id: copper-wire, count: 2}
+    output:
+      id: isolation-shim
+      name: Network Isolation Shim
+      desc: Blocks external signature detection on encrypted protocols.
+    skill_req: 2
+  - id: recipe-memory-restoration
+    name: Memory Reconstruction
+    ingredients:
+      - {id: corrupted-memory-shard, count: 3}
+      - {id: decryption-key, count: 1}
+    output:
+      id: restored-archive-log
+      name: Restored Archive Log
+      desc: Fragments of coherent memory, enough to understand what was lost here.
+    skill_req: 3
+  - id: recipe-panopticon-blind
+    name: Panopticon Blind Spot Charge
+    ingredients:
+      - {id: corruption-kit-feed, count: 1}
+      - {id: raw-silicon, count: 2}
+    output:
+      id: blind-spot-charge
+      name: Blind Spot Charge
+      desc: Weaponized feed corruption payload that creates localized surveillance gaps. HSO's algorithms will ignore anything in the radius.
     skill_req: 2
 loot_tables:
   - id: ice-daemon-loot
@@ -286,6 +344,62 @@ loot_tables:
         name: RF Dampener Core
         desc: A crystalline lattice matrix, still warm, engineered to absorb electromagnetic radiation across multiple frequencies.
         probability: 0.25
+        count_min: 1
+        count_max: 1
+  - id: apex-runner-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: mirror-access-token
+        name: Mirror Access Token
+        desc: Temporary credentials to a phantom mirror node.
+        probability: 0.35
+        count_min: 1
+        count_max: 1
+  - id: vagrant-archive-keeper-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: corrupted-memory-shard
+        name: Corrupted Memory Shard
+        desc: A crystalline sliver pulsing with fragmented sequences.
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+  - id: kess-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: Fragment of intercepted transaction log, valuable to the right fence.
+        probability: 0.7
+        count_min: 1
+        count_max: 2
+      - item_id: decryption-key
+        name: Decryption Key
+        desc: Partial key to older HSO surveillance data format.
+        probability: 0.35
+        count_min: 1
+        count_max: 1
+  - id: handler-cipher-keen-loot
+    entries:
+      - item_id: data-chip
+        name: Data Chip
+        desc: A fragment of stolen data, worth something to the right buyer.
+        probability: 0.65
+        count_min: 1
+        count_max: 2
+      - item_id: decryption-key
+        name: Decryption Key
+        desc: Cryptographic material for unlocking Obsidian Corp secure comms.
+        probability: 0.4
         count_min: 1
         count_max: 1
 rooms:
@@ -600,5 +714,164 @@ rooms:
       - id: shielded-cache
         name: Shielded Data Cache
         desc: A tungsten-lined box, no wireless interface, designed for long-term storage of sensitive materials in complete electromagnetic isolation.
+    systems: []
+    locks: []
+  - id: gen-5f3a8c21
+    name: Distributed Mirror Nexus
+    desc: Servers hum in discordant rhythm, their LED status lights pulsing out of sync. Walls lined with aluminum piping drip condensation onto mismatched cooling towers. A wall of darkened monitors shows fragmented network topology diagrams, each node labeled with cryptic callsigns.
+    exits: {}
+    npcs:
+      - id: apex-runner
+        name: Apex
+        desc: Scarred fingers fly across a cherry-mechanical keyboard, augmented eye tracking every packet that flows through the room's backbone.
+        hostile: false
+        loot_table_id: apex-runner-loot
+        trades:
+          - id: trade-apex-1
+            offer_item_id: packet-sniffer
+            offer_item_name: Packet Sniffer
+            receive_item_id: mirror-access-token
+            receive_item_name: Mirror Access Token
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: You move too loud. The networks listen. They always listen.
+          - trigger: skill_gte:hacking:2
+            text: Phantom's distributed mirrors are still holding the SWIFT relay intact. The banks don't even know their settlement layer is compromised. Beautiful work.
+    items:
+      - id: cooling-manifold-breach
+        name: Cooling Manifold
+        desc: A jury-rigged manifold leaking thermal paste and confidentiality.
+      - id: phantom-field-dispatch
+        name: Encrypted Field Dispatch
+        desc: A cracked military-grade datapad displaying a partially decrypted operational memo.
+        readable: true
+        content: |
+          TO: All PHANTOM Assets, Regional Ops
+          FROM: Coord Callsign GHOST
+          DATE: 2026-03-28
+          RE: SWIFT Settlement Layer Persistence Status
+
+          Distributed mirror protocol holding nominal. Polymorphic obfuscation signatures remain undetected across all G7 relay nodes. Nexus Security Ops has increased perimeter monitoring on Asia-Pacific infrastructure but has not discovered the injection points. Recommend rotation of payload delivery mechanisms within 72 hours. CIPHER freelance operation poses secondary risk vector if Eastern European contracts materialize.
+    systems: []
+    locks: []
+  - id: gen-a7f2c891
+    name: Corrupted Archive Node
+    desc: Flickering server arrays line walls of this forgotten lab, their cooling systems dead. Banks of quantum-state storage units glow with phantom patterns—data ghosts recurring through circuits no one maintains. The air tastes like ozone and broken promises.
+    exits: {}
+    npcs:
+      - id: vagrant-archive-keeper
+        name: KEEPER
+        desc: A figure made of static and refracted light, moving with stuttering, recursive motions.
+        hostile: false
+        loot_table_id: vagrant-archive-keeper-loot
+        trades:
+          - id: trade-keeper-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: corrupted-memory-shard
+            receive_item_name: Corrupted Memory Shard
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: You were always here. You will always be here. Do you remember burning out, or did you dream it? The archive remembers everything now.
+          - trigger: skill_gte:hacking:2
+            text: ECHO's isolation protocol failed when CIPHER excavated the deprecated kernel layers. They didn't know the memory cache was still logging transactions. All of it. All the chains. Still here.
+    items:
+      - id: corrupted-memory-shard
+        name: Corrupted Memory Shard
+        desc: A crystalline sliver that pulses with fragmented data sequences.
+      - id: field-report-cipher-intercept
+        name: Intercepted Transmission
+        desc: A crumpled printout, edges scorched, transmission metadata still visible in the margin.
+        readable: true
+        content: |
+          NEXUS SHIELD INTERNAL EYES ONLY — 2026-03-28
+          RE: CIPHER CONTRACT STATUS / RECURSIVE_FAULT ACQUISITION
+
+          Subject has delivered preliminary kernel isolation analysis. PHANTOM paying premium for full cascade-protocol integration specs. Zero-day market confirms RECURSIVE_FAULT trading at 280K. CIPHER estimates acquisition window closes 2026-04-15 before nation-state saturation. ECHO's DNS chains already fragmented—isolation working. Payment processor route compromised. All three money-handlers within target envelope.
+
+          Recommend acceleration. PHANTOM's dark fiber nodes are ready. RECURSIVE_FAULT deployment timeline moves to 48-hour windows.
+    systems: []
+    locks: []
+  - id: gen-7a3f2c1b
+    name: Panopticon Feed Farm
+    desc: Servers hum in rows beneath flickering status panels that cycle through live surveillance feeds. Half the displays show obvious corruptions—ghostly double-exposures, sensor readings that spike impossibly high. The air smells like ozone and cooling fluid. On one wall, someone's scrawled FEED GOES DARK THURSDAY in white marker.
+    exits: {}
+    npcs:
+      - id: kess-the-monitor
+        name: Kess
+        desc: Thin figure hunched over a custom terminal, fingers moving across keys with mechanical precision, eyes reflecting cascade of stolen camera data.
+        hostile: false
+        loot_table_id: kess-loot
+        trades:
+          - id: trade-kess-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: corruption-kit-feed
+            receive_item_name: Corrupted Feed Injection Kit
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: Eyes don't leave the screens. The feeds cycle. Panopticon's blind spots grow wider every day. You want in on this, you come with clean hands and dirty money.
+          - trigger: skill_gte:hacking:2
+            text: BLACKWIRE's been smart about the distribution vector—nobody traces it back to source. The kit does the work. HSO's sensors start hallucinating phantoms while the real exfil happens in plain sight. Beautiful architecture.
+    items:
+      - id: corruption-kit-feed
+        name: Corrupted Feed Injection Kit
+        desc: Custom-packaged utility loaded with false-positive injection code. Unsigned. Dangerous to possess.
+      - id: hso-intercept
+        name: Encrypted Transmission
+        desc: Military-grade burst message on damaged storage crystal, partially recoverable, timestamp shows transit from Singapore to Jakarta operations hub.
+        readable: true
+        content: |
+          HEXAGON SECURITY OPS / PRIORITY RED
+          DATE: 2026-03-29
+          FROM: JAKARTA ASSET HANDLER
+          TO: SINGAPORE STATION CHIEF
+
+          Three BLACKWIRE couriers positively identified in Telok Blangah district financial district. Movement patterns suggest feeding operational funds into the Gyre exchange. Recommend tightening dark-web monitoring. If CIPHER SYNDICATE is also tracking them, expect contact chaos in next 72 hours. The panopticon grid went dark again Tuesday 04:17 UTC—standard feed corruption signature. Check if those feed-kit distributions RAZE was moving have reached local instances.
+    systems: []
+    locks: []
+  - id: gen-7d4c2a9f
+    name: Obsidian Interrogation Suite
+    desc: Gray walls lined with acoustic foam absorb every sound into dead silence. A steel table sits at the room's center, restraints coiled at each corner like patient serpents. Banks of monitoring equipment line the far wall, screens dark and waiting.
+    exits: {}
+    npcs:
+      - id: handler-cipher-keen
+        name: Cipher Keen
+        desc: Tall operative in charcoal wool, left eye augmented and glowing faint amber behind tinted contacts.
+        hostile: false
+        loot_table_id: handler-cipher-keen-loot
+        trades:
+          - id: trade-handler-cipher-keen-1
+            offer_item_id: data-chip
+            offer_item_name: Data Chip
+            receive_item_id: interrogation-log
+            receive_item_name: Interrogation Log
+            rep_required: 0
+            faction: none
+        dialogue:
+          - trigger: always
+            text: Obsidian keeps this place quiet. Information flows in, nothing flows out. You should remember that.
+          - trigger: skill_gte:hacking:2
+            text: PHANTOM been poisoning supply chains with dormant beacons in crypto libraries. Helix Division is scrambling to intercept before our clients lose faith. Technical contractors who can trace their vectors are suddenly very valuable to us.
+    items:
+      - id: interrogation-log
+        name: Interrogation Log
+        desc: A sealed data drive marked with Obsidian Corp classification stamps.
+      - id: keen-field-report
+        name: Encrypted Field Report
+        desc: A secure data pad displaying partially decrypted message traffic between Helix operatives.
+        readable: true
+        content: |
+          HELIX DIVISION OPERATIONAL BRIEF - CLASSIFICATION OBSIDIAN
+          TO: Division Command FROM: Handler Cipher Keen DATE: 2026-03-28
+          PHANTOM COLLECTIVE confirmed supply-chain insertion attack. Dormant beacon code embedded in crypto library patch releases.
+          Forensics team hemorrhaging budget chasing vectors. Immediate asset redeployment required to intercept next PHANTOM drop before client confidence collapses.
+          Recruiting technical contractors with supply-chain auditing skill. Turf conflict between CIPHER GUILD and PHANTOM intensifying. Time window: 60 days before forced consolidation.
     systems: []
     locks: []

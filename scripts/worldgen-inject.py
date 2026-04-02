@@ -36,9 +36,11 @@ def strip_fences(text: str) -> str:
 
 def sanitize_yaml(text: str) -> str:
     """Fix common Haiku YAML mistakes before parsing."""
-    # Strip markdown *emphasis* / *action text* that appears outside quoted strings.
-    # e.g. `text: "hello" *loops*` → `text: "hello"`
-    # Also handles *text* inside plain scalars.
+    # Strip <brain>...</brain> blocks that Haiku sometimes appends.
+    text = re.sub(r'<brain\b[^>]*>.*?</brain>', '', text, flags=re.DOTALL)
+    # Strip any remaining bare XML/HTML tags.
+    text = re.sub(r'<[^>]+>', '', text)
+    # Strip markdown *emphasis* / *action text* outside quoted strings.
     text = re.sub(r'\s*\*[^*\n]+\*', '', text)
     return text
 
@@ -115,6 +117,166 @@ def append_entry(key: str, entry_yaml: str) -> None:
         os.unlink(tf_path)
 
 
+def _merge_loot_entries(table_id: str, table_yaml: str) -> list[str]:
+    """Merge new loot entries into an existing loot table, skipping duplicate item_ids."""
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as tf:
+        tf.write(table_yaml)
+        frag_path = tf.name
+    try:
+        count_raw = yq(".entries | length", frag_path)
+        count = int(count_raw) if count_raw.isdigit() else 0
+    except (RuntimeError, ValueError):
+        os.unlink(frag_path)
+        return []
+
+    # Collect existing item_ids in this table.
+    try:
+        raw = yq(f".loot_tables[] | select(.id == \"{table_id}\") | .entries[].item_id", WORLD_PATH)
+        existing = {line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "null"}
+    except RuntimeError:
+        existing = set()
+
+    added = []
+    for i in range(count):
+        try:
+            item_id = yq(f".entries[{i}].item_id", frag_path)
+            if not item_id or item_id == "null" or item_id in existing:
+                continue
+            entry_yaml = yq(f".entries[{i}]", frag_path)
+        except RuntimeError:
+            continue
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as etf:
+            etf.write(entry_yaml)
+            entry_path = etf.name
+        try:
+            result = subprocess.run(
+                [
+                    "/opt/homebrew/bin/yq",
+                    f"(.loot_tables[] | select(.id == \"{table_id}\") | .entries) += [load(\"{entry_path}\")]",
+                    "--inplace",
+                    WORLD_PATH,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(f"worldgen-inject: warn: loot entry {item_id}: {result.stderr.strip()}", file=sys.stderr)
+                continue
+        finally:
+            os.unlink(entry_path)
+        existing.add(item_id)
+        added.append(item_id)
+
+    os.unlink(frag_path)
+    return added
+
+
+def _merge_room_items(room_id: str, room_yaml: str) -> list[str]:
+    """Merge new items into an existing room's items list, skipping duplicate item ids."""
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as tf:
+        tf.write(room_yaml)
+        frag_path = tf.name
+    try:
+        count_raw = yq(".items | length", frag_path)
+        count = int(count_raw) if count_raw.isdigit() else 0
+    except (RuntimeError, ValueError):
+        os.unlink(frag_path)
+        return []
+
+    try:
+        raw = yq(f".rooms[] | select(.id == \"{room_id}\") | .items[].id", WORLD_PATH)
+        existing = {line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "null"}
+    except RuntimeError:
+        existing = set()
+
+    added = []
+    for i in range(count):
+        try:
+            item_id = yq(f".items[{i}].id", frag_path)
+            if not item_id or item_id == "null" or item_id in existing:
+                continue
+            item_yaml = yq(f".items[{i}]", frag_path)
+        except RuntimeError:
+            continue
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as etf:
+            etf.write(item_yaml)
+            entry_path = etf.name
+        try:
+            result = subprocess.run(
+                [
+                    "/opt/homebrew/bin/yq",
+                    f"(.rooms[] | select(.id == \"{room_id}\") | .items) += [load(\"{entry_path}\")]",
+                    "--inplace",
+                    WORLD_PATH,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(f"worldgen-inject: warn: room item {item_id}: {result.stderr.strip()}", file=sys.stderr)
+                continue
+        finally:
+            os.unlink(entry_path)
+        existing.add(item_id)
+        added.append(item_id)
+
+    os.unlink(frag_path)
+    return added
+
+
+def _merge_room_array(room_id: str, array_key: str, id_field: str, room_yaml: str) -> list[str]:
+    """Generic helper to merge new entries into an existing room's array by id_field."""
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as tf:
+        tf.write(room_yaml)
+        frag_path = tf.name
+    try:
+        count_raw = yq(f".{array_key} | length", frag_path)
+        count = int(count_raw) if count_raw.isdigit() else 0
+    except (RuntimeError, ValueError):
+        os.unlink(frag_path)
+        return []
+
+    try:
+        raw = yq(f".rooms[] | select(.id == \"{room_id}\") | .{array_key}[].{id_field}", WORLD_PATH)
+        existing = {line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "null"}
+    except RuntimeError:
+        existing = set()
+
+    added = []
+    for i in range(count):
+        try:
+            eid = yq(f".{array_key}[{i}].{id_field}", frag_path)
+            if not eid or eid == "null" or eid in existing:
+                continue
+            entry_yaml = yq(f".{array_key}[{i}]", frag_path)
+        except RuntimeError:
+            continue
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as etf:
+            etf.write(entry_yaml)
+            entry_path = etf.name
+        try:
+            result = subprocess.run(
+                [
+                    "/opt/homebrew/bin/yq",
+                    f"(.rooms[] | select(.id == \"{room_id}\") | .{array_key}) += [load(\"{entry_path}\")]",
+                    "--inplace",
+                    WORLD_PATH,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(f"worldgen-inject: warn: room {array_key} {eid}: {result.stderr.strip()}", file=sys.stderr)
+                continue
+        finally:
+            os.unlink(entry_path)
+        existing.add(eid)
+        added.append(eid)
+
+    os.unlink(frag_path)
+    return added
+
+
 def main() -> None:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -154,33 +316,51 @@ def main() -> None:
             ext = existing_ids(key)
             entries = fragment_entries(key, frag_path)
             for eid, entry_yaml in entries:
-                if eid in ext:
-                    continue
-                # Write entry to a temp file for yq --inplace.
-                with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as etf:
-                    etf.write(entry_yaml)
-                    entry_path = etf.name
-                try:
-                    result = subprocess.run(
-                        [
-                            "/opt/homebrew/bin/yq",
-                            f".{key} += [load(\"{entry_path}\")]",
-                            "--inplace",
-                            WORLD_PATH,
-                        ],
-                        capture_output=True,
-                        text=True,
-                    )
-                    if result.returncode != 0:
-                        print(
-                            f"worldgen-inject: warn: failed to add {key}/{eid}: {result.stderr.strip()}",
-                            file=sys.stderr,
+                if eid not in ext:
+                    # New top-level entry — append it.
+                    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as etf:
+                        etf.write(entry_yaml)
+                        entry_path = etf.name
+                    try:
+                        result = subprocess.run(
+                            [
+                                "/opt/homebrew/bin/yq",
+                                f".{key} += [load(\"{entry_path}\")]",
+                                "--inplace",
+                                WORLD_PATH,
+                            ],
+                            capture_output=True,
+                            text=True,
                         )
-                        continue
-                finally:
-                    os.unlink(entry_path)
-                ext.add(eid)
-                added.setdefault(key, []).append(eid)
+                        if result.returncode != 0:
+                            print(
+                                f"worldgen-inject: warn: failed to add {key}/{eid}: {result.stderr.strip()}",
+                                file=sys.stderr,
+                            )
+                            continue
+                    finally:
+                        os.unlink(entry_path)
+                    ext.add(eid)
+                    added.setdefault(key, []).append(eid)
+                elif key == "loot_tables":
+                    # Existing loot table — merge new entries by item_id.
+                    merged = _merge_loot_entries(eid, entry_yaml)
+                    if merged:
+                        added.setdefault(key + ":entries", []).extend(
+                            f"{eid}/{iid}" for iid in merged
+                        )
+                elif key == "rooms":
+                    # Existing room — merge new items, npcs, systems, and locks.
+                    for sub_key, id_field in [("items", "id"), ("npcs", "id"), ("systems", "id"), ("locks", "id")]:
+                        merged = (
+                            _merge_room_items(eid, entry_yaml)
+                            if sub_key == "items"
+                            else _merge_room_array(eid, sub_key, id_field, entry_yaml)
+                        )
+                        if merged:
+                            added.setdefault(f"{key}:{sub_key}", []).extend(
+                                f"{eid}/{iid}" for iid in merged
+                            )
 
     finally:
         os.unlink(frag_path)
