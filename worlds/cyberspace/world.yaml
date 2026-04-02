@@ -732,6 +732,20 @@ rooms:
         name: "Response Dampener"
         desc: "A hardware mod that attenuates ICE response signals. Fits into a compatible tool's mod slot."
         is_mod: true
+      - id: null-collective-blackout-order
+        name: Faction Communique
+        desc: A corrupted data packet, most headers burned, partial timestamp visible at the edge of the dump.
+        readable: true
+        content: |-
+          PRIORITY_CRITICAL | DISTRIBUTED_CAST
+          TO: All Autonomous Nodes
+          FROM: Ghost Protocol Authority
+          DATE: 2026-03-29 04:17 UTC
+
+          Axiom CI sweep flagged our net-5 safehouse infrastructure on the 28th. Three dead drops
+          burned. Assume all terrestrial locations compromised. All nodes execute burn protocols
+          immediately. Go full dark until secondary signal arrives. No contact. No traces.
+          The collective survives only if we scatter.
   - id: gen-f7c2e419
     name: Decommissioned Mainframe Chamber
     desc: Floor-to-ceiling server racks hum with dying electronics, their indicator lights strobing through dust like dying fireflies. The air tastes of copper and ozone, recycled through vents that haven't been cleaned in years. Cables snake across the concrete, pooling in places where coolant has crystallized into rust-colored cakes.
