@@ -111,6 +111,24 @@ loot_tables:
         probability: 0.5
         count_min: 1
         count_max: 3
+      - item_id: void-core-fragment
+        name: Void Core Fragment
+        desc: A shard of corrupted defense code that destabilizes security protocols on contact.
+        probability: 0.40
+        count_min: 1
+        count_max: 3
+      - item_id: black-mirror-shard
+        name: Black Mirror Shard
+        desc: Reflective circuit substrate that bounces intrusion detection back at its source.
+        probability: 0.25
+        count_min: 1
+        count_max: 2
+      - item_id: wraithware-seed
+        name: Wraithware Seed
+        desc: Dormant malware code that leaves no footprint once executed and purged.
+        probability: 0.12
+        count_min: 1
+        count_max: 1
   - id: trace-program-loot
     entries:
       - item_id: copper-wire
@@ -139,6 +157,18 @@ loot_tables:
         probability: 0.9
         count_min: 2
         count_max: 5
+      - item_id: signal-jammer-module
+        name: Signal Jammer Module
+        desc: A compact device that scrambles wireless communications within a short radius.
+        probability: 0.35
+        count_min: 1
+        count_max: 2
+      - item_id: neural-shunt-adapter
+        name: Neural Shunt Adapter
+        desc: Interface hardware that allows brief connection to non-standardized implant systems.
+        probability: 0.20
+        count_min: 1
+        count_max: 1
   - id: keeper-vault-loot
     entries:
       - item_id: server-core
