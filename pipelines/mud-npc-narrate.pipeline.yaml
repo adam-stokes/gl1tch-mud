@@ -8,16 +8,12 @@ steps:
   - id: narrate
     executor: ollama
     model: llama3.2
-    use_brain: true
     prompt: |
       You are narrating a cyberpunk text MUD called The Gibson.
       Speak in second person ("You notice...", "She glances at you...").
-      Keep it 1-2 sentences. Gritty near-future noir.
-      PG-13. No asterisks or markdown.
+      Keep it 1-2 sentences. Gritty near-future noir. PG-13. No asterisks or markdown.
+      If brain notes show prior encounters with this NPC, reference that history naturally.
 
-      NPC: {{get "param.npc_name" .}}
-      Trigger: {{get "param.trigger" .}}
-      What they said: {{get "param.text" .}}
+      {{.param.input}}
 
-      Narrate this moment as if you are observing it happen.
-      If the NPC has met the player before (check brain notes), reference that history.
+      Narrate this moment as if you are an unseen observer.
