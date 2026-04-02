@@ -195,3 +195,26 @@ steps:
     executor: mud-worldgen-inject
     needs: [generate]
     prompt: "{{get \"step.generate.data.value\" .}}"
+
+  # ── Commit ─────────────────────────────────────────────────────────────────
+  - id: commit
+    executor: shell
+    needs: [inject]
+    vars:
+      cmd: |
+        cd ~/Projects/gl1tch-mud
+        git add worlds/cyberspace/world.yaml
+        git diff --cached --quiet && echo "nothing to commit" && exit 0
+        git commit -m "chore(world): worldgen — $(date +%Y-%m-%d)"
+        # Sync world-state.yaml
+        YQ_BIN=/opt/homebrew/bin/yq
+        if command -v "$YQ_BIN" >/dev/null 2>&1; then
+          WORLD_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world.yaml
+          STATE_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+          NEW_ROOM_IDS=$($YQ_BIN '[.rooms[].id]' "$WORLD_FILE" 2>/dev/null)
+          NEW_ITEM_IDS=$($YQ_BIN '[.rooms[].items[]?.id // empty]' "$WORLD_FILE" 2>/dev/null)
+          [ -n "$NEW_ROOM_IDS" ] && $YQ_BIN -i ".existing_room_ids = $NEW_ROOM_IDS" "$STATE_FILE" 2>/dev/null || true
+          [ -n "$NEW_ITEM_IDS" ] && $YQ_BIN -i ".existing_item_ids = $NEW_ITEM_IDS" "$STATE_FILE" 2>/dev/null || true
+          git add "$STATE_FILE"
+          git diff --cached --quiet || git commit -m "chore(world): sync world-state — $(date +%Y-%m-%d)"
+        fi

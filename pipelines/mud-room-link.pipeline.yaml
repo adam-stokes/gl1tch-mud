@@ -73,6 +73,11 @@ steps:
           ghost-protocol     — rival hired crew, can be flipped
           signal-collective  — neutral underground brokers
 
+        IDEMPOTENCY — DO NOT CREATE:
+        - Any room ID already in the world (check world-state.yaml)
+        - Any item ID already in the world
+        - Any faction not in the five listed above
+
         rooms:
           - id: gen-<8 lowercase hex chars>
             name: <evocative 3-5 word name — not: The Grid, The Net, Data Core, Node 0-9>

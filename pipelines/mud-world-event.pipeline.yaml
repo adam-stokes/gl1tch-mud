@@ -13,7 +13,7 @@ steps:
       cmd: |
         TYPES=("raid" "lockdown" "signal_surge" "black_market")
         ROOMS=("net-0" "net-1" "net-2" "net-3" "net-4" "net-5")
-        FACTIONS=("ghost-protocol" "null-collective" "axiom-security" "phantom-collective" "signal-collective")
+        FACTIONS=("ghost-protocol" "null-collective" "axiom-security" "helix-division" "signal-collective")
         ITEMS=("data-chip" "raw-silicon" "decryption-key" "server-core" "rf-dampener-core" "copper-wire")
         ITEM_NAMES=("Data Chip" "Raw Silicon" "Decryption Key" "Crystalline Server Core" "RF Dampener Core" "Copper Wire")
         ITEM_DESCS=("A fragment of stolen data." "Unprocessed chip substrate." "Cryptographic override material." "Dense storage matrix, still warm." "Absorbs EM radiation across frequencies." "High-purity conductor salvage.")
@@ -33,7 +33,15 @@ steps:
         ITEM_DESC="${ITEM_DESCS[$IIDX]}"
         EVENT_ID="event-${ETYPE//_/-}-${TS}"
 
+        STATE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+        BIBLE=~/Projects/gl1tch-mud/worlds/cyberspace/story-bible.md
+        CHAPTER=$(yq '.chapter' "$STATE" 2>/dev/null || echo "pre-broadcast")
+        EXISTING_ROOMS=$(yq '.existing_room_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
+        EXISTING_ITEMS=$(yq '.existing_item_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
+        STORY=$(cat "$BIBLE" 2>/dev/null || echo "")
+
         echo "type=${ETYPE} room=${ROOM} faction=${FACTION} payout=${PAYOUT} item_id=${ITEM_ID} item_name=${ITEM_NAME} event_id=${EVENT_ID}"
+        printf "STORY BIBLE:\n%s\n\nCHAPTER: %s\nEXISTING ROOM IDs: %s\nEXISTING ITEM IDs: %s\n\n" "$STORY" "$CHAPTER" "$EXISTING_ROOMS" "$EXISTING_ITEMS"
 
   # ── 2. Generate event title and description ────────────────────────────────
   - id: generate
@@ -90,3 +98,25 @@ steps:
             'active', 15, ${CURRENT_ACTIONS}, ${TS});"
 
         echo "Injected world event: ${EVENT_ID} | ${TITLE} | room=${ROOM} | payout=${PAYOUT} credits + ${ITEM_NAME}"
+
+  # ── 3. Commit + sync world-state ──────────────────────────────────────────
+  - id: commit
+    executor: shell
+    needs: [generate]
+    vars:
+      cmd: |
+        cd ~/Projects/gl1tch-mud
+        git add worlds/cyberspace/world.yaml
+        git diff --cached --quiet && echo "nothing to commit" && exit 0
+        git commit -m "chore(world): world-event — $(date +%Y-%m-%d)"
+        # Sync world-state.yaml
+        YQ_BIN=/opt/homebrew/bin/yq
+        if command -v "$YQ_BIN" >/dev/null 2>&1; then
+          WORLD_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world.yaml
+          STATE_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+          NEW_ROOM_IDS=$($YQ_BIN '[.rooms[].id]' "$WORLD_FILE" 2>/dev/null)
+          NEW_ITEM_IDS=$($YQ_BIN '[.rooms[].items[]?.id // empty]' "$WORLD_FILE" 2>/dev/null)
+          [ -n "$NEW_ROOM_IDS" ] && $YQ_BIN -i ".existing_room_ids = $NEW_ROOM_IDS" "$STATE_FILE" 2>/dev/null || true
+          [ -n "$NEW_ITEM_IDS" ] && $YQ_BIN -i ".existing_item_ids = $NEW_ITEM_IDS" "$STATE_FILE" 2>/dev/null || true
+          git add "$STATE_FILE" 2>/dev/null || true
+        fi
