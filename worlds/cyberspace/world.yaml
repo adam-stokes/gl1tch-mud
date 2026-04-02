@@ -446,6 +446,30 @@ loot_tables:
         probability: 0.29
         count_min: 1
         count_max: 2
+      - item_id: cryogenic-fuel
+        name: Cryogenic Fuel Cell
+        desc: Depleted cold-storage unit still radiating absolute temperatures.
+        probability: 0.28
+        count_min: 1
+        count_max: 2
+      - item_id: permafrost-key
+        name: Permafrost Encryption Key
+        desc: Frozen cryptographic token locked in subzero polymers.
+        probability: 0.22
+        count_min: 1
+        count_max: 1
+      - item_id: void-register
+        name: Void Register
+        desc: Corrupted processor register containing undefined bit sequences.
+        probability: 0.15
+        count_min: 1
+        count_max: 2
+      - item_id: glacier-shard
+        name: Glacier Shard Fragment
+        desc: Jagged ice-core architecture piece salvaged from frozen datacenters.
+        probability: 0.35
+        count_min: 1
+        count_max: 3
   - id: trace-program-loot
     entries:
       - item_id: copper-wire
@@ -664,6 +688,30 @@ loot_tables:
         probability: 0.4
         count_min: 1
         count_max: 1
+      - item_id: phase-veil
+        name: Phase Veil Module
+        desc: Shimmering holographic fragment that bends light around small objects.
+        probability: 0.25
+        count_min: 1
+        count_max: 2
+      - item_id: signal-jammer
+        name: Signal Jammer Chip
+        desc: Corrupted microprocessor that disrupts wireless surveillance frequencies.
+        probability: 0.18
+        count_min: 1
+        count_max: 1
+      - item_id: mimic-core
+        name: Mimic Core Processor
+        desc: Adaptive logic board that learns and replicates neural patterns.
+        probability: 0.32
+        count_min: 1
+        count_max: 3
+      - item_id: flutter-cache
+        name: Flutter Cache Buffer
+        desc: High-speed memory module designed for rapid data duplication.
+        probability: 0.20
+        count_min: 1
+        count_max: 2
   - id: cipher-runner-loot
     entries:
       - item_id: data-chip
