@@ -1,0 +1,69 @@
+# Tracks world chapter state for pipeline idempotency.
+# Pipelines read this before generating — skip injection if ID already exists.
+# Update broadcast_nodes_unlocked and chapter as players progress.
+
+chapter: pre-broadcast
+# Values: pre-broadcast | broadcast-triggered | post-broadcast
+
+broadcast_nodes_unlocked: 0
+broadcast_threshold: 3
+# Increment broadcast_nodes_unlocked when players complete q-ghost-archive or q-blind-the-eye.
+# When broadcast_nodes_unlocked >= broadcast_threshold, set chapter: broadcast-triggered.
+
+completed_quest_ids:
+  - q-zero-transmission
+  - q-ghost-archive
+  - q-blind-the-eye
+  - q-turn-the-crew
+  - q-give-signal-go
+
+active_factions:
+  - null-collective
+  - axiom-security
+  - helix-division
+  - ghost-protocol
+  - signal-collective
+
+existing_room_ids:
+  - net-0
+  - net-1
+  - net-2
+  - net-3
+  - net-4
+  - net-5
+  - gen-f7c2e419
+  - gen-a7f2e4d9
+  - gen-b4e9f2a6
+  - gen-5f3a8c21
+  - gen-a7f2c891
+  - gen-7a3f2c1b
+  - gen-7d4c2a9f
+  - gen-f7d2a841
+  - gen-4f2c8e7a
+  - gen-73f4e9ac
+  - gen-7a3f5c2e
+  - gen-7fa2e84c
+
+existing_item_ids:
+  - data-chip
+  - raw-silicon
+  - copper-wire
+  - carbon-blade
+  - ice-pick
+  - packet-sniffer
+  - keycard
+  - hazmat-suit
+  - decryption-key
+  - server-core
+  - coolant-cartridge
+  - maintenance-log
+  - cascade-resonator
+  - ice-fragment
+  - response-dampener
+  - neural-jack-mk1
+  - zero-dead-drop
+  - axiom-evidence-package
+  - ghost-protocol-contract
+  - activation-shard-alpha
+  - signal-dark-key
+  - broadcast-node-key
