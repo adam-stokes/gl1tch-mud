@@ -42,6 +42,11 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		return
 	}
 	defer s.database.Close()
+	defer func() {
+		if s.state != nil {
+			_ = player.Save(s.database, s.state)
+		}
+	}()
 
 	s.state, err = player.Load(s.database)
 	if err != nil {
@@ -172,6 +177,20 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		Credits:   credits.Get(s.database),
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
+
+	// Also send the current player roster so new joins always see a fresh list.
+	names := s.registry.List()
+	plist := make([]PlayerInfo, len(names))
+	for i, n := range names {
+		plist[i] = PlayerInfo{Name: n}
+	}
+	_ = writeMsg(ctx, s.conn, ServerMsg{
+		Type: "players.update",
+		Payload: PlayersUpdatePayload{
+			HostOnline: true,
+			Players:    plist,
+		},
+	})
 }
 
 // Close cancels the session context and unregisters the player.

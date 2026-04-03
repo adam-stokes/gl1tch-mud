@@ -156,6 +156,32 @@ func (gs *GameServer) ConnectedPlayers() []string {
 	return gs.registry.List()
 }
 
+// Broadcast sends msg to every connected session.
+func (gs *GameServer) Broadcast(msg ServerMsg) {
+	gs.registry.mu.RLock()
+	defer gs.registry.mu.RUnlock()
+	ctx := context.Background()
+	for _, s := range gs.registry.sessions {
+		_ = writeMsg(ctx, s.conn, msg)
+	}
+}
+
+// broadcastPlayerList sends a players.update message to all connected sessions.
+func (gs *GameServer) broadcastPlayerList() {
+	names := gs.registry.List()
+	players := make([]PlayerInfo, len(names))
+	for i, n := range names {
+		players[i] = PlayerInfo{Name: n}
+	}
+	gs.Broadcast(ServerMsg{
+		Type: "players.update",
+		Payload: PlayersUpdatePayload{
+			HostOnline: true,
+			Players:    players,
+		},
+	})
+}
+
 // handleWS upgrades an HTTP connection to WebSocket, performs the auth
 // handshake, then hands off to the session handler.
 func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -230,12 +256,16 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		conn.Close(websocket.StatusPolicyViolation, "already connected")
 		return
 	}
-	defer session.Close()
+	defer gs.broadcastPlayerList() // registered first → runs second (after Close removes session)
+	defer session.Close()          // registered second → runs first
 
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type:    "auth.ok",
 		Payload: AuthOKPayload{PlayerID: auth.PlayerID, Level: 1, Title: "Script Kiddie", XP: 0},
 	})
+
+	// Notify all clients (including new joiner) of updated roster.
+	gs.broadcastPlayerList()
 
 	session.Handle(ctx)
 }

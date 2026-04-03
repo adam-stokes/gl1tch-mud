@@ -59,6 +59,17 @@ type InvItem struct {
 	Tier string `json:"tier"`
 }
 
+// PlayersUpdatePayload is sent to all clients when the player roster changes.
+type PlayersUpdatePayload struct {
+	HostOnline bool         `json:"hostOnline"`
+	Players    []PlayerInfo `json:"players"`
+}
+
+// PlayerInfo is a single connected player entry in PlayersUpdatePayload.
+type PlayerInfo struct {
+	Name string `json:"name"`
+}
+
 // AuthPayload is the payload of an incoming "auth" ClientMsg.
 type AuthPayload struct {
 	PlayerID   string `json:"playerID"`

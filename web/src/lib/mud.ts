@@ -22,8 +22,6 @@ interface InvItem {
 }
 
 // ── ANSI → HTML ──────────────────────────────────────────────────────────────
-// All user-supplied or server-supplied text is HTML-entity-escaped BEFORE any
-// span tags are inserted, so the resulting HTML is safe to set via innerHTML.
 
 const ANSI_OPEN: Record<string, string> = {
   '1':  'font-weight:bold',
@@ -36,7 +34,6 @@ const ANSI_OPEN: Record<string, string> = {
   '37': 'color:#f8f8f2',
 };
 
-/** Escape HTML entities so raw text cannot contain tags. */
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -45,13 +42,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/**
- * Convert ANSI colour escape sequences to safe HTML spans.
- * The input is split on escape sequences; plain-text segments are
- * HTML-escaped before being concatenated, so no XSS is possible.
- */
 function ansiToHtml(text: string): string {
-  // Split on ANSI SGR sequences (\x1b[...m)
   const parts = text.split(/(\x1b\[[0-9;]*m)/);
   let openCount = 0;
   let out = '';
@@ -59,29 +50,34 @@ function ansiToHtml(text: string): string {
   for (const part of parts) {
     const m = part.match(/^\x1b\[([0-9;]*)m$/);
     if (m) {
-      // It is a control sequence — never escape, just translate.
       const codes = m[1].split(';');
       for (const code of codes) {
         if (code === '0' || code === '') {
-          // Reset — close all open spans.
           out += '</span>'.repeat(openCount);
           openCount = 0;
         } else if (ANSI_OPEN[code]) {
           out += `<span style="${ANSI_OPEN[code]}">`;
           openCount++;
         }
-        // Unknown codes are silently dropped.
       }
     } else {
-      // Plain text segment — escape entities.
       out += escapeHtml(part);
     }
   }
 
-  // Close any unclosed spans.
   out += '</span>'.repeat(openCount);
   return out;
 }
+
+// ── Tier icons & colours ─────────────────────────────────────────────────────
+
+const TIER_ICON: Record<string, string> = {
+  'noise':    '◦',
+  'signal':   '◆',
+  'ghost':    '◈',
+  'zero-day': '⚡',
+  'flatline': '☠',
+};
 
 // ── HP hearts ────────────────────────────────────────────────────────────────
 
@@ -105,11 +101,10 @@ function renderHearts(hp: number, maxHP: number): string {
 
 const SLOTS = 8;
 
-function renderInventory(items: InvItem[], sendCmd: (cmd: string) => void) {
+function renderInventory(items: InvItem[], onItemClick: (item: InvItem) => void) {
   const grid = document.getElementById('inv-grid');
   if (!grid) return;
 
-  // Remove existing slots.
   while (grid.firstChild) grid.removeChild(grid.firstChild);
 
   for (let i = 0; i < SLOTS; i++) {
@@ -120,22 +115,31 @@ function renderInventory(items: InvItem[], sendCmd: (cmd: string) => void) {
       const item = items[i];
       slot.classList.add('occupied');
       slot.dataset.tier = item.tier || 'noise';
-      const label = item.name.length > 12 ? item.name.slice(0, 11) + '\u2026' : item.name;
-      slot.textContent = label; // textContent is XSS-safe
+
+      const icon = document.createElement('div');
+      icon.className = 'slot-icon';
+      icon.textContent = TIER_ICON[item.tier] ?? '◦';
+
+      const label = document.createElement('div');
+      label.className = 'slot-label';
+      const short = item.name.length > 10 ? item.name.slice(0, 9) + '…' : item.name;
+      label.textContent = short;
+
+      slot.appendChild(icon);
+      slot.appendChild(label);
       slot.title = `${item.name}\n${item.desc}`;
 
-      // Capture item.id in closure.
-      const itemId = item.id;
-      slot.addEventListener('click', () => sendCmd(`examine ${itemId}`));
+      const captured = item;
+      slot.addEventListener('click', () => onItemClick(captured));
     } else {
-      slot.style.opacity = '0.3';
+      slot.style.opacity = '0.25';
     }
 
     grid.appendChild(slot);
   }
 }
 
-// ── Compass ───────────────────────────────────────────────────────────────────
+// ── Compass ──────────────────────────────────────────────────────────────────
 
 const DIR_BUTTONS: Record<string, string> = {
   north: 'btn-n',
@@ -157,10 +161,120 @@ function updateCompass(exits: string[]) {
   }
 }
 
+// ── Player list ───────────────────────────────────────────────────────────────
+
+function renderPlayerList(data: { hostOnline: boolean; players: Array<{ name: string }> }) {
+  const list = document.getElementById('player-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  // Host row
+  const hostRow = buildPlayerRow('gl1tch', 'host', data.hostOnline);
+  list.appendChild(hostRow);
+
+  for (const p of data.players) {
+    const row = buildPlayerRow(p.name, 'peer', true);
+    list.appendChild(row);
+  }
+}
+
+function buildPlayerRow(name: string, role: 'host' | 'peer', online: boolean): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'player-row';
+
+  const avatar = document.createElement('div');
+  avatar.className = `player-avatar ${role}-av`;
+  avatar.textContent = name.slice(0, 2); // initials
+
+  const info = document.createElement('div');
+  info.className = 'player-info';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = `player-name ${role}-name`;
+  nameEl.textContent = name;
+
+  const statusEl = document.createElement('div');
+  statusEl.className = 'player-status';
+  statusEl.textContent = role === 'host' ? 'host · online' : (online ? 'peer · online' : 'peer · offline');
+
+  info.appendChild(nameEl);
+  info.appendChild(statusEl);
+
+  const dot = document.createElement('div');
+  dot.className = online
+    ? (role === 'host' ? 'online-dot host-dot' : 'online-dot peer-dot')
+    : 'online-dot offline-dot';
+
+  row.appendChild(avatar);
+  row.appendChild(info);
+  row.appendChild(dot);
+  return row;
+}
+
+// ── Item modal ────────────────────────────────────────────────────────────────
+
+let _currentItem: InvItem | null = null;
+let _sendCmd: ((cmd: string) => void) | null = null;
+
+function openItemModal(item: InvItem, sendCmd: (cmd: string) => void) {
+  _currentItem = item;
+  _sendCmd = sendCmd;
+
+  const modal    = document.getElementById('item-modal')!;
+  const iconEl   = document.getElementById('item-big-icon')!;
+  const nameEl   = document.getElementById('item-name-display')!;
+  const tierEl   = document.getElementById('item-tier-badge')!;
+  const descEl   = document.getElementById('item-desc-display')!;
+
+  iconEl.textContent = TIER_ICON[item.tier] ?? '◦';
+  nameEl.textContent = item.name;
+  descEl.textContent = item.desc || 'No description.';
+
+  const tier = item.tier || 'noise';
+  tierEl.textContent = tier;
+  tierEl.className = `item-tier tier-badge-${tier}`;
+
+  // Tint the icon border by tier
+  const bigIcon = iconEl as HTMLElement;
+  const tierColors: Record<string, string> = {
+    'noise':    '#44475a',
+    'signal':   '#2d6e7a',
+    'ghost':    '#4a3070',
+    'zero-day': '#6e4a1a',
+    'flatline': '#6e1a1a',
+  };
+  bigIcon.style.borderColor = tierColors[tier] ?? '#44475a';
+
+  modal.classList.add('open');
+}
+
+function closeItemModal() {
+  document.getElementById('item-modal')!.classList.remove('open');
+  _currentItem = null;
+}
+
+// ── Craft modal ───────────────────────────────────────────────────────────────
+
+function openCraftModal() {
+  // Build 9 empty craft slots
+  const grid = document.getElementById('craft-grid')!;
+  grid.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const s = document.createElement('div');
+    s.className = 'craft-slot';
+    s.textContent = '+';
+    grid.appendChild(s);
+  }
+  document.getElementById('craft-modal')!.classList.add('open');
+}
+
+function closeCraftModal() {
+  document.getElementById('craft-modal')!.classList.remove('open');
+}
+
 // ── Main init ─────────────────────────────────────────────────────────────────
 
 export function initMUD() {
-  // Login elements
   const loginScreen = document.getElementById('login-screen')!;
   const hudScreen   = document.getElementById('hud-screen')!;
   const nameInput   = document.getElementById('player-name') as HTMLInputElement;
@@ -168,7 +282,6 @@ export function initMUD() {
   const connectBtn  = document.getElementById('connect-btn') as HTMLButtonElement;
   const errorDiv    = document.getElementById('login-error')!;
 
-  // HUD elements
   const outputEl  = document.getElementById('output')!;
   const cmdInput  = document.getElementById('cmd-input') as HTMLInputElement;
   const sendBtn   = document.getElementById('send-btn') as HTMLButtonElement;
@@ -186,8 +299,16 @@ export function initMUD() {
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
   passInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
 
+  const savedID   = localStorage.getItem('glitch-mud-player');
+  const savedPass = localStorage.getItem('glitch-mud-pass');
+  if (savedID) {
+    nameInput.value = savedID;
+    if (savedPass) passInput.value = savedPass;
+    setTimeout(() => connect(), 50);
+  }
+
   function showError(msg: string) {
-    errorDiv.textContent = msg; // textContent is safe
+    errorDiv.textContent = msg;
   }
 
   function connect() {
@@ -218,6 +339,8 @@ export function initMUD() {
       connectBtn.disabled = false;
       connectBtn.textContent = 'connect';
       showError('connection failed — is the server running?');
+      localStorage.removeItem('glitch-mud-player');
+      localStorage.removeItem('glitch-mud-pass');
     };
     ws.onclose = () => {
       inputEnabled = false;
@@ -231,12 +354,16 @@ export function initMUD() {
   function handleServerMsg(msg: ServerMsg) {
     switch (msg.type) {
       case 'auth.ok':
+        localStorage.setItem('glitch-mud-player', nameInput.value.trim());
+        localStorage.setItem('glitch-mud-pass', passInput.value);
         showHUD();
         break;
       case 'auth.fail':
         connectBtn.disabled = false;
         connectBtn.textContent = 'connect';
         showError(msg.payload?.reason ?? 'authentication failed');
+        localStorage.removeItem('glitch-mud-player');
+        localStorage.removeItem('glitch-mud-pass');
         break;
       case 'output.token':
         appendOutput(msg.payload?.token ?? '');
@@ -248,36 +375,30 @@ export function initMUD() {
       case 'state.update':
         applyStateUpdate(msg.payload as StateUpdate);
         break;
+      case 'players.update':
+        renderPlayerList(msg.payload as { hostOnline: boolean; players: Array<{ name: string }> });
+        break;
       case 'error':
         appendOutput(`\n\x1b[31m[${msg.payload?.message ?? 'error'}]\x1b[0m\n`);
         break;
     }
   }
 
-  // ── HUD helpers ───────────────────────────────────────────────────────────
+  // ── HUD helpers ──────────────────────────────────────────────────────────
 
   function showHUD() {
     loginScreen.style.display = 'none';
     hudScreen.classList.add('active');
     setInputEnabled(true);
     cmdInput.focus();
-    renderInventory([], sendCommand);
+    renderInventory([], (item) => openItemModal(item, sendCommand));
     updateCompass([]);
   }
 
-  /**
-   * Append game text to the output panel.
-   * The text is ANSI-converted to safe HTML, then a <span> is appended.
-   * Only our own ansiToHtml output (which escapes all plain text) is set
-   * as innerHTML — no raw user or server strings are ever set directly.
-   */
   function appendOutput(text: string) {
     const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     const safeHtml   = ansiToHtml(normalized).replace(/\n/g, '<br>');
-
     const span = document.createElement('span');
-    // safeHtml is produced entirely by ansiToHtml which HTML-escapes all
-    // plain-text segments before inserting span tags — safe to use here.
     span.innerHTML = safeHtml;
     outputEl.appendChild(span);
     scrollOutputToBottom();
@@ -288,19 +409,19 @@ export function initMUD() {
   }
 
   function setInputEnabled(enabled: boolean) {
-    inputEnabled     = enabled;
+    inputEnabled      = enabled;
     cmdInput.disabled = !enabled;
     sendBtn.disabled  = !enabled;
     if (enabled) cmdInput.focus();
   }
 
   function applyStateUpdate(state: StateUpdate) {
-    roomEl.textContent    = state.roomName || '\u2014';
-    hpHearts.innerHTML    = renderHearts(state.hp, state.maxHp); // only colour codes, safe
+    roomEl.textContent    = state.roomName || '—';
+    hpHearts.innerHTML    = renderHearts(state.hp, state.maxHp);
     hpText.textContent    = `${state.hp}/${state.maxHp}`;
-    creditsEl.textContent = `\u00a2 ${state.credits}`;
+    creditsEl.textContent = `¢ ${state.credits}`;
     updateCompass(state.exits ?? []);
-    renderInventory(state.inventory ?? [], sendCommand);
+    renderInventory(state.inventory ?? [], (item) => openItemModal(item, sendCommand));
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
@@ -355,5 +476,63 @@ export function initMUD() {
     btn.addEventListener('click', () => {
       if (inputEnabled) sendCommand(btn.dataset.cmd!);
     });
+  });
+
+  // ── Craft modal ────────────────────────────────────────────────────────────
+
+  document.getElementById('open-craft-btn')?.addEventListener('click', () => {
+    openCraftModal();
+  });
+
+  document.getElementById('craft-modal-close')?.addEventListener('click', closeCraftModal);
+
+  document.getElementById('craft-do-btn')?.addEventListener('click', () => {
+    closeCraftModal();
+    if (inputEnabled) sendCommand('craft');
+    else {
+      // Drop into the terminal with the word pre-filled
+      cmdInput.value = 'craft ';
+      cmdInput.focus();
+    }
+  });
+
+  // Close craft modal on overlay click
+  document.getElementById('craft-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeCraftModal();
+  });
+
+  // ── Item modal ─────────────────────────────────────────────────────────────
+
+  document.getElementById('item-modal-close')?.addEventListener('click', closeItemModal);
+
+  document.getElementById('item-examine-btn')?.addEventListener('click', () => {
+    if (!_currentItem) return;
+    closeItemModal();
+    if (inputEnabled) sendCommand(`examine ${_currentItem.id}`);
+  });
+
+  document.getElementById('item-use-btn')?.addEventListener('click', () => {
+    if (!_currentItem) return;
+    closeItemModal();
+    if (inputEnabled) sendCommand(`use ${_currentItem.id}`);
+    else {
+      cmdInput.value = `use ${_currentItem.id}`;
+      cmdInput.focus();
+    }
+  });
+
+  document.getElementById('item-drop-btn')?.addEventListener('click', () => {
+    if (!_currentItem) return;
+    closeItemModal();
+    if (inputEnabled) sendCommand(`drop ${_currentItem.id}`);
+    else {
+      cmdInput.value = `drop ${_currentItem.id}`;
+      cmdInput.focus();
+    }
+  });
+
+  // Close item modal on overlay click
+  document.getElementById('item-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeItemModal();
   });
 }
