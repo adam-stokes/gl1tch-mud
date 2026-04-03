@@ -331,8 +331,140 @@ function rebuildRoomContext(state: StateUpdate): void {
   }
 }
 
-// stub — replaced in Task 9
-function rebuildKidsActionButtons(_state: StateUpdate): void {}
+interface KidsActionDef {
+  kidsAction: string;
+  icon: string;
+  label: string;
+  cmd?: string;
+  special?: string;
+}
+
+function rebuildKidsActionButtons(state: StateUpdate): void {
+  const grid = document.getElementById('action-grid');
+  if (!grid) return;
+  while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+  const npcs      = state.room_npcs      ?? [];
+  const resources = state.room_resources ?? [];
+
+  const defs: KidsActionDef[] = [
+    { kidsAction: 'look',   icon: '👁',  label: 'Look',   cmd: 'look' },
+    ...(npcs.some(n => n.can_talk)   ? [{ kidsAction: 'talk',   icon: '💬', label: 'Talk' }]   : []),
+    ...(npcs.some(n => n.attackable) ? [{ kidsAction: 'attack', icon: '⚔️', label: 'Attack' }] : []),
+    ...(npcs.some(n => n.can_trade)  ? [{ kidsAction: 'trade',  icon: '🛒', label: 'Trade' }]  : []),
+    ...(resources.length > 0         ? [{ kidsAction: 'forage', icon: '🌿', label: 'Forage' }] : []),
+    { kidsAction: 'search', icon: '🔍', label: 'Search',  cmd: 'search' },
+    { kidsAction: 'skills', icon: '⚡',  label: 'Skills',  cmd: 'skills' },
+    { kidsAction: 'quests', icon: '📋', label: 'Quests',  special: 'quests-modal' },
+    { kidsAction: 'craft',  icon: '🔧', label: 'Craft',   special: 'craft' },
+  ];
+
+  for (const a of defs) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'action-btn' + (a.special === 'craft' ? ' craft-btn' : '');
+    btn.dataset.kidsAction = a.kidsAction;
+    if (a.cmd)     btn.dataset.cmd     = a.cmd;
+    if (a.special) btn.dataset.special = a.special;
+    const icon = document.createElement('span');
+    icon.className = 'btn-icon';
+    icon.textContent = a.icon;
+    btn.appendChild(icon);
+    btn.appendChild(document.createTextNode(' ' + a.label));
+    grid.appendChild(btn);
+  }
+}
+
+function showTargetPicker(
+  label: string,
+  targets: Array<{ id: string; name: string }>,
+  onPick: (id: string) => void,
+): void {
+  const picker      = document.getElementById('target-picker');
+  const pickerLabel = document.getElementById('target-picker-label');
+  const pickerBtns  = document.getElementById('target-picker-btns');
+  if (!picker || !pickerLabel || !pickerBtns) return;
+
+  pickerLabel.textContent = label;
+  while (pickerBtns.firstChild) pickerBtns.removeChild(pickerBtns.firstChild);
+
+  for (const t of targets) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'target-btn';
+    btn.textContent = t.name;
+    const capturedId = t.id;
+    btn.addEventListener('click', () => {
+      hideTargetPicker();
+      onPick(capturedId);
+    });
+    pickerBtns.appendChild(btn);
+  }
+  picker.classList.add('open');
+}
+
+function hideTargetPicker(): void {
+  document.getElementById('target-picker')?.classList.remove('open');
+}
+
+// stub — replaced in Task 11
+function openKidsQuestModal(): void {}
+
+function handleKidsAction(action: string): void {
+  if (!inputEnabled) return;
+  const state = _lastState;
+
+  if (action === 'quests') {
+    openKidsQuestModal();
+    return;
+  }
+  if (action === 'look' || action === 'search' || action === 'skills') {
+    hideTargetPicker();
+    sendCommand(action);
+    return;
+  }
+  if (action === 'craft') {
+    return; // handled by the existing craft special in the click listener
+  }
+
+  if (action === 'talk') {
+    const talkers = (state?.room_npcs ?? []).filter(n => n.can_talk);
+    if (talkers.length === 0) return;
+    if (talkers.length === 1) { sendCommand(`talk ${talkers[0].id}`); return; }
+    showTargetPicker('Who do you want to talk to?', talkers, id => sendCommand(`talk ${id}`));
+    return;
+  }
+
+  if (action === 'attack') {
+    const hostiles = (state?.room_npcs ?? []).filter(n => n.attackable);
+    if (hostiles.length === 0) return;
+    if (hostiles.length === 1) { sendCommand(`attack ${hostiles[0].id}`); return; }
+    showTargetPicker('Who do you want to attack?', hostiles, id => sendCommand(`attack ${id}`));
+    return;
+  }
+
+  if (action === 'trade') {
+    const traders = (state?.room_npcs ?? []).filter(n => n.can_trade);
+    if (traders.length === 0) return;
+    if (traders.length === 1) { sendCommand(`trade ${traders[0].id}`); return; }
+    showTargetPicker('Who do you want to trade with?', traders, id => sendCommand(`trade ${id}`));
+    return;
+  }
+
+  if (action === 'forage') {
+    const resources = state?.room_resources ?? [];
+    if (resources.length === 0) return;
+    if (resources.length === 1) {
+      sendCommand(`${resources[0].action} ${resources[0].id}`);
+      return;
+    }
+    const namedResources = resources.map(r => ({ id: r.id, name: formatResourceName(r.id) }));
+    showTargetPicker('What do you want to gather?', namedResources, id => {
+      const res = resources.find(r => r.id === id);
+      if (res) sendCommand(`${res.action} ${res.id}`);
+    });
+  }
+}
 
 // ── Player list ───────────────────────────────────────────────────────────────
 
@@ -898,7 +1030,26 @@ export function initMUD() {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.action-btn');
     if (!btn) return;
     if (btn.dataset.special === 'craft') { openCraftModal(); return; }
+
+    if (_kidsMode && btn.dataset.kidsAction) {
+      handleKidsAction(btn.dataset.kidsAction);
+      return;
+    }
+
     if (btn.dataset.cmd && inputEnabled) sendCommand(btn.dataset.cmd);
+  });
+
+  document.addEventListener('click', (e) => {
+    const picker = document.getElementById('target-picker');
+    const grid   = document.getElementById('action-grid');
+    if (
+      picker &&
+      grid &&
+      !picker.contains(e.target as Node) &&
+      !grid.contains(e.target as Node)
+    ) {
+      hideTargetPicker();
+    }
   });
 
   // ── Craft modal ────────────────────────────────────────────────────────────
