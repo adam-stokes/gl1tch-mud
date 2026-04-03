@@ -19,10 +19,10 @@ func init() {
 // tagged with workbench type "build".
 func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
-		invIDs := inventoryIDs(db)
-		invSet := make(map[string]bool, len(invIDs))
-		for _, id := range invIDs {
-			invSet[id] = true
+		items, _ := player.Inventory(db)
+		invCount := make(map[string]int, len(items))
+		for _, it := range items {
+			invCount[it.ID]++
 		}
 		var b strings.Builder
 		b.WriteString("build recipes:\n")
@@ -34,7 +34,7 @@ func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			found = true
 			affordable := true
 			for _, ing := range r.Ingredients {
-				if !invSet[ing.ID] {
+				if invCount[ing.ID] < ing.Count {
 					affordable = false
 					break
 				}
@@ -63,13 +63,14 @@ func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("no build recipe %q.", recipeID)}
 	}
 
-	invIDs := inventoryIDs(db)
-	invSet := make(map[string]bool, len(invIDs))
-	for _, id := range invIDs {
-		invSet[id] = true
+	// Build an item count map from inventory.
+	items, _ := player.Inventory(db)
+	invCount := make(map[string]int, len(items))
+	for _, it := range items {
+		invCount[it.ID]++
 	}
 	for _, ing := range recipe.Ingredients {
-		if !invSet[ing.ID] {
+		if invCount[ing.ID] < ing.Count {
 			return Result{Output: fmt.Sprintf("you need %dx %s.", ing.Count, ing.ID)}
 		}
 	}
@@ -120,7 +121,10 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	itemID := strings.ToLower(args[0])
-	items, _ := player.Inventory(db)
+	items, err := player.Inventory(db)
+	if err != nil {
+		return Result{Output: "could not read inventory."}
+	}
 	var found player.InventoryItem
 	for _, it := range items {
 		if it.ID == itemID {
@@ -132,13 +136,24 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("you don't have %q.", itemID)}
 	}
 
-	if err := player.RemoveItem(db, itemID); err != nil {
-		return Result{Output: fmt.Sprintf("could not remove %s: %v", itemID, err)}
+	tx, err := db.Begin()
+	if err != nil {
+		return Result{Output: "could not begin transaction."}
 	}
-	db.Exec( //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck
+
+	if _, err := tx.Exec(`DELETE FROM inventory WHERE item_id=?`, found.ID); err != nil {
+		return Result{Output: fmt.Sprintf("could not remove %s.", found.Name)}
+	}
+	if _, err := tx.Exec(
 		`INSERT OR IGNORE INTO chests (room_id, item_id, item_name, item_desc) VALUES (?,?,?,?)`,
 		s.RoomID, found.ID, found.Name, found.Desc,
-	)
+	); err != nil {
+		return Result{Output: "could not store item in chest."}
+	}
+	if err := tx.Commit(); err != nil {
+		return Result{Output: "could not store item in chest."}
+	}
 	return Result{Output: fmt.Sprintf("you store %s in the chest.", found.Name)}
 }
 
@@ -179,7 +194,23 @@ func Unstash(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		return Result{Output: fmt.Sprintf("no %q in the chest.", itemID)}
 	}
 
-	db.Exec(`DELETE FROM chests WHERE room_id=? AND item_id=?`, s.RoomID, itemID) //nolint:errcheck
-	player.AddItem(db, itemID, name, desc)                                         //nolint:errcheck
+	tx, err := db.Begin()
+	if err != nil {
+		return Result{Output: "could not begin transaction."}
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	if _, err := tx.Exec(`DELETE FROM chests WHERE room_id=? AND item_id=?`, s.RoomID, itemID); err != nil {
+		return Result{Output: "could not retrieve item."}
+	}
+	if _, err := tx.Exec(
+		`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
+		itemID, name, desc,
+	); err != nil {
+		return Result{Output: "could not add item to inventory."}
+	}
+	if err := tx.Commit(); err != nil {
+		return Result{Output: "could not retrieve item."}
+	}
 	return Result{Output: fmt.Sprintf("you take %s from the chest.", name)}
 }
