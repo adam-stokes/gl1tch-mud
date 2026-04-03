@@ -80,6 +80,91 @@ rooms:
     items: []
 `
 
+const worldWithUI = `
+name: testworld
+start_room: r0
+narrator_model: test
+ui:
+  banner: "TEST BANNER"
+  prompt: "#"
+  tagline: "test tagline"
+  theme:
+    bg: "#000000"
+    fg: "#ffffff"
+    accent: "#ff0000"
+    dim: "#333333"
+    border: "#444444"
+    error: "#ff5555"
+    success: "#00ff00"
+rooms:
+  - id: r0
+    name: "Start"
+    desc: "Beginning."
+    exits: {}
+`
+
+const worldNoUI = `
+name: noui
+start_room: r0
+narrator_model: test
+rooms:
+  - id: r0
+    name: "Start"
+    desc: "."
+    exits: {}
+`
+
+func TestWorldUIFullParse(t *testing.T) {
+	var w World
+	if err := yaml.Unmarshal([]byte(worldWithUI), &w); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if w.UI.Banner != "TEST BANNER" {
+		t.Errorf("banner: got %q want %q", w.UI.Banner, "TEST BANNER")
+	}
+	if w.UI.Prompt != "#" {
+		t.Errorf("prompt: got %q want %q", w.UI.Prompt, "#")
+	}
+	if w.UI.Tagline != "test tagline" {
+		t.Errorf("tagline: got %q want %q", w.UI.Tagline, "test tagline")
+	}
+	if w.UI.Theme.BG != "#000000" {
+		t.Errorf("theme.bg: got %q want %q", w.UI.Theme.BG, "#000000")
+	}
+	if w.UI.Theme.Accent != "#ff0000" {
+		t.Errorf("theme.accent: got %q want %q", w.UI.Theme.Accent, "#ff0000")
+	}
+}
+
+func TestWorldUIFallbacks(t *testing.T) {
+	var w World
+	if err := yaml.Unmarshal([]byte(worldNoUI), &w); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got := w.UIPrompt(); got != ">" {
+		t.Errorf("UIPrompt: got %q want %q", got, ">")
+	}
+	if got := w.UIBanner(); got != "" {
+		t.Errorf("UIBanner: got %q want empty", got)
+	}
+}
+
+func TestListAvailable(t *testing.T) {
+	metas := ListAvailable()
+	if len(metas) == 0 {
+		t.Fatal("ListAvailable returned empty slice")
+	}
+	found := false
+	for _, m := range metas {
+		if m.Name == "cyberspace" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("ListAvailable should always include cyberspace")
+	}
+}
+
 func TestParseMinimal(t *testing.T) {
 	var w World
 	if err := yaml.Unmarshal([]byte(minimalYAML), &w); err != nil {

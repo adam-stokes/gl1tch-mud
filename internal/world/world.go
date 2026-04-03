@@ -99,6 +99,32 @@ type WeatherEntry struct {
 	Possible []string `yaml:"possible"`
 }
 
+// WorldTheme holds the color palette for a world's UI.
+type WorldTheme struct {
+	BG      string `yaml:"bg"      json:"bg,omitempty"`
+	FG      string `yaml:"fg"      json:"fg,omitempty"`
+	Accent  string `yaml:"accent"  json:"accent,omitempty"`
+	Dim     string `yaml:"dim"     json:"dim,omitempty"`
+	Border  string `yaml:"border"  json:"border,omitempty"`
+	Error   string `yaml:"error"   json:"error,omitempty"`
+	Success string `yaml:"success" json:"success,omitempty"`
+}
+
+// WorldUI holds the presentation config for a world, read from the ui: block.
+type WorldUI struct {
+	Banner  string     `yaml:"banner"`
+	Prompt  string     `yaml:"prompt"`
+	Tagline string     `yaml:"tagline"`
+	Theme   WorldTheme `yaml:"theme"`
+}
+
+// WorldMeta is a lightweight summary of a world used in lobby listings.
+type WorldMeta struct {
+	Name    string     `json:"name"`
+	Tagline string     `json:"tagline"`
+	Theme   WorldTheme `json:"theme"`
+}
+
 // LootTable holds a named set of loot entries.
 type LootTable struct {
 	ID      string      `yaml:"id"`
@@ -200,6 +226,7 @@ type World struct {
 	Factions        []Faction        `yaml:"factions,omitempty"`
 	Quests          []WorldQuest     `yaml:"quests,omitempty"`
 	WeatherTable    []WeatherEntry   `yaml:"weather_table,omitempty"`
+	UI              WorldUI          `yaml:"ui"`
 	index           map[string]*Room
 }
 
@@ -277,6 +304,38 @@ func Available() []string {
 		}
 	}
 	return names
+}
+
+// UIPrompt returns the world's prompt string, falling back to ">".
+func (w *World) UIPrompt() string {
+	if w.UI.Prompt != "" {
+		return w.UI.Prompt
+	}
+	return ">"
+}
+
+// UIBanner returns the world's banner string (may be empty).
+func (w *World) UIBanner() string {
+	return w.UI.Banner
+}
+
+// ListAvailable returns WorldMeta for all installed worlds plus embedded defaults.
+// Ordering matches Available() — embedded defaults first, then user-installed.
+func ListAvailable() []WorldMeta {
+	names := Available()
+	metas := make([]WorldMeta, 0, len(names))
+	for _, name := range names {
+		w, err := Load(name)
+		if err != nil {
+			continue
+		}
+		metas = append(metas, WorldMeta{
+			Name:    w.Name,
+			Tagline: w.UI.Tagline,
+			Theme:   w.UI.Theme,
+		})
+	}
+	return metas
 }
 
 // Room returns the room with the given ID, or nil.
