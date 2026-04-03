@@ -177,8 +177,14 @@ func runGame() {
 					lanSrv.Stop()
 					lanSrv = server.New(w)
 					commands.SetLANServer(lanSrv)
-					newState, _ := player.Load(database)
+					newState, _ := player.LoadForWorld(database, result.SwitchWorld, w.StartRoom)
 					*s = *newState
+					// If the player's room doesn't exist in the new world, reset to start room.
+					if w.Room(s.RoomID) == nil {
+						s.RoomID = w.StartRoom
+						s.World = result.SwitchWorld
+						player.Save(database, s) //nolint:errcheck
+					}
 					world.SeedCrystalShards(database, s.World)  //nolint:errcheck
 					world.SeedStartingItems(database, s.World)  //nolint:errcheck
 					lookResult := commands.Look(database, s, w, nil)

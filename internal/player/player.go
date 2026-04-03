@@ -15,12 +15,19 @@ type State struct {
 }
 
 // Load reads the player state from the database, seeding defaults on first run.
+// Uses cyberspace defaults for a fresh database.
 func Load(db *sql.DB) (*State, error) {
+	return LoadForWorld(db, "cyberspace", "net-0")
+}
+
+// LoadForWorld reads the player state from the database, seeding with the given
+// world name and start room when no record exists yet.
+func LoadForWorld(db *sql.DB, worldName, startRoom string) (*State, error) {
 	s := &State{}
 	err := db.QueryRow(`SELECT name, room_id, hp, max_hp, world FROM player WHERE id = 1`).
 		Scan(&s.Name, &s.RoomID, &s.HP, &s.MaxHP, &s.World)
 	if err == sql.ErrNoRows {
-		s = &State{Name: "hacker", RoomID: "net-0", HP: 100, MaxHP: 100, World: "cyberspace"}
+		s = &State{Name: "hacker", RoomID: startRoom, HP: 100, MaxHP: 100, World: worldName}
 		_, err = db.Exec(`INSERT INTO player (id, name, room_id, hp, max_hp, world) VALUES (1,?,?,?,?,?)`,
 			s.Name, s.RoomID, s.HP, s.MaxHP, s.World)
 		if err != nil {

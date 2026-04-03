@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed defaults/cyberspace/world.yaml
+//go:embed defaults/cyberspace/world.yaml defaults/blockhaven/world.yaml
 var defaultWorldFS embed.FS
 
 // System is a hackable terminal or node inside a room.
@@ -209,10 +209,15 @@ func Load(name string) (*World, error) {
 	path := worldPath(name)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		// fall back to embedded default
-		data, err = defaultWorldFS.ReadFile("defaults/cyberspace/world.yaml")
+		// fall back to embedded world if available
+		embedded := "defaults/" + name + "/world.yaml"
+		data, err = defaultWorldFS.ReadFile(embedded)
 		if err != nil {
-			return nil, fmt.Errorf("world: load default: %w", err)
+			// last resort: embedded cyberspace
+			data, err = defaultWorldFS.ReadFile("defaults/cyberspace/world.yaml")
+			if err != nil {
+				return nil, fmt.Errorf("world: load default: %w", err)
+			}
 		}
 	}
 	var w World
@@ -226,31 +231,49 @@ func Load(name string) (*World, error) {
 	return &w, nil
 }
 
-// Available returns the names of all installed worlds plus the embedded default.
+// Available returns the names of all installed worlds plus all embedded defaults.
 // Always includes "cyberspace".
 func Available() []string {
-	names := []string{"cyberspace"}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return names
-	}
-	dir := filepath.Join(home, ".local", "share", "gl1tch-mud", "worlds")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return names
-	}
+	seen := map[string]bool{}
+	var names []string
+
+	// Start with embedded worlds.
+	entries, _ := defaultWorldFS.ReadDir("defaults")
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 		n := e.Name()
-		if n == "cyberspace" {
-			continue // already included
+		p := "defaults/" + n + "/world.yaml"
+		if _, err := defaultWorldFS.Open(p); err == nil {
+			names = append(names, n)
+			seen[n] = true
+		}
+	}
+
+	// Also scan user-installed worlds.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return names
+	}
+	dir := filepath.Join(home, ".local", "share", "gl1tch-mud", "worlds")
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		return names
+	}
+	for _, e := range dirEntries {
+		if !e.IsDir() {
+			continue
+		}
+		n := e.Name()
+		if seen[n] {
+			continue // already included via embedded
 		}
 		// Only include if world.yaml exists
 		p := filepath.Join(dir, n, "world.yaml")
 		if _, err := os.Stat(p); err == nil {
 			names = append(names, n)
+			seen[n] = true
 		}
 	}
 	return names

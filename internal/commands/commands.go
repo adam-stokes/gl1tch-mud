@@ -518,6 +518,15 @@ func Help(db *sql.DB, s *player.State, w *world.World, args []string) Result {
   recruit <npc-id>      — recruit an NPC into your faction
   hideout               — teleport to your faction hideout
   upgrade list          — list hideout upgrades; 'upgrade buy <id>' to purchase
+  weather               — show current weather conditions
+  gather                — gather natural resources from the current room
+  mine                  — mine ore or stone from the current room
+  build <recipe>        — build a structure from materials
+  stash <item>          — stash an item in the current room
+  unstash               — retrieve a stashed item from the current room
+  world list            — list available worlds
+  world switch <name>   — switch to a different world
+  enchant <item>        — enchant an item using a rune stone
   help / ?              — this list
   quit                  — disconnect`}
 }
