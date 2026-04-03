@@ -76,6 +76,16 @@ func (r *SessionRegistry) GetRoomID(playerID string) string {
 	return ""
 }
 
+// GetWorldName returns the world name for playerID, or "" if not found.
+func (r *SessionRegistry) GetWorldName(playerID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if s, ok := r.sessions[playerID]; ok {
+		return s.worldName
+	}
+	return ""
+}
+
 // PlayersInWorld returns a PlayerInfo slice for sessions in the given world.
 func (r *SessionRegistry) PlayersInWorld(worldName string, w *world.World) []PlayerInfo {
 	r.mu.RLock()

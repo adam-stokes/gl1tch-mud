@@ -109,7 +109,7 @@ func (s *ClientSession) Handle(ctx context.Context) {
 			if text == "" {
 				continue
 			}
-			s.registry.Broadcast(ServerMsg{
+			s.registry.BroadcastToWorld(s.worldName, ServerMsg{
 				Type:    "chat.message",
 				Payload: ChatMessagePayload{From: s.playerID, Text: text},
 			})
@@ -137,7 +137,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	if verb == "say" {
 		text := strings.Join(args, " ")
 		if text != "" {
-			s.registry.Broadcast(ServerMsg{
+			s.registry.BroadcastToWorld(s.worldName, ServerMsg{
 				Type:    "chat.message",
 				Payload: ChatMessagePayload{From: s.playerID, Text: text},
 			})
@@ -170,6 +170,15 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 			_ = writeMsg(ctx, s.conn, ServerMsg{
 				Type:    "output.token",
 				Payload: OutputTokenPayload{Token: fmt.Sprintf("player %q is not connected.\r\n", targetID)},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+			return
+		}
+		// Block cross-world goto.
+		if targetWorld := s.registry.GetWorldName(targetID); targetWorld != s.worldName {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: fmt.Sprintf("player %q is in a different world.\r\n", targetID)},
 			})
 			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
 			return

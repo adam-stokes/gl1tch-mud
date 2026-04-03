@@ -157,7 +157,7 @@ func TestNewLockedWorldMode(t *testing.T) {
 	}
 }
 
-func TestWSConnectsToKnownWorldReturns200(t *testing.T) {
+func TestWSConnectsToKnownWorldReturns101(t *testing.T) {
 	gs := &GameServer{worlds: makeTestWorlds(), registry: newSessionRegistry()}
 
 	srv := httptest.NewServer(http.HandlerFunc(gs.handleWS))
