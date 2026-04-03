@@ -196,6 +196,10 @@ type Room struct {
 	Locks     []Lock     `yaml:"locks,omitempty"`
 	Biome     string     `yaml:"biome,omitempty"`
 	Resources []Resource `yaml:"resources,omitempty"`
+	// GridX and GridY are computed at load time via BFS from StartRoom.
+	// They are not stored in YAML.
+	GridX int `yaml:"-"`
+	GridY int `yaml:"-"`
 }
 
 // WorldQuest is a pre-defined quest loaded from world YAML.
@@ -256,6 +260,7 @@ func Load(name string) (*World, error) {
 	for i := range w.Rooms {
 		w.index[w.Rooms[i].ID] = &w.Rooms[i]
 	}
+	w.computeGridLayout()
 	return &w, nil
 }
 
@@ -337,6 +342,62 @@ func ListAvailable() []WorldMeta {
 		})
 	}
 	return metas
+}
+
+// computeGridLayout assigns GridX/GridY to each room by BFS from StartRoom,
+// following cardinal exits. Non-cardinal exits are ignored. If two rooms
+// would land on the same cell, the second is nudged right until a free cell
+// is found; a warning is logged.
+func (w *World) computeGridLayout() {
+	type pos struct{ x, y int }
+	offsets := map[string]pos{
+		"north": {0, -1}, "south": {0, 1},
+		"east": {1, 0}, "west": {-1, 0},
+	}
+	occupied := map[pos]string{}
+	coords := map[string]pos{}
+
+	start := pos{0, 0}
+	coords[w.StartRoom] = start
+	occupied[start] = w.StartRoom
+	queue := []string{w.StartRoom}
+
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		room := w.Room(cur)
+		if room == nil {
+			continue
+		}
+		curPos := coords[cur]
+		for dir, neighborID := range room.Exits {
+			if _, seen := coords[neighborID]; seen {
+				continue
+			}
+			off, ok := offsets[dir]
+			if !ok {
+				continue
+			}
+			candidate := pos{curPos.x + off.x, curPos.y + off.y}
+			for {
+				if existing, taken := occupied[candidate]; !taken || existing == neighborID {
+					break
+				}
+				fmt.Printf("gl1tch-mud: grid collision at (%d,%d) for room %q, nudging\n", candidate.x, candidate.y, neighborID)
+				candidate.x++
+			}
+			coords[neighborID] = candidate
+			occupied[candidate] = neighborID
+			queue = append(queue, neighborID)
+		}
+	}
+
+	for i := range w.Rooms {
+		if p, ok := coords[w.Rooms[i].ID]; ok {
+			w.Rooms[i].GridX = p.x
+			w.Rooms[i].GridY = p.y
+		}
+	}
 }
 
 // Room returns the room with the given ID, or nil.

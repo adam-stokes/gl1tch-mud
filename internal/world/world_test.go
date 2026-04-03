@@ -346,6 +346,90 @@ func TestAvailable(t *testing.T) {
 	}
 }
 
+// buildTestIndex wires w.index so Room() lookups work in tests that bypass Load().
+func buildTestIndex(w *World) {
+	w.index = make(map[string]*Room, len(w.Rooms))
+	for i := range w.Rooms {
+		w.index[w.Rooms[i].ID] = &w.Rooms[i]
+	}
+}
+
+func TestComputeGridLayoutLinear(t *testing.T) {
+	w := &World{
+		StartRoom: "a",
+		Rooms: []Room{
+			{ID: "a", Exits: map[string]string{"east": "b"}},
+			{ID: "b", Exits: map[string]string{"west": "a", "east": "c"}},
+			{ID: "c", Exits: map[string]string{"west": "b"}},
+		},
+	}
+	buildTestIndex(w)
+	w.computeGridLayout()
+
+	want := map[string][2]int{"a": {0, 0}, "b": {1, 0}, "c": {2, 0}}
+	for _, r := range w.Rooms {
+		if exp, ok := want[r.ID]; ok {
+			if r.GridX != exp[0] || r.GridY != exp[1] {
+				t.Errorf("room %s: got (%d,%d) want (%d,%d)", r.ID, r.GridX, r.GridY, exp[0], exp[1])
+			}
+		}
+	}
+}
+
+func TestComputeGridLayoutCardinals(t *testing.T) {
+	w := &World{
+		StartRoom: "center",
+		Rooms: []Room{
+			{ID: "center",   Exits: map[string]string{"north": "north-rm", "east": "east-rm", "south": "south-rm", "west": "west-rm"}},
+			{ID: "north-rm", Exits: map[string]string{"south": "center"}},
+			{ID: "east-rm",  Exits: map[string]string{"west":  "center"}},
+			{ID: "south-rm", Exits: map[string]string{"north": "center"}},
+			{ID: "west-rm",  Exits: map[string]string{"east":  "center"}},
+		},
+	}
+	buildTestIndex(w)
+	w.computeGridLayout()
+
+	want := map[string][2]int{
+		"center":   {0, 0},
+		"north-rm": {0, -1},
+		"east-rm":  {1, 0},
+		"south-rm": {0, 1},
+		"west-rm":  {-1, 0},
+	}
+	for _, r := range w.Rooms {
+		if exp, ok := want[r.ID]; ok {
+			if r.GridX != exp[0] || r.GridY != exp[1] {
+				t.Errorf("room %s: got (%d,%d) want (%d,%d)", r.ID, r.GridX, r.GridY, exp[0], exp[1])
+			}
+		}
+	}
+}
+
+func TestComputeGridLayoutStartRoomAtOrigin(t *testing.T) {
+	w := &World{
+		StartRoom: "s",
+		Rooms:     []Room{{ID: "s", Exits: map[string]string{}}},
+	}
+	buildTestIndex(w)
+	w.computeGridLayout()
+	for _, r := range w.Rooms {
+		if r.ID == "s" && (r.GridX != 0 || r.GridY != 0) {
+			t.Errorf("start room should be at (0,0) got (%d,%d)", r.GridX, r.GridY)
+		}
+	}
+}
+
+func TestComputeGridLayoutNoCardinalExits(t *testing.T) {
+	w := &World{
+		StartRoom: "only",
+		Rooms:     []Room{{ID: "only", Exits: map[string]string{}}},
+	}
+	buildTestIndex(w)
+	// Must not panic
+	w.computeGridLayout()
+}
+
 func TestWorldUIProfileParsedFromYAML(t *testing.T) {
 	raw := []byte(`
 name: testworld
