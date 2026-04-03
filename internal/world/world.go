@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -383,7 +384,7 @@ func (w *World) computeGridLayout() {
 				if existing, taken := occupied[candidate]; !taken || existing == neighborID {
 					break
 				}
-				fmt.Printf("gl1tch-mud: grid collision at (%d,%d) for room %q, nudging\n", candidate.x, candidate.y, neighborID)
+				log.Printf("gl1tch-mud: grid collision at (%d,%d) for room %q, nudging\n", candidate.x, candidate.y, neighborID)
 				candidate.x++
 			}
 			coords[neighborID] = candidate
