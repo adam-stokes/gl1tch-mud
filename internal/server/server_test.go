@@ -237,3 +237,57 @@ func TestWSConnectsAndReceivesWorldMeta(t *testing.T) {
 	}
 }
 
+func TestStateUpdatePayloadRoomFieldsJSON(t *testing.T) {
+	p := StateUpdatePayload{
+		HP:       10,
+		MaxHP:    10,
+		RoomName: "Town Square",
+		Exits:    []string{"north"},
+		RoomNPCs: []RoomNPCInfo{
+			{ID: "elder-mason", Name: "Elder Mason", CanTalk: true, CanTrade: false, Attackable: false},
+		},
+		RoomResources: []RoomResourceInfo{
+			{ID: "limestone-vein", Name: "limestone-vein", Action: "mine"},
+		},
+		Quests: []QuestInfo{
+			{ID: "q1", Title: "Find the Map", ObjCount: 1, ObjProgress: 0},
+		},
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, ok := out["room_npcs"]; !ok {
+		t.Error("expected room_npcs key in JSON")
+	}
+	if _, ok := out["room_resources"]; !ok {
+		t.Error("expected room_resources key in JSON")
+	}
+	if _, ok := out["quests"]; !ok {
+		t.Error("expected quests key in JSON")
+	}
+}
+
+func TestWorldMetaPayloadUIProfileJSON(t *testing.T) {
+	p := WorldMetaPayload{
+		Name:      "blockhaven",
+		Tagline:   "the ruins remember everything.",
+		UIProfile: "kids",
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if out["ui_profile"] != "kids" {
+		t.Errorf("ui_profile: got %v want %q", out["ui_profile"], "kids")
+	}
+}
+

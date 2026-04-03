@@ -45,13 +45,17 @@ type ErrorPayload struct {
 
 // StateUpdatePayload is sent after output.done with structured player state.
 type StateUpdatePayload struct {
-	HP        int       `json:"hp"`
-	MaxHP     int       `json:"maxHp"`
-	RoomName  string    `json:"roomName"`
-	Exits     []string  `json:"exits"`
-	Inventory []InvItem `json:"inventory"`
-	Credits   int       `json:"credits"`
-	Recipes   []Recipe  `json:"recipes,omitempty"`
+	HP            int                `json:"hp"`
+	MaxHP         int                `json:"maxHp"`
+	RoomName      string             `json:"roomName"`
+	Exits         []string           `json:"exits"`
+	Inventory     []InvItem          `json:"inventory"`
+	Credits       int                `json:"credits"`
+	Recipes       []Recipe           `json:"recipes,omitempty"`
+	RoomNPCs      []RoomNPCInfo      `json:"room_npcs,omitempty"`
+	RoomItems     []RoomItemInfo     `json:"room_items,omitempty"`
+	RoomResources []RoomResourceInfo `json:"room_resources,omitempty"`
+	Quests        []QuestInfo        `json:"quests,omitempty"`
 }
 
 // RecipeIngredient is a single crafting ingredient as sent to the client.
@@ -76,6 +80,37 @@ type InvItem struct {
 	Name string `json:"name"`
 	Desc string `json:"desc"`
 	Tier string `json:"tier"`
+}
+
+// RoomNPCInfo describes an NPC present in the player's current room.
+type RoomNPCInfo struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	CanTalk    bool   `json:"can_talk"`
+	CanTrade   bool   `json:"can_trade"`
+	Attackable bool   `json:"attackable"`
+}
+
+// RoomItemInfo describes an item on the ground in the player's current room.
+type RoomItemInfo struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Takeable bool   `json:"takeable"`
+}
+
+// RoomResourceInfo describes a minable/harvestable resource in the player's current room.
+type RoomResourceInfo struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Action string `json:"action"`
+}
+
+// QuestInfo is a summary of an active quest sent in state.update.
+type QuestInfo struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	ObjCount    int    `json:"obj_count"`
+	ObjProgress int    `json:"obj_progress"`
 }
 
 // PlayersUpdatePayload is sent to all clients when the player roster changes.
@@ -114,9 +149,10 @@ type InputPayload struct {
 
 // WorldMetaPayload is sent to the client on WebSocket connect, before the first state.update.
 type WorldMetaPayload struct {
-	Name    string           `json:"name"`
-	Tagline string           `json:"tagline"`
-	Theme   world.WorldTheme `json:"theme"`
+	Name      string           `json:"name"`
+	Tagline   string           `json:"tagline"`
+	Theme     world.WorldTheme `json:"theme"`
+	UIProfile string           `json:"ui_profile,omitempty"`
 }
 
 // writeMsg marshals msg to JSON and sends it as a text WebSocket frame.
