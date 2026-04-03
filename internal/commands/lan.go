@@ -100,9 +100,9 @@ func serverRunning() bool {
 
 func lanStart(passphrase string) Result {
 	if serverRunning() {
-		local := fmt.Sprintf("http://localhost:%d", lanPort)
+		local := fmt.Sprintf("http://127.0.0.1:%d", lanPort)
 		network := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
-		out := fmt.Sprintf("LAN session already active:\n  You:     %s\n  Players: %s", local, network)
+		out := fmt.Sprintf("LAN session already active:\n  You:     %s\n  Players: %s\nRun '/lan restart' to pick up a new binary.", local, network)
 		return Result{Output: out}
 	}
 
@@ -139,7 +139,7 @@ func lanStart(passphrase string) Result {
 	// Release so we don't wait on it.
 	cmd.Process.Release() //nolint:errcheck
 
-	local := fmt.Sprintf("http://localhost:%d", lanPort)
+	local := fmt.Sprintf("http://127.0.0.1:%d", lanPort)
 	network := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
 	out := fmt.Sprintf("LAN session started:\n  You:     %s\n  Players: %s\nShare the Players URL with your kids.", local, network)
 	if passphrase != "" {
@@ -167,7 +167,7 @@ func lanStatus() Result {
 	if !serverRunning() {
 		return Result{Output: "no LAN session is active."}
 	}
-	local := fmt.Sprintf("http://localhost:%d", lanPort)
+	local := fmt.Sprintf("http://127.0.0.1:%d", lanPort)
 	network := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
 	return Result{Output: fmt.Sprintf("LAN session active:\n  You:     %s\n  Players: %s", local, network)}
 }

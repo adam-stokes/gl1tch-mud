@@ -136,27 +136,27 @@ func (gs *GameServer) Start(port int, passphrase string) (string, error) {
 	mux.HandleFunc("/ws", gs.handleWS)
 	mux.Handle("/", FileHandler())
 
-	gs.httpServer = &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
+	gs.httpServer = &http.Server{Handler: mux}
+
+	addr := fmt.Sprintf(":%d", port)
+
+	// Listen on IPv4 explicitly; require it to succeed.
+	ln4, err := net.Listen("tcp4", addr)
+	if err != nil {
+		gs.httpServer = nil
+		return "", err
 	}
+
+	// Also listen on IPv6 so that "localhost" works whether it resolves to
+	// 127.0.0.1 or ::1. Failure is non-fatal (IPv6 may be disabled).
+	ln6, _ := net.Listen("tcp6", addr)
 
 	ip := lanIP()
 	gs.lanURL = fmt.Sprintf("http://%s:%d", ip, port)
 
-	errCh := make(chan error, 1)
-	go func() {
-		if err := gs.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-	}()
-
-	// Give the listener a moment to fail fast (port in use, etc.)
-	select {
-	case err := <-errCh:
-		gs.httpServer = nil
-		return "", err
-	case <-time.After(50 * time.Millisecond):
+	go gs.httpServer.Serve(ln4) //nolint:errcheck
+	if ln6 != nil {
+		go gs.httpServer.Serve(ln6) //nolint:errcheck
 	}
 
 	// Start idle timeout watcher.
