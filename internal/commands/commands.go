@@ -301,7 +301,9 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		if len(pile) == 0 {
 			return Result{Output: "there is no death pile here."}
 		}
-		player.ClaimDeathPile(db, s.RoomID) //nolint:errcheck
+		if err := player.ClaimDeathPile(db, s.RoomID); err != nil {
+			return Result{Output: "failed to recover items — try again."}
+		}
 		names := make([]string, len(pile))
 		for i, it := range pile {
 			names[i] = it.Name
@@ -442,9 +444,13 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			if r := w.Room(deathRoom); r != nil {
 				deathRoomName = r.Name
 			}
+			spawnRoomName := w.StartRoom
+			if r := w.Room(w.StartRoom); r != nil {
+				spawnRoomName = r.Name
+			}
 			out.WriteString(fmt.Sprintf(
 				"\nyou were defeated! your items lie at %s.\nyou wake up at %s.",
-				deathRoomName, w.Room(w.StartRoom).Name,
+				deathRoomName, spawnRoomName,
 			))
 			ev = &Event{
 				Topic: "mud.player.died",
