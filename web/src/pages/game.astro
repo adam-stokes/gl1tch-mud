@@ -803,6 +803,208 @@
       }
 
       #craft-do-btn:hover { background: var(--yellow); }
+
+      /* ── Kids mode (data-ui="kids") ──────────────────────── */
+
+      /* Hide compass + network; show room-context */
+      #room-context                           { display: none; }
+      [data-ui="kids"] #room-context          { display: block; }
+      [data-ui="kids"] .panel:has(#btn-n)     { display: none; }
+      [data-ui="kids"] .panel:has(#player-list) { display: none; }
+
+      /* NPC list */
+      [data-ui="kids"] #room-npcs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 4px;
+      }
+
+      .room-npc-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: var(--fg);
+      }
+
+      .room-npc-badges { display: flex; gap: 3px; font-size: 0.8rem; }
+
+      /* Exit buttons */
+      [data-ui="kids"] #kids-exits {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .kids-exit-btn {
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        font-family: inherit;
+        font-size: 0.72rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.1s, color 0.1s;
+      }
+
+      .kids-exit-btn:hover {
+        border-color: var(--accent, #c9a84c);
+        color: var(--accent, #c9a84c);
+      }
+
+      /* Kids inventory: chip row */
+      [data-ui="kids"] .inv-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      [data-ui="kids"] .inv-slot {
+        aspect-ratio: unset;
+        width: auto;
+        height: auto;
+        flex-direction: row;
+        padding: 3px 8px;
+        gap: 4px;
+        border-radius: 12px;
+      }
+
+      [data-ui="kids"] .inv-slot .slot-icon  { font-size: 0.9rem; margin-bottom: 0; }
+      [data-ui="kids"] .inv-slot .slot-label { font-size: 0.7rem; white-space: nowrap; text-overflow: unset; }
+
+      /* Target picker */
+      #target-picker        { display: none; margin-bottom: 6px; }
+      #target-picker.open   { display: block; }
+
+      .picker-label {
+        font-size: 0.65rem;
+        color: var(--comment);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 5px;
+      }
+
+      #target-picker-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+
+      .target-btn {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--fg);
+        font-family: inherit;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.1s, color 0.1s;
+      }
+
+      .target-btn:hover {
+        border-color: var(--accent, #c9a84c);
+        color: var(--accent, #c9a84c);
+      }
+
+      /* Kids action buttons: slightly larger */
+      [data-ui="kids"] .action-btn {
+        font-size: 0.8rem;
+        padding: 0.45rem 0.5rem;
+      }
+
+      /* Hint banner */
+      #hint-banner {
+        display: none;
+        background: var(--bg-dark);
+        border-top: 1px solid var(--border);
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+        color: var(--fg);
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        grid-column: 1 / -1;
+      }
+
+      #hint-banner.visible { display: flex; }
+
+      .hint-close {
+        background: none;
+        border: none;
+        color: var(--comment);
+        font-size: 0.8rem;
+        cursor: pointer;
+        padding: 0;
+        flex-shrink: 0;
+      }
+
+      /* Kids input toggle */
+      #kids-input-toggle {
+        display: none;
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--comment);
+        font-size: 1rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: border-color 0.1s, color 0.1s;
+        align-items: center;
+      }
+
+      [data-ui="kids"] #kids-input-toggle              { display: flex; }
+      [data-ui="kids"] #cmd-input                      { display: none; }
+      [data-ui="kids"] #send-btn                       { display: none; }
+      [data-ui="kids"] .prompt                         { display: none; }
+      [data-ui="kids"] #cmd-input.kids-visible         { display: block; }
+      [data-ui="kids"] #send-btn.kids-visible          { display: block; }
+      [data-ui="kids"] .prompt.kids-visible            { display: block; }
+
+      /* Quest kids modal */
+      #quest-kids-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 0.75rem;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      .quest-kids-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 10px;
+      }
+
+      .quest-kids-title {
+        font-size: 0.8rem;
+        color: var(--fg);
+        margin-bottom: 5px;
+      }
+
+      .quest-progress-bar-wrap {
+        background: var(--border);
+        border-radius: 4px;
+        height: 6px;
+        overflow: hidden;
+        margin-bottom: 4px;
+      }
+
+      .quest-progress-bar-fill {
+        height: 100%;
+        background: var(--accent, #c9a84c);
+        border-radius: 4px;
+        transition: width 0.3s;
+      }
+
+      .quest-progress-label {
+        font-size: 0.65rem;
+        color: var(--comment);
+      }
+
+      /* Section separator used inside #room-context */
+      .kids-section-sep { margin-top: 0.5rem; }
     </style>
   </head>
   <body>
