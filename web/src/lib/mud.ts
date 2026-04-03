@@ -935,6 +935,9 @@ export function initMUD() {
     loginScreen.style.display = 'none';
     hudScreen.classList.add('active');
     setInputEnabled(true);
+    if (_kidsMode) {
+      setTimeout(() => showHint('first_login', "Click the buttons below to do things. They change based on what's around you!"), 1500);
+    }
     cmdInput.focus();
     renderInventory([], (item) => openItemModal(item, sendCommand));
     updateCompass([]);
@@ -963,6 +966,17 @@ export function initMUD() {
 
   function applyStateUpdate(state: StateUpdate) {
     _lastState = state;
+    if (_kidsMode) {
+      if ((state.room_npcs ?? []).length > 0) {
+        showHint('first_npc', "Someone's here! Click Talk to chat with them.");
+      }
+      if ((state.inventory ?? []).length > 0) {
+        showHint('first_item', "Check Your Stuff to see what you're carrying.");
+      }
+      if ((state.quests ?? []).length > 0) {
+        showHint('first_quest', 'A new quest! Tap Quests to track your progress.');
+      }
+    }
     roomEl.textContent    = state.roomName || '—';
     hpHearts.innerHTML    = renderHearts(state.hp, state.maxHp);
     hpText.textContent    = `${state.hp}/${state.maxHp}`;
@@ -1073,6 +1087,84 @@ export function initMUD() {
   document.getElementById('craft-modal')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeCraftModal();
   });
+
+  // ── Kids onboarding hints ──────────────────────────────────────────────────
+  const HINTS_KEY = 'bh_hints_seen';
+
+  function getSeenHints(): Set<string> {
+    try {
+      const raw = localStorage.getItem(HINTS_KEY);
+      return new Set(raw ? JSON.parse(raw) as string[] : []);
+    } catch { return new Set(); }
+  }
+
+  function markHintSeen(key: string): void {
+    const seen = getSeenHints();
+    seen.add(key);
+    localStorage.setItem(HINTS_KEY, JSON.stringify([...seen]));
+  }
+
+  function showHint(key: string, message: string): void {
+    if (!_kidsMode) return;
+    if (getSeenHints().has(key)) return;
+    markHintSeen(key);
+
+    const banner = document.getElementById('hint-banner');
+    if (!banner) return;
+
+    while (banner.firstChild) banner.removeChild(banner.firstChild);
+
+    const text = document.createElement('span');
+    text.textContent = message;
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'hint-close';
+    close.textContent = '✕';
+    close.addEventListener('click', () => banner.classList.remove('visible'));
+
+    banner.appendChild(text);
+    banner.appendChild(close);
+    banner.classList.add('visible');
+
+    setTimeout(() => banner.classList.remove('visible'), 5000);
+  }
+
+  // ── Kids input toggle ──────────────────────────────────────────────────────
+  const kidsToggle    = document.getElementById('kids-input-toggle');
+  const INPUT_OPEN_KEY = 'bh-kids-input-open';
+
+  function applyInputVisibility(open: boolean): void {
+    const cmdEl    = document.getElementById('cmd-input');
+    const sendEl   = document.getElementById('send-btn');
+    const promptEl = document.querySelector<HTMLElement>('.prompt');
+    if (open) {
+      cmdEl?.classList.add('kids-visible');
+      sendEl?.classList.add('kids-visible');
+      promptEl?.classList.add('kids-visible');
+      if (kidsToggle) kidsToggle.style.opacity = '1';
+      (document.getElementById('cmd-input') as HTMLInputElement | null)?.focus();
+    } else {
+      cmdEl?.classList.remove('kids-visible');
+      sendEl?.classList.remove('kids-visible');
+      promptEl?.classList.remove('kids-visible');
+      if (kidsToggle) kidsToggle.style.opacity = '0.45';
+    }
+  }
+
+  if (kidsToggle) {
+    const savedOpen = localStorage.getItem(INPUT_OPEN_KEY) === 'true';
+    if (_kidsMode) applyInputVisibility(savedOpen);
+
+    kidsToggle.addEventListener('click', () => {
+      if (!_kidsMode) return;
+      const isOpen = document.getElementById('cmd-input')?.classList.contains('kids-visible') ?? false;
+      const next = !isOpen;
+      applyInputVisibility(next);
+      localStorage.setItem(INPUT_OPEN_KEY, String(next));
+      if (next) showHint('first_type', 'You can also type commands if you want.');
+    });
+  }
 
   // ── Item modal ─────────────────────────────────────────────────────────────
 
