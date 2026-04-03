@@ -4,6 +4,13 @@ version: 2
 
 project_name: gl1tch-mud
 
+before:
+  hooks:
+    - cmd: npm ci
+      dir: web
+    - cmd: npm run build
+      dir: web
+
 builds:
   - id: gl1tch-mud
     binary: gl1tch-mud
