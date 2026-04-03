@@ -84,7 +84,19 @@ type PlayersUpdatePayload struct {
 
 // PlayerInfo is a single connected player entry in PlayersUpdatePayload.
 type PlayerInfo struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	RoomName string `json:"roomName,omitempty"`
+}
+
+// ChatPayload is the payload of an incoming "chat" ClientMsg.
+type ChatPayload struct {
+	Text string `json:"text"`
+}
+
+// ChatMessagePayload is broadcast to all clients when someone chats.
+type ChatMessagePayload struct {
+	From string `json:"from"`
+	Text string `json:"text"`
 }
 
 // AuthPayload is the payload of an incoming "auth" ClientMsg.

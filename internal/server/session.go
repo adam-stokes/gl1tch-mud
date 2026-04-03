@@ -99,6 +99,20 @@ func (s *ClientSession) Handle(ctx context.Context) {
 			}
 			s.dispatchCommand(cmdCtx, p.Text)
 
+		case "chat":
+			var p ChatPayload
+			if err := json.Unmarshal(msg.Payload, &p); err != nil {
+				continue
+			}
+			text := strings.TrimSpace(p.Text)
+			if text == "" {
+				continue
+			}
+			s.registry.Broadcast(ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: s.playerID, Text: text},
+			})
+
 		default:
 			_ = writeMsg(ctx, s.conn, ServerMsg{
 				Type:    "error",
@@ -117,6 +131,71 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	}
 
 	verb, args := commands.Parse(input)
+
+	// ── say: alias for chat broadcast ────────────────────────────────────────
+	if verb == "say" {
+		text := strings.Join(args, " ")
+		if text != "" {
+			s.registry.Broadcast(ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: s.playerID, Text: text},
+			})
+		}
+		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		return
+	}
+
+	// ── goto: teleport to another connected player ────────────────────────────
+	if verb == "goto" {
+		if len(args) == 0 {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: "goto <player> — teleport to a connected player's location\r\n"},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+			return
+		}
+		targetID := args[0]
+		if targetID == s.playerID {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: "you can't teleport to yourself.\r\n"},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+			return
+		}
+		roomID := s.registry.GetRoomID(targetID)
+		if roomID == "" {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: fmt.Sprintf("player %q is not connected.\r\n", targetID)},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+			return
+		}
+		if roomID == s.state.RoomID {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: fmt.Sprintf("you are already in the same node as %s.\r\n", targetID)},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+			return
+		}
+		s.state.RoomID = roomID
+		res := commands.Look(s.database, s.state, s.world, nil)
+		_ = writeMsg(ctx, s.conn, ServerMsg{
+			Type:    "output.token",
+			Payload: OutputTokenPayload{Token: fmt.Sprintf("* jacking into %s's node... *\r\n\r\n", targetID)},
+		})
+		_ = writeMsg(ctx, s.conn, ServerMsg{
+			Type:    "output.token",
+			Payload: OutputTokenPayload{Token: res.Output + "\r\n"},
+		})
+		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		s.sendStateUpdate(ctx)
+		return
+	}
+
 	handler, ok := commands.Registry[verb]
 	if !ok {
 		_ = writeMsg(ctx, s.conn, ServerMsg{
@@ -197,16 +276,11 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
 
 	// Also send the current player roster so new joins always see a fresh list.
-	names := s.registry.List()
-	plist := make([]PlayerInfo, len(names))
-	for i, n := range names {
-		plist[i] = PlayerInfo{Name: n}
-	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{
 		Type: "players.update",
 		Payload: PlayersUpdatePayload{
 			HostOnline: true,
-			Players:    plist,
+			Players:    s.registry.Players(s.world),
 		},
 	})
 }

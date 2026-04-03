@@ -55,6 +55,43 @@ func (r *SessionRegistry) List() []string {
 	return names
 }
 
+// Broadcast sends msg to every connected session.
+func (r *SessionRegistry) Broadcast(msg ServerMsg) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ctx := context.Background()
+	for _, s := range r.sessions {
+		_ = writeMsg(ctx, s.conn, msg)
+	}
+}
+
+// GetRoomID returns the current room ID for playerID, or "" if not found.
+func (r *SessionRegistry) GetRoomID(playerID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if s, ok := r.sessions[playerID]; ok && s.state != nil {
+		return s.state.RoomID
+	}
+	return ""
+}
+
+// Players returns a PlayerInfo slice for all sessions, including room names.
+func (r *SessionRegistry) Players(w *world.World) []PlayerInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make([]PlayerInfo, 0, len(r.sessions))
+	for id, s := range r.sessions {
+		roomName := ""
+		if s.state != nil {
+			if room := w.Room(s.state.RoomID); room != nil {
+				roomName = room.Name
+			}
+		}
+		result = append(result, PlayerInfo{Name: id, RoomName: roomName})
+	}
+	return result
+}
+
 // closeAll sends a shutdown message to every session and removes them.
 func (r *SessionRegistry) closeAll(ctx context.Context) {
 	r.mu.Lock()
@@ -158,26 +195,16 @@ func (gs *GameServer) ConnectedPlayers() []string {
 
 // Broadcast sends msg to every connected session.
 func (gs *GameServer) Broadcast(msg ServerMsg) {
-	gs.registry.mu.RLock()
-	defer gs.registry.mu.RUnlock()
-	ctx := context.Background()
-	for _, s := range gs.registry.sessions {
-		_ = writeMsg(ctx, s.conn, msg)
-	}
+	gs.registry.Broadcast(msg)
 }
 
 // broadcastPlayerList sends a players.update message to all connected sessions.
 func (gs *GameServer) broadcastPlayerList() {
-	names := gs.registry.List()
-	players := make([]PlayerInfo, len(names))
-	for i, n := range names {
-		players[i] = PlayerInfo{Name: n}
-	}
 	gs.Broadcast(ServerMsg{
 		Type: "players.update",
 		Payload: PlayersUpdatePayload{
 			HostOnline: true,
-			Players:    players,
+			Players:    gs.registry.Players(gs.world),
 		},
 	})
 }

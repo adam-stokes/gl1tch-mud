@@ -187,28 +187,30 @@ function updateCompass(exits: string[]) {
 
 // ── Player list ───────────────────────────────────────────────────────────────
 
-function renderPlayerList(data: { hostOnline: boolean; players: Array<{ name: string }> }) {
+let _myPlayerID = '';
+let _teleportFn: ((targetID: string) => void) | null = null;
+
+function renderPlayerList(data: { hostOnline: boolean; players: Array<{ name: string; roomName?: string }> }) {
   const list = document.getElementById('player-list');
   if (!list) return;
   list.innerHTML = '';
 
-  // Host row
-  const hostRow = buildPlayerRow('gl1tch', 'host', data.hostOnline);
+  const hostRow = buildPlayerRow('gl1tch', 'host', data.hostOnline, '');
   list.appendChild(hostRow);
 
   for (const p of data.players) {
-    const row = buildPlayerRow(p.name, 'peer', true);
+    const row = buildPlayerRow(p.name, 'peer', true, p.roomName ?? '');
     list.appendChild(row);
   }
 }
 
-function buildPlayerRow(name: string, role: 'host' | 'peer', online: boolean): HTMLElement {
+function buildPlayerRow(name: string, role: 'host' | 'peer', online: boolean, roomName: string): HTMLElement {
   const row = document.createElement('div');
   row.className = 'player-row';
 
   const avatar = document.createElement('div');
   avatar.className = `player-avatar ${role}-av`;
-  avatar.textContent = name.slice(0, 2); // initials
+  avatar.textContent = name.slice(0, 2);
 
   const info = document.createElement('div');
   info.className = 'player-info';
@@ -219,7 +221,8 @@ function buildPlayerRow(name: string, role: 'host' | 'peer', online: boolean): H
 
   const statusEl = document.createElement('div');
   statusEl.className = 'player-status';
-  statusEl.textContent = role === 'host' ? 'host · online' : (online ? 'peer · online' : 'peer · offline');
+  const loc = roomName ? roomName : (role === 'host' ? 'host' : 'online');
+  statusEl.textContent = loc;
 
   info.appendChild(nameEl);
   info.appendChild(statusEl);
@@ -232,7 +235,51 @@ function buildPlayerRow(name: string, role: 'host' | 'peer', online: boolean): H
   row.appendChild(avatar);
   row.appendChild(info);
   row.appendChild(dot);
+
+  // Teleport button — only for peers (not self, not host entry)
+  if (role === 'peer' && name !== _myPlayerID && _teleportFn) {
+    const gotoBtn = document.createElement('button');
+    gotoBtn.className = 'goto-btn';
+    gotoBtn.title = `Teleport to ${name}`;
+    gotoBtn.textContent = '⤴';
+    const captured = name;
+    gotoBtn.addEventListener('click', () => _teleportFn!(captured));
+    row.appendChild(gotoBtn);
+  }
+
   return row;
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+
+const MAX_CHAT_LINES = 40;
+
+function appendChatMessage(from: string, text: string, myID: string) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  const line = document.createElement('div');
+  const isMe = from === myID;
+  line.className = `chat-line ${isMe ? 'from-host' : 'from-peer'}`;
+
+  const fromEl = document.createElement('span');
+  fromEl.className = 'chat-from';
+  fromEl.textContent = from + ': ';  // textContent is XSS-safe
+
+  const textEl = document.createElement('span');
+  textEl.className = 'chat-text';
+  textEl.textContent = text;          // textContent is XSS-safe
+
+  line.appendChild(fromEl);
+  line.appendChild(textEl);
+  container.appendChild(line);
+
+  // Trim old messages
+  while (container.children.length > MAX_CHAT_LINES) {
+    container.removeChild(container.firstChild!);
+  }
+
+  container.scrollTop = container.scrollHeight;
 }
 
 // ── Craft modal + drag-and-drop ───────────────────────────────────────────────
@@ -436,6 +483,21 @@ export function initMUD() {
   let ws: WebSocket | null = null;
   let inputEnabled = false;
 
+  // ── Chat input wiring ───────────────────────────────────────────────────────
+
+  const chatInput  = document.getElementById('chat-input') as HTMLInputElement;
+  const chatSendBtn = document.getElementById('chat-send-btn') as HTMLButtonElement;
+
+  function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    chatInput.value = '';
+    ws.send(JSON.stringify({ type: 'chat', payload: { text } }));
+  }
+
+  chatSendBtn.addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
+
   // ── Login ──────────────────────────────────────────────────────────────────
 
   connectBtn.addEventListener('click', connect);
@@ -497,7 +559,12 @@ export function initMUD() {
   function handleServerMsg(msg: ServerMsg) {
     switch (msg.type) {
       case 'auth.ok':
-        localStorage.setItem('glitch-mud-player', nameInput.value.trim());
+        _myPlayerID = nameInput.value.trim();
+        _teleportFn = (targetID: string) => {
+          if (inputEnabled) sendCommand(`goto ${targetID}`);
+          else { cmdInput.value = `goto ${targetID}`; cmdInput.focus(); }
+        };
+        localStorage.setItem('glitch-mud-player', _myPlayerID);
         localStorage.setItem('glitch-mud-pass', passInput.value);
         showHUD();
         break;
@@ -519,8 +586,15 @@ export function initMUD() {
         applyStateUpdate(msg.payload as StateUpdate);
         break;
       case 'players.update':
-        renderPlayerList(msg.payload as { hostOnline: boolean; players: Array<{ name: string }> });
+        renderPlayerList(msg.payload as { hostOnline: boolean; players: Array<{ name: string; roomName?: string }> });
         break;
+      case 'chat.message': {
+        const { from, text } = msg.payload as { from: string; text: string };
+        appendChatMessage(from, text, _myPlayerID);
+        // Also echo into the main output so it's not missed while reading.
+        appendOutput(`\n\x1b[36m[${escapeHtml(from)}]\x1b[0m ${escapeHtml(text)}\n`);
+        break;
+      }
       case 'error':
         appendOutput(`\n\x1b[31m[${msg.payload?.message ?? 'error'}]\x1b[0m\n`);
         break;
