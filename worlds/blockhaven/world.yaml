@@ -1,0 +1,912 @@
+name: blockhaven
+start_room: meadow-0
+narrator_model: claude-haiku-4-5-20251001
+
+weather_table:
+  - biome: meadow
+    possible: [clear, rainy, windy, stormy]
+  - biome: forest
+    possible: [clear, rainy, foggy]
+  - biome: desert
+    possible: [clear, sandstorm, scorching]
+  - biome: snow
+    possible: [clear, light-snow, blizzard]
+  - biome: caves
+    possible: [clear, damp, tremor]
+
+factions:
+  - id: stoneguard
+    name: "The Stoneguard"
+    desc: |
+      Master builders and craftspeople who maintain Meadow Town. They remember the Crystal Core
+      best — and feel its absence most keenly in the slow wilting of the meadow flowers.
+    agenda: "Restore the Crystal Core and rebuild Meadow Town to its former glory."
+    territory: [meadow-0, meadow-1]
+    allies: [thornwalkers, dunekeepers, frostborn, deepborn]
+    enemies: []
+
+  - id: thornwalkers
+    name: "The Thornwalkers"
+    desc: |
+      Rangers and herbalists who walk the ancient forest paths. They speak to the trees,
+      and the trees have been very quiet since the Crystal Core shattered.
+    agenda: "Protect the Forest and restore the ancient trees to full bloom."
+    territory: [forest-0, forest-1]
+    allies: [stoneguard]
+    enemies: []
+
+  - id: dunekeepers
+    name: "The Dunekeepers"
+    desc: |
+      Archaeologists and puzzle-solvers who comb the desert ruins for lost knowledge.
+      They believe the Crystal Core shards hold clues to even older mysteries.
+    agenda: "Unlock the secrets buried in the desert ruins before the sand reclaims them."
+    territory: [desert-0, desert-1]
+    allies: [stoneguard]
+    enemies: []
+
+  - id: frostborn
+    name: "The Frostborn"
+    desc: |
+      Hardy mountain miners and smiths who carve their homes from the Snow Peaks.
+      The blizzards have worsened since Cinder fled here, and the Frostborn are not pleased.
+    agenda: "Forge the tools to fix what was broken. Find the dragon. Get answers."
+    territory: [snow-0, snow-1]
+    allies: [stoneguard, deepborn]
+    enemies: []
+
+  - id: deepborn
+    name: "The Deepborn"
+    desc: |
+      Ancient cave dwellers who have lived underground since before memory. They were
+      the ones who first built the Crystal Core's foundation. They know how to fix it.
+    agenda: "Guide the right person to the Crystal Cavern and restore what was lost."
+    territory: [caves-0, caves-1]
+    allies: [stoneguard, frostborn]
+    enemies: []
+
+loot_tables:
+  - id: stoneling-loot
+    entries:
+      - item_id: stone
+        name: "Stone"
+        desc: "A rough stone block."
+        probability: 0.9
+        count_min: 1
+        count_max: 3
+      - item_id: flint
+        name: "Flint"
+        desc: "A sharp piece of flint."
+        probability: 0.5
+        count_min: 1
+        count_max: 2
+      - item_id: meadow-shard-fragment
+        name: "Glowing Fragment"
+        desc: "A warm shard that pulses with soft light. Part of something larger."
+        probability: 0.05
+        count_min: 1
+        count_max: 1
+
+  - id: raider-loot
+    entries:
+      - item_id: iron-ore
+        name: "Iron Ore"
+        desc: "Raw iron ore. Smelt it into an ingot."
+        probability: 0.6
+        count_min: 1
+        count_max: 2
+      - item_id: bread
+        name: "Bread"
+        desc: "Restores 20 HP when eaten."
+        probability: 0.7
+        count_min: 1
+        count_max: 2
+
+  - id: thornsprite-loot
+    entries:
+      - item_id: seed
+        name: "Forest Seed"
+        desc: "A seed from the ancient forest. Plant it in fertile soil."
+        probability: 0.8
+        count_min: 1
+        count_max: 3
+      - item_id: leaf
+        name: "Leaf"
+        desc: "A large forest leaf."
+        probability: 0.9
+        count_min: 1
+        count_max: 4
+
+  - id: vine-creeper-loot
+    entries:
+      - item_id: vine
+        name: "Vine"
+        desc: "Strong and flexible. Used in crafting."
+        probability: 0.8
+        count_min: 1
+        count_max: 3
+      - item_id: root
+        name: "Root"
+        desc: "A gnarled tree root."
+        probability: 0.6
+        count_min: 1
+        count_max: 2
+
+  - id: sand-golem-loot
+    entries:
+      - item_id: sand
+        name: "Sand"
+        desc: "Fine desert sand."
+        probability: 0.9
+        count_min: 2
+        count_max: 5
+      - item_id: sandstone
+        name: "Sandstone"
+        desc: "Compressed sandstone block."
+        probability: 0.7
+        count_min: 1
+        count_max: 3
+      - item_id: gold-ore
+        name: "Gold Ore"
+        desc: "Raw gold ore glittering in the sunlight."
+        probability: 0.1
+        count_min: 1
+        count_max: 1
+
+  - id: frost-wraith-loot
+    entries:
+      - item_id: frost-essence
+        name: "Frost Essence"
+        desc: "A cold, shimmering vial of frozen energy. Used in the Frozen Forge quest."
+        probability: 0.6
+        count_min: 1
+        count_max: 1
+      - item_id: ice-shard
+        name: "Ice Shard"
+        desc: "A sharp shard of magical ice."
+        probability: 0.8
+        count_min: 1
+        count_max: 2
+
+  - id: cave-lurker-loot
+    entries:
+      - item_id: coal
+        name: "Coal"
+        desc: "A lump of coal. Burns as fuel."
+        probability: 0.8
+        count_min: 1
+        count_max: 3
+      - item_id: iron-ore
+        name: "Iron Ore"
+        desc: "Raw iron ore."
+        probability: 0.5
+        count_min: 1
+        count_max: 2
+
+  - id: crystal-shade-loot
+    entries:
+      - item_id: glowstone
+        name: "Glowstone"
+        desc: "A warm, softly glowing stone."
+        probability: 0.7
+        count_min: 1
+        count_max: 2
+      - item_id: crystal-fragment
+        name: "Crystal Fragment"
+        desc: "A piece of ancient crystal. The Deepborn would want to see this."
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+
+crafting_recipes:
+  - id: wooden-pickaxe
+    name: "Wooden Pickaxe"
+    ingredients:
+      - {id: wood-log, count: 3}
+      - {id: stick, count: 2}
+    output:
+      id: wooden-pickaxe
+      name: "Wooden Pickaxe"
+      desc: "A basic pickaxe. Required for mining stone and ore."
+    skill_req: 0
+
+  - id: wooden-sword
+    name: "Wooden Sword"
+    ingredients:
+      - {id: wood-log, count: 2}
+      - {id: stick, count: 1}
+    output:
+      id: wooden-sword
+      name: "Wooden Sword"
+      desc: "A basic sword. 5 attack."
+    skill_req: 0
+
+  - id: stone-pickaxe
+    name: "Stone Pickaxe"
+    ingredients:
+      - {id: stone, count: 3}
+      - {id: stick, count: 2}
+    output:
+      id: stone-pickaxe
+      name: "Stone Pickaxe"
+      desc: "A stone pickaxe. Mines faster than wood."
+    skill_req: 0
+
+  - id: iron-pickaxe
+    name: "Iron Pickaxe"
+    ingredients:
+      - {id: iron-ingot, count: 3}
+      - {id: stick, count: 2}
+    output:
+      id: iron-pickaxe
+      name: "Iron Pickaxe"
+      desc: "An iron pickaxe. Can mine gold and rare ores."
+    skill_req: 0
+    workbench: workbench
+
+  - id: iron-sword
+    name: "Iron Sword"
+    ingredients:
+      - {id: iron-ingot, count: 2}
+      - {id: stick, count: 1}
+    output:
+      id: iron-sword
+      name: "Iron Sword"
+      desc: "A sharp iron sword. 12 attack."
+    skill_req: 0
+    workbench: workbench
+
+  - id: frostcore-ingot
+    name: "Frostcore Ingot"
+    ingredients:
+      - {id: frost-essence, count: 1}
+      - {id: iron-ingot, count: 1}
+    output:
+      id: frostcore-ingot
+      name: "Frostcore Ingot"
+      desc: "A shimmering ingot of iron and frost magic. Required for the Mountain Shard quest."
+    skill_req: 0
+    workbench: furnace
+
+  - id: workbench
+    name: "Workbench"
+    ingredients:
+      - {id: wood-log, count: 4}
+    output:
+      id: workbench
+      name: "Workbench"
+      desc: "A sturdy workbench. Unlocks advanced crafting recipes."
+    workbench: build
+
+  - id: furnace
+    name: "Furnace"
+    ingredients:
+      - {id: stone, count: 8}
+    output:
+      id: furnace
+      name: "Furnace"
+      desc: "A stone furnace. Used to smelt ores."
+    workbench: build
+
+  - id: enchanting-table
+    name: "Enchanting Table"
+    ingredients:
+      - {id: diamond, count: 2}
+      - {id: obsidian, count: 4}
+      - {id: wood-log, count: 2}
+    output:
+      id: enchanting-table
+      name: "Enchanting Table"
+      desc: "A glowing table of ancient magic. Used to enchant items."
+    workbench: build
+
+  - id: chest
+    name: "Chest"
+    ingredients:
+      - {id: wood-log, count: 8}
+    output:
+      id: chest
+      name: "Chest"
+      desc: "A wooden storage chest."
+    workbench: build
+
+  - id: garden-plot
+    name: "Garden Plot"
+    ingredients:
+      - {id: dirt, count: 4}
+      - {id: stick, count: 2}
+    output:
+      id: garden-plot
+      name: "Garden Plot"
+      desc: "A small plot of fertile soil for growing crops."
+    workbench: build
+
+quests:
+  - id: q-meadow-shard
+    title: "The Wilting Meadow"
+    description: |
+      Elder Mason says the Meadow Shard landed somewhere in the meadow fields — likely carried
+      by the Stoneling Chieftain, who has been unusually aggressive since the Core shattered.
+      Defeat the Stoneling Chieftain and retrieve the Meadow Shard.
+    giver_npc_id: elder-mason
+    obj_type: kill
+    obj_target: stoneling-chieftain
+    obj_count: 1
+    reward_credits: 150
+    reward_xp_skill: combat
+    reward_xp_amount: 30
+    reward_item_id: meadow-shard
+    reward_item_name: "Meadow Shard"
+    reward_item_desc: "A warm, flower-scented shard of the Crystal Core. One of five."
+
+  - id: q-forest-shard
+    title: "Root of the Problem"
+    description: |
+      Warden Sylara says the Forest Shard sank into the Ancient Root Vein beneath the oldest oak.
+      Mine it out — but bring a strong pickaxe.
+    giver_npc_id: warden-sylara
+    obj_type: mine
+    obj_target: ancient-root-vein
+    obj_count: 1
+    reward_credits: 120
+    reward_xp_skill: mining
+    reward_xp_amount: 25
+    reward_item_id: forest-shard
+    reward_item_name: "Forest Shard"
+    reward_item_desc: "A green, leaf-scented shard of the Crystal Core. One of five."
+
+  - id: q-desert-shard
+    title: "Lost to the Sand"
+    description: |
+      Archivist Dunes says the Desert Shard is sealed inside the Sandstone Ruins. The ancient
+      lock can only be opened by solving the ruin's security terminal.
+    giver_npc_id: archivist-dunes
+    obj_type: hack
+    obj_target: ruin-terminal
+    obj_count: 1
+    reward_credits: 200
+    reward_xp_skill: hacking
+    reward_xp_amount: 30
+    reward_item_id: desert-shard
+    reward_item_name: "Desert Shard"
+    reward_item_desc: "A sun-warm shard of the Crystal Core. One of five."
+
+  - id: q-mountain-shard
+    title: "The Frozen Forge"
+    description: |
+      Ironmaster Breck says the Mountain Shard is embedded in a block of magical ice deep in the
+      Snow Peaks. You need to forge a Frostcore Ingot to unlock it. Smelt frost-essence with
+      iron-ingot in a furnace to create the ingot.
+    giver_npc_id: ironmaster-breck
+    obj_type: retrieve
+    obj_target: frostcore-ingot
+    obj_count: 1
+    reward_credits: 175
+    reward_xp_skill: mining
+    reward_xp_amount: 25
+    reward_item_id: mountain-shard
+    reward_item_name: "Mountain Shard"
+    reward_item_desc: "A cold, frost-kissed shard of the Crystal Core. One of five."
+
+  - id: q-cave-shard
+    title: "Into the Dark"
+    description: |
+      Elder Voss says the Cave Shard rests in the Crystal Cavern at the deepest point of the
+      caves. The Deepborn have been guarding it since the Core shattered. Re-light the Crystal
+      Flame to claim the shard.
+    giver_npc_id: elder-voss
+    obj_type: hack
+    obj_target: flame-terminal
+    obj_count: 1
+    reward_credits: 250
+    reward_xp_skill: hacking
+    reward_xp_amount: 30
+    reward_item_id: cave-shard
+    reward_item_name: "Cave Shard"
+    reward_item_desc: "A deep-glowing shard of the Crystal Core. One of five."
+
+  - id: q-cinder-return
+    title: "Cinder's Return"
+    description: |
+      Elder Mason says a golden glow has appeared in the Snow Peaks — Cinder's hiding place.
+      You carry all five Crystal Shards. Travel to Cinder's Hideaway and convince the dragon
+      to help restore the Crystal Core.
+    giver_npc_id: elder-mason
+    obj_type: retrieve
+    obj_target: crystal-key
+    obj_count: 1
+    reward_credits: 500
+    reward_xp_skill: combat
+    reward_xp_amount: 100
+    reward_item_id: crystal-key
+    reward_item_name: "Crystal Key"
+    reward_item_desc: "A key formed from the warmth of five Crystal Shards. Opens the path to Cinder."
+
+rooms:
+  - id: meadow-0
+    name: "Meadow Town Square"
+    biome: meadow
+    desc: |
+      The heart of Meadow Town. Cobblestone paths wind between cheerful buildings, though
+      the flower beds that once lined every wall are wilted and grey. At the center stands
+      a stone pedestal — empty where the Crystal Core once floated. Elder Mason paces near it,
+      his brow furrowed.
+    exits:
+      north: meadow-1
+      east: forest-0
+      south: desert-0
+      west: snow-0
+    npcs:
+      - id: elder-mason
+        name: "Elder Mason"
+        hp: 0
+        attack: 0
+        desc: "The leader of the Stoneguard. An old dwarf with calloused hands and worried eyes."
+        dialogue:
+          - trigger: always
+            text: |
+              "Welcome to Meadow Town, traveller. The Crystal Core is gone — shattered by a young
+              dragon named Cinder. Without it, our world is fading. Will you help us restore it?"
+            quest_id: q-meadow-shard
+          - trigger: has_all_shards
+            text: |
+              "You have all five shards. A golden glow appeared in the Snow Peaks just this morning.
+              I believe Cinder is there. Go — and bring those shards with you."
+            quest_id: q-cinder-return
+      - id: stoneling-chieftain
+        name: "Stoneling Chieftain"
+        hp: 60
+        attack: 12
+        desc: "A hulking stoneling, larger than the rest. Its eyes glow faintly — like it swallowed something magical."
+        loot_table_id: stoneling-loot
+        dialogue: []
+    items:
+      - id: builders-map
+        name: "Builder's Map"
+        desc: "A hand-drawn map of Blockhaven with notes on all five biomes."
+        readable: true
+        content: |
+          BLOCKHAVEN — A TRAVELLER'S GUIDE
+
+          The Crystal Core once floated above Meadow Town Square, giving each biome its colour
+          and life. A young dragon named Cinder accidentally shattered it. Five Crystal Shards
+          scattered to the five biomes.
+
+          THE FIVE BIOMES:
+          — Meadow (north): Home of the Stoneguard builders. The wilting has begun.
+          — Forest (east): Home of the Thornwalkers. Ancient trees are going dormant.
+          — Desert (south): Home of the Dunekeepers. Ruins are sinking fast.
+          — Snow Peaks (west): Home of the Frostborn. Cinder fled here.
+          — Deep Caves (down from caves-0): Home of the Deepborn. The dark is spreading.
+
+          YOUR GOAL: Collect all five Crystal Shards. Find Cinder. Restore the Core.
+
+          NEW COMMANDS: mine, harvest, gather, smelt, plant, build, enchant, weather, deathpile
+          If you die: your items drop where you fell. Use 'deathpile' to find them.
+    resources: []
+
+  - id: meadow-1
+    name: "The Builder's Workshop"
+    biome: meadow
+    desc: |
+      A wide workshop filled with the smell of sawdust and coal smoke. A stone furnace
+      glows steadily in one corner, and a solid workbench dominates the center of the room.
+      Apprentice Brix is sorting tool handles when you enter.
+    exits:
+      south: meadow-0
+    npcs:
+      - id: apprentice-brix
+        name: "Apprentice Brix"
+        hp: 0
+        attack: 0
+        desc: "A young Stoneguard apprentice. Enthusiastic and helpful, even on bad days."
+        trades:
+          - id: brix-trade-1
+            wants: [{id: wood-log, count: 4}]
+            offers: [{id: stick, name: "Stick", desc: "A sturdy stick.", count: 8}]
+          - id: brix-trade-2
+            wants: [{id: iron-ingot, count: 2}]
+            offers: [{id: iron-sword, name: "Iron Sword", desc: "A sharp iron sword. 12 attack.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "The workbench is yours to use! Type 'craft' to see what you can make. You'll need a 'build workbench' first if you're out in the field."
+          - trigger: skill_gte:mining:2
+            text: "Nice pickaxe work. You're getting good at this. Ask me about iron gear when you have the ingots."
+    items:
+      - id: coal-stack
+        name: "Coal Stack"
+        desc: "A small pile of coal for the furnace."
+        signal_tier: noise
+    resources:
+      - id: stone-deposits
+        type: mine
+        yields:
+          - item_id: stone
+            name: "Stone"
+            desc: "A rough stone block."
+            probability: 0.9
+            count_min: 2
+            count_max: 4
+          - item_id: flint
+            name: "Flint"
+            desc: "Sharp flint."
+            probability: 0.4
+            count_min: 1
+            count_max: 2
+        tool_required: pickaxe
+        respawn_actions: 15
+    systems:
+      - id: furnace
+        security_level: 0
+        reward_text: "The furnace is already lit. Use 'smelt <ore>' to process materials."
+
+  - id: forest-0
+    name: "Forest Entrance"
+    biome: forest
+    desc: |
+      The forest begins here — a wall of ancient trees whose canopy filters the light to a
+      cool green. The Thornwalkers keep a small patrol post at the treeline. Warden Sylara
+      stands with her arms crossed, watching the trees with concern.
+    exits:
+      west: meadow-0
+      east: forest-1
+    npcs:
+      - id: warden-sylara
+        name: "Warden Sylara"
+        hp: 0
+        attack: 0
+        desc: "Tall, lean, and watchful. A Thornwalker ranger who has walked these paths for thirty years."
+        dialogue:
+          - trigger: always
+            text: "The trees are barely breathing. The Forest Shard sank into the Ancient Root Vein in the oak grove to the east. I can't reach it — the roots are too thick. Can you mine it out?"
+            quest_id: q-forest-shard
+          - trigger: skill_gte:mining:1
+            text: "You have a pickaxe. Good. The Ancient Root Vein is tough — a stone pickaxe or better will do it."
+      - id: thornsprite
+        name: "Thornsprite"
+        hp: 15
+        attack: 4
+        desc: "A small creature made of twisted branches and thorns. Hostile but fragile."
+        loot_table_id: thornsprite-loot
+        dialogue: []
+    items: []
+    resources:
+      - id: forest-herbs
+        type: harvest
+        yields:
+          - item_id: herb
+            name: "Forest Herb"
+            desc: "A medicinal herb. Useful for crafting."
+            probability: 0.8
+            count_min: 1
+            count_max: 3
+        tool_required: ""
+        respawn_actions: 10
+
+  - id: forest-1
+    name: "Ancient Oak Grove"
+    biome: forest
+    desc: |
+      A cathedral of ancient oaks so tall their tops vanish into mist. Roots thick as houses
+      twist across the ground. At the base of the largest oak, a faint golden glow pulses
+      from deep within the roots — the Forest Shard. A Vine Creeper coils nearby.
+    exits:
+      west: forest-0
+    npcs:
+      - id: vine-creeper
+        name: "Vine Creeper"
+        hp: 25
+        attack: 7
+        desc: "A mass of animated vines with glowing green eyes. It guards the old oak."
+        loot_table_id: vine-creeper-loot
+        dialogue: []
+    items: []
+    resources:
+      - id: ancient-oak
+        type: harvest
+        yields:
+          - item_id: wood-log
+            name: "Wood Log"
+            desc: "A thick log from an ancient oak."
+            probability: 1.0
+            count_min: 2
+            count_max: 4
+          - item_id: rare-seed
+            name: "Rare Seed"
+            desc: "A seed from an ancient tree. Plant it to grow something special."
+            probability: 0.2
+            count_min: 1
+            count_max: 1
+        tool_required: axe
+        respawn_actions: 30
+      - id: ancient-root-vein
+        type: mine
+        yields:
+          - item_id: forest-shard
+            name: "Forest Shard"
+            desc: "A green, leaf-scented shard of the Crystal Core. One of five."
+            probability: 1.0
+            count_min: 1
+            count_max: 1
+        tool_required: pickaxe
+        respawn_actions: 9999
+
+  - id: desert-0
+    name: "Desert Gateway"
+    biome: desert
+    desc: |
+      The meadow gives way to sand at a crumbling stone arch — an ancient marker that once
+      read "Dunekeeper Territory." Half the inscription has been swallowed by a drifting dune.
+      A Dunekeeper scout in amber robes watches the horizon with a brass spyglass.
+    exits:
+      north: meadow-0
+      east: desert-1
+    npcs:
+      - id: dunekeeper-scout
+        name: "Dunekeeper Scout"
+        hp: 0
+        attack: 0
+        desc: "A lean Dunekeeper with sun-darkened skin and a sharp eye for trouble."
+        dialogue:
+          - trigger: always
+            text: "The ruins are to the east. Archivist Dunes will want to speak with you. Watch out for Sand Golems — they've been restless since the Core shattered."
+          - trigger: has_item:desert-shard
+            text: "You found it! The Archivist will be overjoyed. Safe travels."
+      - id: dune-stalker
+        name: "Dune Stalker"
+        hp: 20
+        attack: 6
+        desc: "A predatory desert creature that blends into the sand. Attacks without warning."
+        loot_table_id: thornsprite-loot
+        dialogue: []
+    items: []
+    resources:
+      - id: desert-sand
+        type: mine
+        yields:
+          - item_id: sand
+            name: "Sand"
+            desc: "Fine desert sand."
+            probability: 1.0
+            count_min: 3
+            count_max: 6
+        tool_required: ""
+        respawn_actions: 5
+
+  - id: desert-1
+    name: "Sandstone Ruins"
+    biome: desert
+    desc: |
+      Pillars of carved sandstone rise from the dunes — the remains of an ancient Dunekeeper
+      archive. Most of the structure has sunk into the sand, but one sealed chamber still stands.
+      Archivist Dunes crouches over a half-buried tablet. A Sand Golem stands motionless nearby,
+      waiting.
+    exits:
+      west: desert-0
+    npcs:
+      - id: archivist-dunes
+        name: "Archivist Dunes"
+        hp: 0
+        attack: 0
+        desc: "An elderly Dunekeeper with ink-stained fingers and a mind full of ancient puzzles."
+        dialogue:
+          - trigger: always
+            text: "The Desert Shard is sealed in the inner chamber. The ruin-terminal controls the lock — it was built to keep looters out. Can you solve it? The security level is only 2."
+            quest_id: q-desert-shard
+          - trigger: has_item:desert-shard
+            text: "Incredible! You actually solved it. The shard is yours — for now. Use it to restore the Core."
+      - id: sand-golem
+        name: "Sand Golem"
+        hp: 40
+        attack: 10
+        desc: "A towering construct of animated sandstone. Slow, but hits like a boulder."
+        loot_table_id: sand-golem-loot
+        dialogue: []
+    items: []
+    systems:
+      - id: ruin-terminal
+        security_level: 2
+        reward_item: desert-shard
+        reward_text: "The ancient lock clicks open. The Desert Shard tumbles out into your hands."
+
+  - id: snow-0
+    name: "Mountain Pass"
+    biome: snow
+    desc: |
+      The path into the Snow Peaks winds upward through biting wind. Ice-covered stones
+      line the pass, and a Frost Wraith circles in the grey sky above. To the west, a
+      narrow trail leads deeper into the mountains. A heavy stone slab blocks a side passage
+      — there's a faint golden glow underneath it.
+    exits:
+      east: meadow-0
+      west: snow-1
+    locks:
+      - id: cinder-passage-lock
+        exit: north
+        difficulty: 0
+        keys: [crystal-key]
+    npcs:
+      - id: frost-wraith-patrol
+        name: "Frost Wraith"
+        hp: 35
+        attack: 12
+        desc: "A spectral shape made of howling ice and wind. It attacks with frozen claws."
+        loot_table_id: frost-wraith-loot
+        dialogue: []
+    items: []
+    resources:
+      - id: ice-vein
+        type: mine
+        yields:
+          - item_id: ice
+            name: "Ice"
+            desc: "A clear chunk of magical ice."
+            probability: 0.9
+            count_min: 1
+            count_max: 3
+          - item_id: diamond
+            name: "Diamond"
+            desc: "A rare, brilliant diamond."
+            probability: 0.05
+            count_min: 1
+            count_max: 1
+        tool_required: pickaxe
+        respawn_actions: 25
+
+  - id: snow-1
+    name: "Frost Village"
+    biome: snow
+    desc: |
+      A cluster of stone-and-ice buildings carved into the mountainside. Fires burn in iron
+      braziers, and the clang of hammer on anvil echoes from the forge. Ironmaster Breck stands
+      at the largest anvil, a frown on his face and a Frostborn battle axe across his back.
+    exits:
+      east: snow-0
+    npcs:
+      - id: ironmaster-breck
+        name: "Ironmaster Breck"
+        hp: 0
+        attack: 0
+        desc: "A barrel-chested Frostborn smith. He trusts tools more than people, but respects both when they're good."
+        trades:
+          - id: breck-trade-1
+            wants: [{id: iron-ingot, count: 3}]
+            offers: [{id: iron-pickaxe, name: "Iron Pickaxe", desc: "An iron pickaxe. Can mine gold and rare ores.", count: 1}]
+          - id: breck-trade-2
+            wants: [{id: gold-ingot, count: 2}]
+            offers: [{id: gold-sword, name: "Gold Sword", desc: "A gilded sword. 18 attack.", count: 1}]
+        dialogue:
+          - trigger: always
+            text: "To forge the Frostcore Ingot you need frost-essence from a Frost Wraith, plus an iron ingot. Bring both to a furnace. That's how you claim the Mountain Shard."
+            quest_id: q-mountain-shard
+          - trigger: has_item:mountain-shard
+            text: "So you did it. Good. The Mountain holds its shard no longer."
+      - id: ice-crawler
+        name: "Ice Crawler"
+        hp: 20
+        attack: 5
+        desc: "A six-legged insect the size of a dog, armored in frost-crystal chitin."
+        loot_table_id: frost-wraith-loot
+        dialogue: []
+    items: []
+    systems:
+      - id: forge-furnace
+        security_level: 0
+        reward_text: "The forge burns hot. Use 'smelt <ore>' to process materials."
+
+  - id: caves-0
+    name: "Cave Entrance"
+    biome: caves
+    desc: |
+      A yawning opening in the earth, framed by hanging moss and the faint smell of minerals.
+      The air gets cold fast and the light fades within a few steps. A Deepborn scout stands
+      at the threshold, holding a glowstone lantern.
+    exits:
+      up: meadow-0
+      down: caves-1
+    npcs:
+      - id: deepborn-scout
+        name: "Deepborn Scout"
+        hp: 0
+        attack: 0
+        desc: "A quiet, careful figure wrapped in cave-cloth. They move silently and speak rarely."
+        dialogue:
+          - trigger: always
+            text: "The Crystal Cavern is below. Elder Voss waits for you. Bring a weapon — Cave Lurkers nest on the path."
+          - trigger: has_item:cave-shard
+            text: "The Crystal Flame burns again. Elder Voss will be pleased."
+      - id: cave-lurker
+        name: "Cave Lurker"
+        hp: 30
+        attack: 9
+        desc: "A pale, eyeless predator that hunts by sound. It moves fast and hits hard."
+        loot_table_id: cave-lurker-loot
+        dialogue: []
+    items: []
+    resources:
+      - id: coal-seam
+        type: mine
+        yields:
+          - item_id: coal
+            name: "Coal"
+            desc: "A lump of coal. Burns as fuel."
+            probability: 0.9
+            count_min: 2
+            count_max: 4
+        tool_required: pickaxe
+        respawn_actions: 20
+      - id: iron-vein
+        type: mine
+        yields:
+          - item_id: iron-ore
+            name: "Iron Ore"
+            desc: "Raw iron ore. Smelt it into an ingot."
+            probability: 0.8
+            count_min: 1
+            count_max: 3
+        tool_required: pickaxe
+        respawn_actions: 20
+
+  - id: caves-1
+    name: "Crystal Cavern"
+    biome: caves
+    desc: |
+      The deepest room in Blockhaven. Ancient crystal formations line the walls, still faintly
+      glowing despite the Core's absence. At the center stands a stone altar with an extinguished
+      flame — the Crystal Flame. Elder Voss of the Deepborn sits cross-legged beside it,
+      waiting. A Crystal Shade circles in the dark above.
+    exits:
+      up: caves-0
+    npcs:
+      - id: elder-voss
+        name: "Elder Voss"
+        hp: 0
+        attack: 0
+        desc: "An ancient Deepborn elder. Their skin is pale as quartz, their eyes glow faintly blue."
+        dialogue:
+          - trigger: always
+            text: "The Crystal Flame has been dark since the Core shattered. The flame-terminal controls it. Use your hacking skills — the security is modest, but the lock is old. Restore the flame and the Cave Shard is yours."
+            quest_id: q-cave-shard
+          - trigger: has_item:cave-shard
+            text: "The Crystal Flame burns again. Now collect the remaining shards and find Cinder. The Deepborn will remember your courage."
+      - id: crystal-shade
+        name: "Crystal Shade"
+        hp: 50
+        attack: 15
+        desc: "A creature of living shadow and broken crystal. The most dangerous thing in the caves."
+        loot_table_id: crystal-shade-loot
+        dialogue: []
+    items: []
+    systems:
+      - id: flame-terminal
+        security_level: 2
+        reward_item: cave-shard
+        reward_text: "The Crystal Flame ignites with a warm roar. The Cave Shard rises from the altar and hovers before you."
+
+  - id: ember-0
+    name: "Cinder's Hideaway"
+    biome: snow
+    desc: |
+      A hidden cave behind a frozen waterfall, warm despite the blizzard outside. The walls
+      are scorched in patterns that look almost like apologies. Cinder — a young dragon the
+      size of a large horse, scales shimmering copper and gold — huddles near a pile of melted
+      ice. She raises her head when you enter, and her eyes go wide at the shards you carry.
+    exits:
+      south: snow-0
+    npcs:
+      - id: cinder
+        name: "Cinder"
+        hp: 0
+        attack: 0
+        desc: "A young copper-and-gold dragon. She broke the Crystal Core by accident and has been hiding here ever since."
+        dialogue:
+          - trigger: always
+            text: "Please don't be angry. I didn't mean to — I was just playing and I hit it and everything shattered and I've been so sorry ever since and I didn't know how to fix it."
+          - trigger: has_all_shards
+            text: "You have all five shards. I can feel them. If you give them to me, I can breathe them back together — dragon fire and crystal magic are the only thing that can restore the Core. Are you ready?"
+            quest_id: q-cinder-return
+    items:
+      - id: dragon-scale-fragment
+        name: "Dragon Scale Fragment"
+        desc: "A copper-gold scale Cinder shed. Surprisingly warm to the touch."
+        readable: false
