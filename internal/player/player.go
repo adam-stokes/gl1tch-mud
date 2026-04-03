@@ -117,3 +117,68 @@ func HasVisited(db *sql.DB, roomID string) bool {
 	var id string
 	return db.QueryRow(`SELECT room_id FROM visited WHERE room_id=?`, roomID).Scan(&id) == nil
 }
+
+// RemoveItem removes an item from inventory by ID.
+func RemoveItem(db *sql.DB, itemID string) error {
+	_, err := db.Exec(`DELETE FROM inventory WHERE item_id=?`, itemID)
+	return err
+}
+
+// DumpToDeathPile moves all inventory items to the death_pile table for roomID.
+// actionCount is the current player action counter (for expiry tracking).
+func DumpToDeathPile(db *sql.DB, roomID string, actionCount int) error {
+	items, err := Inventory(db)
+	if err != nil {
+		return err
+	}
+	for _, it := range items {
+		if _, err := db.Exec(
+			`INSERT INTO death_pile (room_id, item_id, item_name, item_desc, died_at) VALUES (?,?,?,?,?)`,
+			roomID, it.ID, it.Name, it.Desc, actionCount,
+		); err != nil {
+			return err
+		}
+	}
+	_, err = db.Exec(`DELETE FROM inventory`)
+	return err
+}
+
+// GetDeathPile returns death pile items for a given room.
+func GetDeathPile(db *sql.DB, roomID string) ([]InventoryItem, error) {
+	rows, err := db.Query(`SELECT item_id, item_name, item_desc FROM death_pile WHERE room_id=?`, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InventoryItem
+	for rows.Next() {
+		var it InventoryItem
+		if err := rows.Scan(&it.ID, &it.Name, &it.Desc); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, rows.Err()
+}
+
+// ClaimDeathPile moves all death pile items for roomID back to inventory and deletes them.
+func ClaimDeathPile(db *sql.DB, roomID string) error {
+	items, err := GetDeathPile(db, roomID)
+	if err != nil {
+		return err
+	}
+	for _, it := range items {
+		if err := AddItem(db, it.ID, it.Name, it.Desc); err != nil {
+			return err
+		}
+	}
+	_, err = db.Exec(`DELETE FROM death_pile WHERE room_id=?`, roomID)
+	return err
+}
+
+// AnyDeathPile returns the room_id of the most recent death pile, or "" if none.
+func AnyDeathPile(db *sql.DB) (roomID string, count int) {
+	db.QueryRow(`SELECT room_id, COUNT(*) FROM death_pile GROUP BY room_id ORDER BY died_at DESC LIMIT 1`). //nolint:errcheck
+		Scan(&roomID, &count)
+	return
+}
