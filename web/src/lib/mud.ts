@@ -256,6 +256,26 @@ function updateCompass(exits: string[]) {
 function applyKidsMode(): void {
   _kidsMode = true;
   document.body.dataset.ui = 'kids';
+  // Restore saved input visibility preference
+  const INPUT_OPEN_KEY = 'bh-kids-input-open';
+  const savedOpen = localStorage.getItem(INPUT_OPEN_KEY) === 'true';
+  // applyInputVisibility is defined inside initMUD; call the DOM directly here
+  const cmdEl    = document.getElementById('cmd-input');
+  const sendEl   = document.getElementById('send-btn');
+  const promptEl = document.querySelector<HTMLElement>('.prompt');
+  const toggle   = document.getElementById('kids-input-toggle');
+  if (savedOpen) {
+    cmdEl?.classList.add('kids-visible');
+    sendEl?.classList.add('kids-visible');
+    promptEl?.classList.add('kids-visible');
+    if (toggle) toggle.style.opacity = '1';
+    (cmdEl as HTMLInputElement | null)?.focus();
+  } else {
+    cmdEl?.classList.remove('kids-visible');
+    sendEl?.classList.remove('kids-visible');
+    promptEl?.classList.remove('kids-visible');
+    if (toggle) toggle.style.opacity = '0.45';
+  }
 }
 
 function formatResourceName(id: string): string {
