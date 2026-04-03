@@ -6,8 +6,8 @@ project_name: gl1tch-mud
 
 before:
   hooks:
-    - cd web && npm ci
-    - cd web && npm run build
+    - sh -c "cd web && npm ci"
+    - sh -c "cd web && npm run build"
 
 builds:
   - id: gl1tch-mud
@@ -31,14 +31,14 @@ archives:
   - id: default
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
-brews:
+homebrew:
   - name: gl1tch-mud
     repository:
       owner: 8op-org
