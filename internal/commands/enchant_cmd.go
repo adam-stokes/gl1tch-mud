@@ -34,7 +34,9 @@ func itemCategory(itemID string) string {
 // Enchant enchants an item using the enchanting table.
 func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	var cnt int
-	db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='enchanting-table'`, s.RoomID).Scan(&cnt) //nolint:errcheck
+	if err := db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='enchanting-table'`, s.RoomID).Scan(&cnt); err != nil {
+		return Result{Output: "unable to check for enchanting table."}
+	}
 	if cnt == 0 {
 		return Result{Output: "you need an enchanting table. build one with 'build enchanting-table'."}
 	}
@@ -87,8 +89,12 @@ func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	current := actionCount(db)
-	enchanting.Apply(db, itemID, chosenID, enchantLevel, current) //nolint:errcheck
-	db.Exec(`UPDATE enchanting_xp SET xp=xp-? WHERE id=1`, xpCost) //nolint:errcheck
+	if err := enchanting.Apply(db, itemID, chosenID, enchantLevel, current); err != nil {
+		return Result{Output: "enchantment failed — try again."}
+	}
+	if _, err := db.Exec(`UPDATE enchanting_xp SET xp=xp-? WHERE id=1`, xpCost); err != nil {
+		return Result{Output: "enchantment applied but XP deduction failed."}
+	}
 
 	name := enchanting.EnchantName(chosenID, enchantLevel)
 	return Result{Output: fmt.Sprintf(
