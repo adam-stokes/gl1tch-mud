@@ -1619,6 +1619,16 @@ export function initMUD() {
     sendCommand(`craft ${matched.id}`);
   });
 
+  document.getElementById('kids-craft-clear-btn')?.addEventListener('click', () => {
+    _kidscraft.slots = Array(9).fill(null);
+    _kidscraft.armedItem = null;
+    _kidscraft.eraser = false;
+    document.querySelectorAll<HTMLElement>('.kids-inv-chip').forEach(c => {
+      c.classList.remove('armed', 'eraser');
+    });
+    refreshKidsCraftGrid();
+  });
+
   // Stop painting globally when mouse/touch is released
   document.addEventListener('mouseup', () => { _kidscraft.painting = false; });
   document.addEventListener('touchend', () => { _kidscraft.painting = false; });

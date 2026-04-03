@@ -732,8 +732,13 @@
         color: var(--comment);
       }
 
+      .kids-craft-actions {
+        display: flex;
+        gap: 6px;
+      }
+
       .kids-craft-do-btn {
-        width: 100%;
+        flex: 1;
         padding: 0.6rem;
         background: #1a1a1a;
         border: 1px solid #444;
@@ -755,6 +760,24 @@
       .kids-craft-do-btn:disabled {
         opacity: 0.45;
         cursor: not-allowed;
+      }
+
+      .kids-craft-clear-btn {
+        padding: 0.6rem 0.75rem;
+        background: #1a1a1a;
+        border: 1px solid #444;
+        color: var(--comment);
+        font-size: 0.9rem;
+        font-family: inherit;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+
+      .kids-craft-clear-btn:hover {
+        border-color: var(--red);
+        color: var(--red);
       }
 
       .kids-recipe-drawer {
@@ -1523,7 +1546,10 @@
           <div class="kids-craft-output" id="kids-craft-output">?</div>
         </div>
 
-        <button id="kids-craft-do-btn" class="kids-craft-do-btn">&#x1F527; Open Recipe Guide</button>
+        <div class="kids-craft-actions">
+          <button id="kids-craft-do-btn" class="kids-craft-do-btn">&#x1F527; Open Recipe Guide</button>
+          <button id="kids-craft-clear-btn" class="kids-craft-clear-btn" title="Clear grid">&#x2715;</button>
+        </div>
 
         <div class="kids-recipe-drawer" id="kids-recipe-drawer">
           <div class="kids-recipe-drawer-header">
@@ -1556,10 +1582,17 @@
         // No world param — redirect to lobby.
         window.location.replace('/');
       } else {
-        const nameEl   = document.getElementById('login-world-name');
-        const topbarEl = document.getElementById('topbar-world');
+        const nameEl    = document.getElementById('login-world-name');
+        const taglineEl = document.querySelector<HTMLElement>('.tagline');
+        const topbarEl  = document.getElementById('topbar-world');
         if (nameEl)   nameEl.textContent   = worldName;
         if (topbarEl) topbarEl.textContent = worldName;
+
+        // Fetch tagline from API and update login screen
+        fetch('/api/worlds').then(r => r.json()).then((worlds: Array<{name: string; tagline: string}>) => {
+          const meta = worlds.find(w => w.name === worldName);
+          if (meta?.tagline && taglineEl) taglineEl.textContent = meta.tagline;
+        }).catch(() => {});
 
         setWorld(worldName);
         initMUD();
