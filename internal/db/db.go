@@ -28,15 +28,15 @@ func Open() (*sql.DB, error) {
 	return db, nil
 }
 
-// OpenForPlayer opens (or creates) a per-player database at
-// ~/.local/share/gl1tch-mud/players/<playerID>/world.db.
-// The schema is identical to the host DB; isolation is at the file level.
-func OpenForPlayer(playerID string) (*sql.DB, error) {
+// OpenForPlayer opens (or creates) a per-player, per-world database at
+// ~/.local/share/gl1tch-mud/players/<playerID>/<worldName>.db.
+// Each world gets its own save file so inventory, quests, etc. don't bleed.
+func OpenForPlayer(playerID, worldName string) (*sql.DB, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(home, ".local", "share", "gl1tch-mud", "players", playerID, "world.db")
+	path := filepath.Join(home, ".local", "share", "gl1tch-mud", "players", playerID, worldName+".db")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("db: mkdir: %w", err)
 	}

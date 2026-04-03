@@ -34,7 +34,7 @@ type ClientSession struct {
 // It opens the player's DB, loads state, and dispatches incoming messages.
 func (s *ClientSession) Handle(ctx context.Context) {
 	var err error
-	s.database, err = db.OpenForPlayer(s.playerID)
+	s.database, err = db.OpenForPlayer(s.playerID, s.worldName)
 	if err != nil {
 		_ = writeMsg(ctx, s.conn, ServerMsg{
 			Type:    "error",
