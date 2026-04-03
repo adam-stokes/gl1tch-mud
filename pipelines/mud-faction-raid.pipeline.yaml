@@ -11,9 +11,13 @@ steps:
     executor: shell
     vars:
       cmd: |
+        WORLD="{{.param.world}}"
+        WORLD="${WORLD:-cyberspace}"
+        STATE=~/Projects/gl1tch-mud/worlds/$WORLD/world-state.yaml
+        BIBLE=~/Projects/gl1tch-mud/worlds/$WORLD/story-bible.md
+
         ATTACKERS=("ghost-protocol" "null-collective" "signal-collective")
         DEFENDERS=("axiom-security" "helix-division")
-        ROOMS=("net-0" "net-1" "net-2" "net-3" "net-4" "net-5")
         SCALES=("skirmish" "assault" "siege")
         MOTIVES=(
           "seize a corporate zero-day vulnerability before it gets patched"
@@ -27,18 +31,20 @@ steps:
         TS=$(date +%s)
         AIDX=$(( TS % 3 ))
         DIDX=$(( (TS / 3) % 2 ))
-        RIDX=$(( (TS / 7) % 6 ))
         SIDX=$(( (TS / 11) % 3 ))
         MIDX=$(( (TS / 13) % 6 ))
 
-        STATE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
-        BIBLE=~/Projects/gl1tch-mud/worlds/cyberspace/story-bible.md
+        ROOM_IDS_STR=$(yq '.existing_room_ids | join(" ")' "$STATE" 2>/dev/null || echo "")
+        ROOMS=($ROOM_IDS_STR)
+        RIDX=$(( (TS / 7) % ${#ROOMS[@]} ))
+        ROOM="${ROOMS[$RIDX]}"
+
         CHAPTER=$(yq '.chapter' "$STATE" 2>/dev/null || echo "pre-broadcast")
         EXISTING_ROOMS=$(yq '.existing_room_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
         EXISTING_ITEMS=$(yq '.existing_item_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
         STORY=$(cat "$BIBLE" 2>/dev/null || echo "")
 
-        echo "attacker=${ATTACKERS[$AIDX]} defender=${DEFENDERS[$DIDX]} room=${ROOMS[$RIDX]} scale=${SCALES[$SIDX]} motive=${MOTIVES[$MIDX]}"
+        echo "world=$WORLD attacker=${ATTACKERS[$AIDX]} defender=${DEFENDERS[$DIDX]} room=$ROOM scale=${SCALES[$SIDX]} motive=${MOTIVES[$MIDX]}"
         printf "STORY BIBLE:\n%s\n\nCHAPTER: %s\n\nEXISTING ROOM IDs (DO NOT DUPLICATE):\n%s\n\nEXISTING ITEM IDs (DO NOT DUPLICATE):\n%s\n\n" "$STORY" "$CHAPTER" "$EXISTING_ROOMS" "$EXISTING_ITEMS"
 
   # ── 2. Opus: design the raid narrative ────────────────────────────────────
@@ -48,19 +54,13 @@ steps:
     no_clarify: true
     needs: [seed]
     prompt: |
-      You are the narrative director of The Gibson — a cyberpunk text MUD where hackers
-      fight corporate total control. William Gibson, Pat Cadigan, Neal Stephenson register.
-      Gritty. Paranoid. Stakes are real. PG-13.
+      You are the narrative director of the MUD described in the story bible above.
+      Follow the world's genre, tone, and lore exactly. PG-13.
 
       RAID SEED:
       {{get "step.seed.data.value" .}}
 
-      CANONICAL FACTIONS (use ONLY these five — never create new factions):
-        null-collective    — ZERO's crew, player faction
-        axiom-security     — the corp that killed ZERO, hunting SIGNAL
-        helix-division     — government intel, wants backdoors open
-        ghost-protocol     — rival hired crew, can be flipped
-        signal-collective  — neutral underground brokers
+      Use ONLY the factions listed in the story bible above — do not invent new ones.
 
       Design a complete FACTION RAID narrative brief. This will be used to generate
       the actual game content. Be specific, operational, and dramatically interesting.
@@ -115,8 +115,8 @@ steps:
     prompt: |
       Do not ask clarifying questions. Generate immediately.
 
-      You are a content generator for a cyberpunk text MUD. You receive a narrative
-      raid design and generate the actual YAML and SQL content.
+      You are a content generator for the MUD described in the story bible above.
+      You receive a narrative raid design and generate the actual YAML and SQL content.
 
       RAID SEED:
       {{get "step.seed.data.value" .}}
@@ -124,33 +124,20 @@ steps:
       RAID DESIGN:
       {{get "step.design.data.value" .}}
 
-      CANONICAL FACTIONS (use ONLY these five — never create new factions):
-        null-collective    — ZERO's crew, player faction
-        axiom-security     — the corp that killed ZERO, hunting SIGNAL
-        helix-division     — government intel, wants backdoors open
-        ghost-protocol     — rival hired crew, can be flipped
-        signal-collective  — neutral underground brokers
+      Use ONLY the factions listed in the story bible above — do not invent new ones.
 
       IDEMPOTENCY — DO NOT CREATE:
       - Any room ID listed in "EXISTING ROOM IDs" above
       - Any item ID listed in "EXISTING ITEM IDs" above
-      - Any faction not in the five listed above
+      - Any faction not listed in the story bible
 
-      Every generated room must belong to one of four zones:
-        Zone A (Axiom territory): connect to net-1
-        Zone B (Helix territory): connect to net-2
-        Zone C (Ghost Protocol territory): connect to net-5
-        Zone D (ZERO/Null Collective territory): connect to net-4
+      Room exits must be {} — rooms are linked by the room-link pipeline separately.
 
-      Every room must contain at least one ZERO/SIGNAL narrative hook
-      (readable item, NPC dialogue, or system output connecting to the broadcast mission).
+      Every room must contain at least one narrative hook connecting to the world's
+      central conflict (readable item, NPC dialogue, or system output).
 
-      EXISTING ITEM IDs (do NOT reuse as new ids):
-        data-chip, raw-silicon, copper-wire, carbon-blade, ice-pick, packet-sniffer,
-        keycard, hazmat-suit, decryption-key, server-core, coolant-cartridge,
-        maintenance-log, cascade-resonator, ice-fragment, response-dampener,
-        neural-jack-mk1, deck-patch, ancient-firmware, exploit-axiom-auth,
-        root-key, master-key, hexagon-audit-log, phantom-raid-intercept
+      Use ONLY items from EXISTING ITEM IDs provided in the world state above
+      (do NOT reuse as new ids).
 
       SIGNAL TIER SYSTEM (use signal_tier field):
         noise | signal | ghost | zero-day | flatline
@@ -289,6 +276,8 @@ steps:
     executor: mud-worldgen-inject
     needs: [format]
     prompt: "{{get \"step.format.data.value\" .}}"
+    vars:
+      mud_world: "~/Projects/gl1tch-mud/worlds/{{.param.world | default \"cyberspace\"}}/world.yaml"
 
   # ── 6. Extract and execute SQL ────────────────────────────────────────────
   - id: inject_sql
@@ -312,16 +301,18 @@ steps:
     needs: [inject, inject_sql]
     vars:
       cmd: |
+        WORLD="{{.param.world}}"
+        WORLD="${WORLD:-cyberspace}"
         cd ~/Projects/gl1tch-mud
-        git add worlds/cyberspace/world.yaml
+        git add worlds/$WORLD/world.yaml
         git diff --cached --quiet && echo "nothing to commit" && exit 0
-        git commit -m "chore(world): faction-raid — $(date +%Y-%m-%d)"
+        git commit -m "chore(world): faction-raid $WORLD — $(date +%Y-%m-%d)"
         git push origin main
         # Sync world-state.yaml with current world content
         YQ_BIN=/opt/homebrew/bin/yq
         if command -v "$YQ_BIN" >/dev/null 2>&1; then
-          WORLD_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world.yaml
-          STATE_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+          WORLD_FILE=~/Projects/gl1tch-mud/worlds/$WORLD/world.yaml
+          STATE_FILE=~/Projects/gl1tch-mud/worlds/$WORLD/world-state.yaml
           NEW_ROOM_IDS=$($YQ_BIN '[.rooms[].id]' "$WORLD_FILE" 2>/dev/null)
           NEW_ITEM_IDS=$($YQ_BIN '[.rooms[].items[]?.id // empty]' "$WORLD_FILE" 2>/dev/null)
           [ -n "$NEW_ROOM_IDS" ] && $YQ_BIN -i ".existing_room_ids = $NEW_ROOM_IDS" "$STATE_FILE" 2>/dev/null || true

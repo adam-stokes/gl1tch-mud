@@ -11,27 +11,33 @@ steps:
     executor: shell
     vars:
       cmd: |
+        WORLD="{{.param.world}}"
+        WORLD="${WORLD:-cyberspace}"
+        STATE=~/Projects/gl1tch-mud/worlds/$WORLD/world-state.yaml
+        BIBLE=~/Projects/gl1tch-mud/worlds/$WORLD/story-bible.md
+
         TIERS=("ghost" "ghost" "zero-day" "ghost" "zero-day" "flatline")
         THEMES=("hacking" "espionage" "combat" "augment" "exploit" "counter-ice" "fabrication" "intelligence")
-        ROOMS=("net-0" "net-1" "net-2" "net-3" "net-4" "net-5")
         TABLES=("ice-daemon-loot" "trace-program-loot" "shepherd-loot" "keeper-vault-loot" "keeper-moth-loot")
         FACTIONS=("ghost-protocol" "null-collective" "axiom-security" "helix-division" "signal-collective")
 
         TS=$(date +%s)
         TIDX=$(( TS % 6 ))
         THMIDX=$(( (TS / 3) % 8 ))
-        RIDX=$(( (TS / 7) % 6 ))
         TBIDX=$(( (TS / 11) % 5 ))
         FIDX=$(( (TS / 13) % 5 ))
 
-        STATE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
-        BIBLE=~/Projects/gl1tch-mud/worlds/cyberspace/story-bible.md
+        ROOM_IDS_STR=$(yq '.existing_room_ids | join(" ")' "$STATE" 2>/dev/null || echo "")
+        ROOMS=($ROOM_IDS_STR)
+        RIDX=$(( (TS / 7) % ${#ROOMS[@]} ))
+        ROOM="${ROOMS[$RIDX]}"
+
         CHAPTER=$(yq '.chapter' "$STATE" 2>/dev/null || echo "pre-broadcast")
         EXISTING_ROOMS=$(yq '.existing_room_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
         EXISTING_ITEMS=$(yq '.existing_item_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
         STORY=$(cat "$BIBLE" 2>/dev/null || echo "")
 
-        echo "target_tier=${TIERS[$TIDX]} theme=${THEMES[$THMIDX]} inject_room=${ROOMS[$RIDX]} inject_table=${TABLES[$TBIDX]} associated_faction=${FACTIONS[$FIDX]}"
+        echo "world=$WORLD target_tier=${TIERS[$TIDX]} theme=${THEMES[$THMIDX]} inject_room=$ROOM inject_table=${TABLES[$TBIDX]} associated_faction=${FACTIONS[$FIDX]}"
         printf "STORY BIBLE:\n%s\n\nCHAPTER: %s\nEXISTING ROOM IDs: %s\nEXISTING ITEM IDs: %s\n\n" "$STORY" "$CHAPTER" "$EXISTING_ROOMS" "$EXISTING_ITEMS"
 
   # ── 2. Opus: design the item's world significance ─────────────────────────
@@ -41,8 +47,8 @@ steps:
     no_clarify: true
     needs: [seed]
     prompt: |
-      You are the lore architect of The Gibson — a cyberpunk text MUD.
-      The signal tier system describes item rarity in cyberspace underground lingo:
+      You are the lore architect of the MUD described in the story bible above.
+      The signal tier system describes item rarity in underground lingo:
 
         NOISE     — junk, scrapmetal, barely functional. Found everywhere.
         SIGNAL    — standard underground gear. Reliable, tradeable.
@@ -53,17 +59,12 @@ steps:
       ITEM SEED:
       {{get "step.seed.data.value" .}}
 
-      CANONICAL FACTIONS (use ONLY these five — never create new factions):
-        null-collective    — ZERO's crew, player faction
-        axiom-security     — the corp that killed ZERO, hunting SIGNAL
-        helix-division     — government intel, wants backdoors open
-        ghost-protocol     — rival hired crew, can be flipped
-        signal-collective  — neutral underground brokers
+      Use ONLY the factions listed in the story bible above — do not invent new ones.
 
       IDEMPOTENCY — DO NOT CREATE:
       - Any room ID listed in "EXISTING ROOM IDs" above
       - Any item ID listed in "EXISTING ITEM IDs" above
-      - Any faction not in the five listed above
+      - Any faction not listed in the story bible
 
       Design a TIERED ITEM ECOSYSTEM centered on the target tier from the seed.
       Think about: who made this? Why is it rare? What does it enable that standard
@@ -78,7 +79,7 @@ steps:
       faction_significance: <which faction in the seed wants this and why>
       gameplay_use: <what MUD verb/mechanic does this empower: hack/hide/disguise/craft/attack>
       id_concept: <kebab-case id concept — will be made unique by generator>
-      name: <evocative 3-5 word name in cyberspace underground slang>
+      name: <evocative 3-5 word name in underground slang>
       desc_concept: <what the description should convey in 1-2 sentences>
 
       SUPPORTING ITEMS (build a drop ecosystem — 2 ghost-tier + 3 signal-tier items that could lead to the anchor):
@@ -120,7 +121,7 @@ steps:
     prompt: |
       Do not ask clarifying questions. Generate immediately.
 
-      You are generating YAML for a cyberpunk text MUD item batch.
+      You are generating YAML for the MUD described in the story bible above.
 
       SEED:
       {{get "step.seed.data.value" .}}
@@ -128,26 +129,17 @@ steps:
       ITEM DESIGN:
       {{get "step.design.data.value" .}}
 
-      EXISTING ITEM IDs (do NOT reuse as new ids — safe to reference in recipes):
-        data-chip, raw-silicon, copper-wire, carbon-blade, ice-pick, packet-sniffer,
-        keycard, hazmat-suit, decryption-key, server-core, coolant-cartridge,
-        maintenance-log, cascade-resonator, ice-fragment, response-dampener,
-        neural-jack-mk1, deck-patch, ancient-firmware, exploit-axiom-auth,
-        root-key, master-key, hexagon-audit-log, phantom-raid-intercept
+      Use ONLY items from EXISTING ITEM IDs provided in the world state above
+      (do NOT reuse as new ids — safe to reference in recipes).
 
       SIGNAL TIER VALUES: noise | signal | ghost | zero-day | flatline
 
-      CANONICAL FACTIONS (use ONLY these five — never create new factions):
-        null-collective    — ZERO's crew, player faction
-        axiom-security     — the corp that killed ZERO, hunting SIGNAL
-        helix-division     — government intel, wants backdoors open
-        ghost-protocol     — rival hired crew, can be flipped
-        signal-collective  — neutral underground brokers
+      Use ONLY the factions listed in the story bible above — do not invent new ones.
 
       IDEMPOTENCY — DO NOT CREATE:
       - Any room ID listed in "EXISTING ROOM IDs" above
       - Any item ID listed in "EXISTING ITEM IDs" above
-      - Any faction not in the five listed above
+      - Any faction not listed in the story bible
 
       Return ONLY raw YAML. No markdown fences. No commentary.
 
@@ -267,6 +259,8 @@ steps:
     executor: mud-worldgen-inject
     needs: [validate]
     prompt: "{{get \"step.validate.data.value\" .}}"
+    vars:
+      mud_world: "~/Projects/gl1tch-mud/worlds/{{.param.world | default \"cyberspace\"}}/world.yaml"
 
   # ── 6. Commit ──────────────────────────────────────────────────────────────
   - id: commit
@@ -274,16 +268,18 @@ steps:
     needs: [inject]
     vars:
       cmd: |
+        WORLD="{{.param.world}}"
+        WORLD="${WORLD:-cyberspace}"
         cd ~/Projects/gl1tch-mud
-        git add worlds/cyberspace/world.yaml
+        git add worlds/$WORLD/world.yaml
         git diff --cached --quiet && echo "nothing to commit" && exit 0
-        git commit -m "chore(world): item-rarity — $(date +%Y-%m-%d)"
+        git commit -m "chore(world): item-rarity $WORLD — $(date +%Y-%m-%d)"
         git push origin main
         # Sync world-state.yaml
         YQ_BIN=/opt/homebrew/bin/yq
         if command -v "$YQ_BIN" >/dev/null 2>&1; then
-          WORLD_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world.yaml
-          STATE_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+          WORLD_FILE=~/Projects/gl1tch-mud/worlds/$WORLD/world.yaml
+          STATE_FILE=~/Projects/gl1tch-mud/worlds/$WORLD/world-state.yaml
           NEW_ROOM_IDS=$($YQ_BIN '[.rooms[].id]' "$WORLD_FILE" 2>/dev/null)
           NEW_ITEM_IDS=$($YQ_BIN '[.rooms[].items[]?.id // empty]' "$WORLD_FILE" 2>/dev/null)
           [ -n "$NEW_ROOM_IDS" ] && $YQ_BIN -i ".existing_room_ids = $NEW_ROOM_IDS" "$STATE_FILE" 2>/dev/null || true

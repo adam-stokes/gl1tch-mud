@@ -11,10 +11,15 @@ steps:
     executor: shell
     vars:
       cmd: |
+        WORLD="{{.param.world}}"
+        WORLD="${WORLD:-cyberspace}"
+        STATE=~/Projects/gl1tch-mud/worlds/$WORLD/world-state.yaml
+        BIBLE=~/Projects/gl1tch-mud/worlds/$WORLD/story-bible.md
+
         ARCS=(
           "corporate_coverup: a corporation is burying evidence of a black ICE deployment that killed a netrunner crew"
-          "faction_betrayal: a trusted operative inside a hacker collective is feeding Axiom the crew's operational plans"
-          "manhunt: Axiom's black-ops unit is hunting a specific runner who knows too much about their zero-day stockpile"
+          "faction_betrayal: a trusted operative inside a hacker collective is feeding the enemy the crew's operational plans"
+          "manhunt: a black-ops unit is hunting a specific runner who knows too much about their zero-day stockpile"
           "data_heist: a ghost-tier data package is moving through three nodes tonight — intercept it before it reaches corporate cold storage"
           "black_ice_awakening: a dormant black ICE program is becoming self-aware and rewriting the rooms around it"
           "dead_drop_compromised: a critical intelligence dead drop has been found — the runner who left it hasn't checked in"
@@ -23,23 +28,23 @@ steps:
         )
 
         FACTIONS=("ghost-protocol" "null-collective" "signal-collective" "helix-division" "axiom-security")
-        ROOMS=("net-0" "net-1" "net-2" "net-3" "net-4" "net-5")
 
         TS=$(date +%s)
         AIDX=$(( TS % 8 ))
         F1IDX=$(( (TS / 3) % 5 ))
         F2IDX=$(( (TS / 7) % 5 ))
         [ "$F1IDX" -eq "$F2IDX" ] && F2IDX=$(( (F2IDX + 1) % 5 ))
-        ANCHOR_ROOM="${ROOMS[$(( (TS / 11) % 6 ))]}"
 
-        STATE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
-        BIBLE=~/Projects/gl1tch-mud/worlds/cyberspace/story-bible.md
+        ROOM_IDS_STR=$(yq '.existing_room_ids | join(" ")' "$STATE" 2>/dev/null || echo "")
+        ROOMS=($ROOM_IDS_STR)
+        ANCHOR_ROOM="${ROOMS[$(( (TS / 11) % ${#ROOMS[@]} ))]}"
+
         CHAPTER=$(yq '.chapter' "$STATE" 2>/dev/null || echo "pre-broadcast")
         EXISTING_ROOMS=$(yq '.existing_room_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
         EXISTING_ITEMS=$(yq '.existing_item_ids | join(", ")' "$STATE" 2>/dev/null || echo "")
         STORY=$(cat "$BIBLE" 2>/dev/null || echo "")
 
-        echo "arc=${ARCS[$AIDX]} factions=${FACTIONS[$F1IDX]}:${FACTIONS[$F2IDX]} anchor_room=${ANCHOR_ROOM}"
+        echo "world=$WORLD arc=${ARCS[$AIDX]} factions=${FACTIONS[$F1IDX]}:${FACTIONS[$F2IDX]} anchor_room=${ANCHOR_ROOM}"
         printf "STORY BIBLE:\n%s\n\nCHAPTER: %s\n\nEXISTING ROOM IDs (DO NOT DUPLICATE):\n%s\n\nEXISTING ITEM IDs (DO NOT DUPLICATE):\n%s\n\n" "$STORY" "$CHAPTER" "$EXISTING_ROOMS" "$EXISTING_ITEMS"
 
   # ── 2. Sonnet: write full 3-act micro-narrative YAML ─────────────────────
@@ -51,10 +56,8 @@ steps:
     prompt: |
       Do not ask clarifying questions. Generate immediately.
 
-      You are writing a 3-act connected micro-narrative for a cyberpunk text MUD
-      called The Gibson. Tone: William Gibson (Neuromancer, Count Zero), Pat Cadigan
-      (Synners). Gritty near-future. Digital noir. Corporate dystopia.
-      Underground hacker culture. PG-13.
+      You are writing a 3-act connected micro-narrative for the MUD described in the
+      story bible above. Follow the world's genre, tone, and lore exactly. PG-13.
 
       ARC SEED:
       {{get "step.seed.data.value" .}}
@@ -65,33 +68,20 @@ steps:
       Act 1 intel in the anchor room, Act 2 in a new room you generate, Act 3
       culminates in a NPC encounter and quest in a second new room you generate.
 
-      CANONICAL FACTIONS (use ONLY these five — never create new factions):
-        null-collective    — ZERO's crew, player faction
-        axiom-security     — the corp that killed ZERO, hunting SIGNAL
-        helix-division     — government intel, wants backdoors open
-        ghost-protocol     — rival hired crew, can be flipped
-        signal-collective  — neutral underground brokers
+      Use ONLY the factions listed in the story bible above — do not invent new ones.
 
       IDEMPOTENCY — DO NOT CREATE:
       - Any room ID listed in "EXISTING ROOM IDs" above
       - Any item ID listed in "EXISTING ITEM IDs" above
-      - Any faction not in the five listed above
+      - Any faction not listed in the story bible
 
-      Every generated room must belong to one of four zones:
-        Zone A (Axiom territory): connect to net-1
-        Zone B (Helix territory): connect to net-2
-        Zone C (Ghost Protocol territory): connect to net-5
-        Zone D (ZERO/Null Collective territory): connect to net-4
+      Room exits must be {} — rooms are linked by the room-link pipeline separately.
 
-      Every room must contain at least one ZERO/SIGNAL narrative hook
-      (readable item, NPC dialogue, or system output connecting to the broadcast mission).
+      Every room must contain at least one narrative hook connecting to the world's
+      central conflict (readable item, NPC dialogue, or system output).
 
-      EXISTING ITEM IDs (safe to reference — do NOT reuse as new ids):
-        data-chip, raw-silicon, copper-wire, carbon-blade, ice-pick, packet-sniffer,
-        keycard, hazmat-suit, decryption-key, server-core, coolant-cartridge,
-        maintenance-log, cascade-resonator, ice-fragment, response-dampener,
-        neural-jack-mk1, deck-patch, ancient-firmware, exploit-axiom-auth,
-        root-key, master-key, hexagon-audit-log, phantom-raid-intercept
+      Use ONLY items from EXISTING ITEM IDs provided in the world state above
+      (safe to reference — do NOT reuse as new ids).
 
       SIGNAL TIER SYSTEM: noise | signal | ghost | zero-day | flatline
 
@@ -273,6 +263,8 @@ steps:
     executor: mud-worldgen-inject
     needs: [validate]
     prompt: "{{get \"step.validate.data.value\" .}}"
+    vars:
+      mud_world: "~/Projects/gl1tch-mud/worlds/{{.param.world | default \"cyberspace\"}}/world.yaml"
 
   # ── 5. Commit ──────────────────────────────────────────────────────────────
   - id: commit
@@ -280,16 +272,18 @@ steps:
     needs: [inject]
     vars:
       cmd: |
+        WORLD="{{.param.world}}"
+        WORLD="${WORLD:-cyberspace}"
         cd ~/Projects/gl1tch-mud
-        git add worlds/cyberspace/world.yaml
+        git add worlds/$WORLD/world.yaml
         git diff --cached --quiet && echo "nothing to commit" && exit 0
-        git commit -m "chore(world): sonnet-arc — $(date +%Y-%m-%d)"
+        git commit -m "chore(world): sonnet-arc $WORLD — $(date +%Y-%m-%d)"
         git push origin main
         # Sync world-state.yaml with current world content
         YQ_BIN=/opt/homebrew/bin/yq
         if command -v "$YQ_BIN" >/dev/null 2>&1; then
-          WORLD_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world.yaml
-          STATE_FILE=~/Projects/gl1tch-mud/worlds/cyberspace/world-state.yaml
+          WORLD_FILE=~/Projects/gl1tch-mud/worlds/$WORLD/world.yaml
+          STATE_FILE=~/Projects/gl1tch-mud/worlds/$WORLD/world-state.yaml
           NEW_ROOM_IDS=$($YQ_BIN '[.rooms[].id]' "$WORLD_FILE" 2>/dev/null)
           NEW_ITEM_IDS=$($YQ_BIN '[.rooms[].items[]?.id // empty]' "$WORLD_FILE" 2>/dev/null)
           [ -n "$NEW_ROOM_IDS" ] && $YQ_BIN -i ".existing_room_ids = $NEW_ROOM_IDS" "$STATE_FILE" 2>/dev/null || true
