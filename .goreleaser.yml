@@ -38,7 +38,7 @@ checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
-homebrew:
+brews:
   - name: gl1tch-mud
     repository:
       owner: 8op-org
