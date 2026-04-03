@@ -959,8 +959,87 @@ function renderKidsInvPicker() {
     picker.appendChild(chip);
   }
 }
-function wireKidsCraftCell(_cell: HTMLElement, _i: number) { /* Task 5 */ }
-function refreshKidsCraftGrid() { /* Task 5 */ }
+function wireKidsCraftCell(cell: HTMLElement, index: number) {
+  const paint = () => {
+    if (_kidscraft.eraser) {
+      _kidscraft.slots[index] = null;
+    } else if (_kidscraft.armedItem) {
+      _kidscraft.slots[index] = _kidscraft.armedItem.id;
+    }
+    refreshKidsCraftGrid();
+  };
+
+  cell.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    _kidscraft.painting = true;
+    paint();
+  });
+
+  cell.addEventListener('mouseover', () => {
+    if (_kidscraft.painting) paint();
+  });
+
+  cell.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    _kidscraft.slots[index] = null;
+    refreshKidsCraftGrid();
+  });
+
+  cell.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    _kidscraft.painting = true;
+    paint();
+  }, { passive: false });
+
+  cell.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const touchedCell = el?.closest<HTMLElement>('.kids-craft-cell');
+    if (!touchedCell) return;
+    const idx = parseInt(touchedCell.dataset.index ?? '-1', 10);
+    if (idx < 0 || idx >= 9) return;
+    if (_kidscraft.eraser) {
+      _kidscraft.slots[idx] = null;
+    } else if (_kidscraft.armedItem) {
+      _kidscraft.slots[idx] = _kidscraft.armedItem.id;
+    }
+    refreshKidsCraftGrid();
+  }, { passive: false });
+}
+
+function refreshKidsCraftGrid() {
+  document.querySelectorAll<HTMLElement>('.kids-craft-cell').forEach((cell, i) => {
+    const itemId = _kidscraft.slots[i];
+    cell.textContent = itemId ? kidsItemEmoji(itemId) : '+';
+    cell.classList.toggle('filled', !!itemId);
+  });
+
+  const matched = matchRecipeByIds(_kidscraft.slots);
+  const btn = document.getElementById('kids-craft-do-btn') as HTMLButtonElement | null;
+  const output = document.getElementById('kids-craft-output');
+  if (!btn || !output) return;
+
+  const hasItems = _kidscraft.slots.some(s => s !== null);
+
+  if (matched) {
+    btn.textContent = '\u{1F527} Craft: ' + matched.name;
+    btn.disabled = false;
+    btn.classList.add('ready');
+    output.textContent = kidsItemEmoji(matched.outputId);
+  } else if (hasItems) {
+    btn.textContent = '\u{1F527} No matching recipe';
+    btn.disabled = true;
+    btn.classList.remove('ready');
+    output.textContent = '?';
+  } else {
+    btn.textContent = '\u{1F527} Open Recipe Guide';
+    btn.disabled = false;
+    btn.classList.remove('ready');
+    output.textContent = '?';
+  }
+}
 function renderKidsRecipeList() { /* Task 6 */ }
 
 function openKidsCraftModal() {
