@@ -39,7 +39,7 @@ interface Recipe {
   outputId: string;
   outputName: string;
   skillReq?: number;
-  workbench?: string;   // room ID required to craft, e.g. "workbench", "furnace"
+  workbench?: string;   // crafting station type required, e.g. "workbench", "furnace", "build"
 }
 
 interface RoomNPCInfo {
