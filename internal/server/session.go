@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -253,6 +254,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		for dir := range room.Exits {
 			exits = append(exits, dir)
 		}
+		sort.Strings(exits)
 		for _, npc := range room.NPCs {
 			roomNPCs = append(roomNPCs, RoomNPCInfo{
 				ID:         npc.ID,
