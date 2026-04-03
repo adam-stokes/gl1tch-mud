@@ -54,7 +54,9 @@ func TestAddXPAndLevel(t *testing.T) {
 	db := openTestDB(t)
 	defer db.Close()
 
-	enchanting.AddXP(db, 100) //nolint:errcheck
+	if err := enchanting.AddXP(db, 100); err != nil {
+		t.Fatalf("AddXP: %v", err)
+	}
 	xp, level, err := enchanting.XPState(db)
 	if err != nil {
 		t.Fatalf("XPState: %v", err)

@@ -13,11 +13,11 @@ type Enchant struct {
 }
 
 // Apply adds an enchantment to an item (or upgrades level if already present).
-func Apply(db *sql.DB, itemID, enchantID string, level, actionCount int) error {
+func Apply(db *sql.DB, itemID, enchantID string, level, appliedAt int) error {
 	_, err := db.Exec(
 		`INSERT INTO enchants (item_id, enchant_id, level, applied_at) VALUES (?,?,?,?)
 		 ON CONFLICT(item_id, enchant_id) DO UPDATE SET level=excluded.level, applied_at=excluded.applied_at`,
-		itemID, enchantID, level, actionCount,
+		itemID, enchantID, level, appliedAt,
 	)
 	return err
 }
@@ -29,7 +29,7 @@ func List(db *sql.DB, itemID string) ([]Enchant, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Enchant
+	out := make([]Enchant, 0)
 	for rows.Next() {
 		var e Enchant
 		if err := rows.Scan(&e.ItemID, &e.EnchantID, &e.Level); err != nil {
@@ -42,15 +42,12 @@ func List(db *sql.DB, itemID string) ([]Enchant, error) {
 
 // AddXP adds enchanting experience points and recalculates level (100 XP per level, cap 30).
 func AddXP(db *sql.DB, amount int) error {
-	_, err := db.Exec(`UPDATE enchanting_xp SET xp = xp + ? WHERE id = 1`, amount)
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(`
+	_, err := db.Exec(`
 		UPDATE enchanting_xp
-		SET level = MIN(MAX(1, xp / 100), 30)
+		SET xp    = xp + ?,
+		    level = MIN(MAX(1, (xp + ?) / 100), 30)
 		WHERE id = 1
-	`)
+	`, amount, amount)
 	return err
 }
 
@@ -103,10 +100,9 @@ func AvailableForItemType(category string) []string {
 
 // EnchantName returns the display name for an enchantment ID and level.
 func EnchantName(id string, level int) string {
-	levelNames := []string{"", "I", "II", "III"}
 	lv := ""
-	if level >= 1 && level <= 3 {
-		lv = " " + levelNames[level]
+	if level >= 1 {
+		lv = " " + levelRoman(level)
 	}
 	names := map[string]string{
 		"sharpness":    "Sharpness",
@@ -122,4 +118,18 @@ func EnchantName(id string, level int) string {
 		return n + lv
 	}
 	return id + lv
+}
+
+// levelRoman converts a level integer to a Roman numeral string (I–XXX).
+func levelRoman(n int) string {
+	vals := []int{10, 9, 5, 4, 1}
+	syms := []string{"X", "IX", "V", "IV", "I"}
+	out := ""
+	for i, v := range vals {
+		for n >= v {
+			out += syms[i]
+			n -= v
+		}
+	}
+	return out
 }
