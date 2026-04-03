@@ -168,6 +168,23 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		})
 	}
 
+	// Crafting recipes.
+	recipes := make([]Recipe, 0, len(s.world.CraftingRecipes))
+	for _, r := range s.world.CraftingRecipes {
+		ings := make([]RecipeIngredient, len(r.Ingredients))
+		for i, ing := range r.Ingredients {
+			ings[i] = RecipeIngredient{ID: ing.ID, Count: ing.Count}
+		}
+		recipes = append(recipes, Recipe{
+			ID:          r.ID,
+			Name:        r.Name,
+			Ingredients: ings,
+			OutputID:    r.Output.ID,
+			OutputName:  r.Output.Name,
+			SkillReq:    r.SkillReq,
+		})
+	}
+
 	payload := StateUpdatePayload{
 		HP:        s.state.HP,
 		MaxHP:     s.state.MaxHP,
@@ -175,6 +192,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		Exits:     exits,
 		Inventory: hudInv,
 		Credits:   credits.Get(s.database),
+		Recipes:   recipes,
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
 

@@ -12,6 +12,7 @@ interface StateUpdate {
   exits: string[];
   inventory: InvItem[];
   credits: number;
+  recipes?: Recipe[];
 }
 
 interface InvItem {
@@ -19,6 +20,20 @@ interface InvItem {
   name: string;
   desc: string;
   tier: string;
+}
+
+interface RecipeIngredient {
+  id: string;
+  count: number;
+}
+
+interface Recipe {
+  id: string;
+  name: string;
+  ingredients: RecipeIngredient[];
+  outputId: string;
+  outputName: string;
+  skillReq?: number;
 }
 
 // ── ANSI → HTML ──────────────────────────────────────────────────────────────
@@ -115,6 +130,7 @@ function renderInventory(items: InvItem[], onItemClick: (item: InvItem) => void)
       const item = items[i];
       slot.classList.add('occupied');
       slot.dataset.tier = item.tier || 'noise';
+      slot.draggable = true;
 
       const icon = document.createElement('div');
       icon.className = 'slot-icon';
@@ -127,10 +143,18 @@ function renderInventory(items: InvItem[], onItemClick: (item: InvItem) => void)
 
       slot.appendChild(icon);
       slot.appendChild(label);
-      slot.title = `${item.name}\n${item.desc}`;
+      slot.title = `${item.name}\n${item.desc} — drag to craft grid`;
 
       const captured = item;
       slot.addEventListener('click', () => onItemClick(captured));
+
+      // Drag start — serialise item into transfer data.
+      slot.addEventListener('dragstart', (e) => {
+        e.dataTransfer!.effectAllowed = 'copy';
+        e.dataTransfer!.setData('application/gl1tch-item', JSON.stringify(captured));
+        slot.classList.add('dragging');
+      });
+      slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
     } else {
       slot.style.opacity = '0.25';
     }
@@ -211,6 +235,120 @@ function buildPlayerRow(name: string, role: 'host' | 'peer', online: boolean): H
   return row;
 }
 
+// ── Craft modal + drag-and-drop ───────────────────────────────────────────────
+
+// Client-side recipe store, refreshed on every state.update.
+let _recipes: Recipe[] = [];
+
+// Items currently placed in the 9 craft grid slots (null = empty).
+const _craftSlots: (InvItem | null)[] = Array(9).fill(null);
+
+// The recipe that currently matches the placed items, if any.
+let _matchedRecipe: Recipe | null = null;
+
+/** Count item IDs in the craft grid and match against known recipes. */
+function matchRecipe(): Recipe | null {
+  const counts: Record<string, number> = {};
+  for (const item of _craftSlots) {
+    if (item) counts[item.id] = (counts[item.id] ?? 0) + 1;
+  }
+  const placedKeys = Object.keys(counts);
+  if (placedKeys.length === 0) return null;
+
+  for (const recipe of _recipes) {
+    const req: Record<string, number> = {};
+    for (const ing of recipe.ingredients) {
+      req[ing.id] = (req[ing.id] ?? 0) + ing.count;
+    }
+    const reqKeys = Object.keys(req);
+    if (reqKeys.length !== placedKeys.length) continue;
+    if (reqKeys.every(k => counts[k] === req[k]) && placedKeys.every(k => req[k] === counts[k])) {
+      return recipe;
+    }
+  }
+  return null;
+}
+
+/** Re-render craft grid slots and output after any change. */
+function refreshCraftGrid() {
+  const grid = document.getElementById('craft-grid');
+  if (!grid) return;
+
+  // Update each slot element.
+  const slots = grid.querySelectorAll<HTMLElement>('.craft-slot');
+  slots.forEach((el, i) => {
+    const item = _craftSlots[i];
+    el.innerHTML = '';
+    el.classList.toggle('filled', !!item);
+    if (item) {
+      const icon = document.createElement('span');
+      icon.className = 'craft-slot-icon';
+      icon.textContent = TIER_ICON[item.tier] ?? '◦';
+      const label = document.createElement('span');
+      label.className = 'craft-slot-label';
+      label.textContent = item.name.length > 6 ? item.name.slice(0, 5) + '…' : item.name;
+      el.appendChild(icon);
+      el.appendChild(label);
+    } else {
+      el.textContent = '+';
+    }
+  });
+
+  // Update output slot and Craft button.
+  _matchedRecipe = matchRecipe();
+  const outputEl = document.getElementById('craft-output');
+  const craftBtn = document.getElementById('craft-do-btn') as HTMLButtonElement | null;
+  const hintEl   = document.getElementById('craft-hint');
+
+  if (_matchedRecipe) {
+    if (outputEl) outputEl.textContent = '⚙';
+    if (craftBtn) {
+      craftBtn.textContent = `🔧 Craft: ${_matchedRecipe.name}`;
+      craftBtn.disabled = false;
+    }
+    if (hintEl) hintEl.textContent = `Recipe matched: ${_matchedRecipe.name}`;
+  } else {
+    if (outputEl) outputEl.textContent = '?';
+    if (craftBtn) {
+      const hasItems = _craftSlots.some(s => s !== null);
+      craftBtn.textContent = hasItems ? '🔧 No matching recipe' : '🔧 Open Crafting Menu';
+      craftBtn.disabled = hasItems; // disable when items placed but no match
+    }
+    if (hintEl) hintEl.textContent = hasItems() ? 'No matching recipe for these items.' : 'Drag items from your inventory into the grid.';
+  }
+
+  function hasItems() { return _craftSlots.some(s => s !== null); }
+}
+
+/** Wire drag-and-drop onto a craft slot element at index i. */
+function wireCraftSlot(el: HTMLElement, i: number) {
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    el.classList.add('drag-over');
+  });
+  el.addEventListener('dragleave', () => {
+    el.classList.remove('drag-over');
+  });
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    const raw = e.dataTransfer?.getData('application/gl1tch-item');
+    if (!raw) return;
+    try {
+      const item: InvItem = JSON.parse(raw);
+      _craftSlots[i] = item;
+      refreshCraftGrid();
+    } catch { /* ignore bad data */ }
+  });
+  // Click a filled slot to clear it.
+  el.addEventListener('click', () => {
+    if (_craftSlots[i]) {
+      _craftSlots[i] = null;
+      refreshCraftGrid();
+    }
+  });
+}
+
 // ── Item modal ────────────────────────────────────────────────────────────────
 
 let _currentItem: InvItem | null = null;
@@ -256,15 +394,20 @@ function closeItemModal() {
 // ── Craft modal ───────────────────────────────────────────────────────────────
 
 function openCraftModal() {
-  // Build 9 empty craft slots
+  // Reset slot state.
+  _craftSlots.fill(null);
+  _matchedRecipe = null;
+
   const grid = document.getElementById('craft-grid')!;
   grid.innerHTML = '';
   for (let i = 0; i < 9; i++) {
     const s = document.createElement('div');
     s.className = 'craft-slot';
     s.textContent = '+';
+    wireCraftSlot(s, i);
     grid.appendChild(s);
   }
+  refreshCraftGrid();
   document.getElementById('craft-modal')!.classList.add('open');
 }
 
@@ -422,6 +565,7 @@ export function initMUD() {
     creditsEl.textContent = `¢ ${state.credits}`;
     updateCompass(state.exits ?? []);
     renderInventory(state.inventory ?? [], (item) => openItemModal(item, sendCommand));
+    if (state.recipes) _recipes = state.recipes;
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
@@ -487,12 +631,15 @@ export function initMUD() {
   document.getElementById('craft-modal-close')?.addEventListener('click', closeCraftModal);
 
   document.getElementById('craft-do-btn')?.addEventListener('click', () => {
-    closeCraftModal();
-    if (inputEnabled) sendCommand('craft');
-    else {
-      // Drop into the terminal with the word pre-filled
-      cmdInput.value = 'craft ';
-      cmdInput.focus();
+    if (_matchedRecipe) {
+      const recipeId = _matchedRecipe.id;
+      closeCraftModal();
+      if (inputEnabled) sendCommand(`craft ${recipeId}`);
+      else { cmdInput.value = `craft ${recipeId}`; cmdInput.focus(); }
+    } else {
+      closeCraftModal();
+      if (inputEnabled) sendCommand('craft');
+      else { cmdInput.value = 'craft '; cmdInput.focus(); }
     }
   });
 

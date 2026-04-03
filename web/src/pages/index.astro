@@ -395,6 +395,15 @@
         box-shadow: 0 0 10px currentColor;
       }
 
+      .inv-slot.occupied[draggable="true"] {
+        cursor: grab;
+      }
+
+      .inv-slot.dragging {
+        opacity: 0.4;
+        cursor: grabbing;
+      }
+
       /* Tier colours */
       .inv-slot[data-tier="noise"]    { border-color: var(--border);  color: var(--comment); }
       .inv-slot[data-tier="signal"]   { border-color: #2d6e7a; color: var(--cyan);   }
@@ -641,7 +650,31 @@
       }
 
       .craft-slot:hover { border-color: var(--comment); }
-      .craft-slot.filled { border-color: var(--purple); color: var(--fg); }
+      .craft-slot.filled { border-color: var(--purple); color: var(--fg); cursor: pointer; }
+      .craft-slot.filled:hover { border-color: var(--red); }
+
+      .craft-slot.drag-over {
+        border-color: var(--green);
+        background: rgba(80,250,123,0.1);
+        box-shadow: 0 0 8px rgba(80,250,123,0.4);
+      }
+
+      .craft-slot-icon {
+        display: block;
+        font-size: 0.9rem;
+        line-height: 1;
+      }
+
+      .craft-slot-label {
+        display: block;
+        font-size: 0.38rem;
+        color: var(--comment);
+        text-align: center;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
 
       .craft-arrow {
         font-size: 1.2rem;
@@ -820,7 +853,7 @@
           <div class="craft-arrow">▶</div>
           <div class="craft-output" id="craft-output">?</div>
         </div>
-        <p class="craft-hint">Type <strong>craft &lt;item&gt;</strong> in the terminal, or click below to see what you can make.</p>
+        <p class="craft-hint" id="craft-hint">Drag items from your inventory into the grid.</p>
         <button id="craft-do-btn">🔧 Open Crafting Menu</button>
       </div>
     </div>

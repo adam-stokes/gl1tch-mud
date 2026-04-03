@@ -49,6 +49,23 @@ type StateUpdatePayload struct {
 	Exits     []string  `json:"exits"`
 	Inventory []InvItem `json:"inventory"`
 	Credits   int       `json:"credits"`
+	Recipes   []Recipe  `json:"recipes,omitempty"`
+}
+
+// RecipeIngredient is a single crafting ingredient as sent to the client.
+type RecipeIngredient struct {
+	ID    string `json:"id"`
+	Count int    `json:"count"`
+}
+
+// Recipe is a crafting recipe as sent to the client.
+type Recipe struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Ingredients []RecipeIngredient `json:"ingredients"`
+	OutputID    string             `json:"outputId"`
+	OutputName  string             `json:"outputName"`
+	SkillReq    int                `json:"skillReq,omitempty"`
 }
 
 // InvItem is a carried item as sent to the client.
