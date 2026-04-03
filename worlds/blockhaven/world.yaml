@@ -17,7 +17,7 @@ ui:
     error: "#c0392b"
     success: "#27ae60"
 start_room: meadow-0
-narrator_model: claude-haiku-4-5-20251001
+narrator_model: ""
 
 weather_table:
   - biome: meadow

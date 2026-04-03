@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v3"
 	"nhooyr.io/websocket"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -238,23 +237,3 @@ func TestWSConnectsAndReceivesWorldMeta(t *testing.T) {
 	}
 }
 
-func TestWorldUIProfileParsedFromYAML(t *testing.T) {
-	raw := []byte(`
-name: testworld
-start_room: r1
-rooms: []
-ui:
-  profile: kids
-  prompt: "$"
-  tagline: "test"
-  theme:
-    bg: "#000"
-`)
-	var w world.World
-	if err := yaml.Unmarshal(raw, &w); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if w.UI.Profile != "kids" {
-		t.Errorf("Profile: got %q want %q", w.UI.Profile, "kids")
-	}
-}

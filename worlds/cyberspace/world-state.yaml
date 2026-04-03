@@ -44,6 +44,17 @@ existing_room_ids:
   - gen-7a3f5c2e
   - gen-7fa2e84c
 
+# NPC archetypes for pipeline generation — world-specific roles
+npc_archetypes:
+  - "burned fixer: knows everyone, trusts no one, broker of last resort"
+  - "rogue sysadmin: jumped ship from Axiom, still has root on three dead systems"
+  - "data courier: anonymous, fast, no questions — for the right price"
+  - "black market augment dealer: back-alley neural installs, no warranty"
+  - "paranoid archivist: hoards erased history, speaks only in dead metaphors"
+  - "counter-ICE specialist: ex-corporate red team, now freelance and dangerous"
+  - "signal ghost: encrypted even in person, untraceable, speaks in one-time pads"
+  - "biometric forger: crafts clean identities from harvested corpsec credentials"
+
 existing_item_ids:
   - data-chip
   - raw-silicon

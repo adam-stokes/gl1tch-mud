@@ -1030,6 +1030,8 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 				"trigger":       matchedTrigger,
 				"text":          text,
 				"stealth_level": stealthState.Level,
+				"world":         w.Name,
+				"world_tagline": w.UI.Tagline,
 			},
 		},
 	}

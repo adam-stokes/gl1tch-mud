@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -118,8 +119,12 @@ type ollamaResponse struct {
 	Message ollamaMessage `json:"message"`
 }
 
-func buildPrompt(currentRoom *world.Room, direction, worldName, model string) string {
-	return fmt.Sprintf(`You are generating a room for a cyberpunk text MUD called "%s".
+func buildPrompt(currentRoom *world.Room, direction string, w *world.World) string {
+	tagline := strings.TrimSpace(w.UI.Tagline)
+	if tagline == "" {
+		tagline = "atmospheric and immersive"
+	}
+	return fmt.Sprintf(`You are generating a room for a text MUD called "%s" (%s).
 The player is in "%s": %s
 They explore to the %s and find a new area.
 
@@ -127,14 +132,14 @@ Return ONLY a YAML block (no prose, no markdown fences) with this exact structur
 id: gen-placeholder
 name: "Room Name Here"
 desc: |
-  A short 2-3 sentence cyberpunk description.
+  A short 2-3 sentence description matching the world's tone.
 exits:
   %s: %s
 npcs: []
 items: []
 
-Keep it atmospheric, cyberpunk, and consistent with the theme. Output ONLY the YAML.`,
-		worldName,
+Keep it atmospheric, consistent with the world theme, and true to the tagline. Output ONLY the YAML.`,
+		w.Name, tagline,
 		currentRoom.Name, strings.TrimSpace(currentRoom.Desc),
 		direction,
 		oppositeDirection(direction), currentRoom.ID,
@@ -208,26 +213,60 @@ type GenerateResult struct {
 	ErrMsg    string // user-facing message on failure
 }
 
+// providerModel splits "provider/model" into its parts.
+// A bare model name (no slash) is assumed to be ollama.
+type providerModel struct {
+	provider string
+	model    string
+}
+
+func parseProviderModel(s string) providerModel {
+	if parts := strings.SplitN(s, "/", 2); len(parts) == 2 {
+		return providerModel{provider: parts[0], model: parts[1]}
+	}
+	return providerModel{provider: "ollama", model: s}
+}
+
+// callGlitch delegates generation to the glitch CLI for non-Ollama providers.
+func (g *Generator) callGlitch(ctx context.Context, pm providerModel, prompt string) (string, error) {
+	args := []string{"ask", "--route=false", "--brain=false"}
+	if pm.provider != "" {
+		args = append(args, "--provider="+pm.provider)
+	}
+	if pm.model != "" {
+		args = append(args, "--model="+pm.model)
+	}
+	args = append(args, prompt)
+	out, err := exec.CommandContext(ctx, "glitch", args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("glitch ask: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // Generate attempts to create or load a room for the given direction.
 // currentRoom is the room the player is currently in.
 // w is the live world; on success, the generated room is added to the world graph.
 func (g *Generator) Generate(ctx context.Context, w *world.World, currentRoom *world.Room, direction string) GenerateResult {
-	model := w.NarratorModel
-	if model == "" {
-		model = "llama3.2"
-	}
+	pm := parseProviderModel(resolveNarratorModel(w.NarratorModel))
+	modelLabel := pm.provider + "/" + pm.model
 
 	hash := promptHash(currentRoom.ID, direction, w.Name)
 
 	// Cache hit
 	if cached := g.cachedRoom(hash); cached != nil {
 		g.wireRooms(w, currentRoom, cached, direction)
-		return GenerateResult{Room: cached, FromCache: true, Model: model}
+		return GenerateResult{Room: cached, FromCache: true, Model: modelLabel}
 	}
 
-	// Call Ollama
-	prompt := buildPrompt(currentRoom, direction, w.Name, model)
-	content, err := g.callOllama(ctx, model, prompt)
+	prompt := buildPrompt(currentRoom, direction, w)
+	var content string
+	var err error
+	if pm.provider == "ollama" {
+		content, err = g.callOllama(ctx, pm.model, prompt)
+	} else {
+		content, err = g.callGlitch(ctx, pm, prompt)
+	}
 	if err != nil {
 		return GenerateResult{
 			Error:  err,
@@ -252,7 +291,7 @@ func (g *Generator) Generate(ctx context.Context, w *world.World, currentRoom *w
 	// Persist to cache
 	g.persistRoom(hash, room) //nolint:errcheck
 
-	return GenerateResult{Room: room, FromCache: false, Model: model}
+	return GenerateResult{Room: room, FromCache: false, Model: modelLabel}
 }
 
 // wireRooms adds the new room to the world graph and links exits bidirectionally.
@@ -276,4 +315,26 @@ func (g *Generator) wireRooms(w *world.World, current, generated *world.Room, di
 		current.Exits = make(map[string]string)
 	}
 	current.Exits[direction] = generated.ID
+}
+
+// resolveNarratorModel returns "provider/model" for generation.
+// Priority: explicit world config > glitch model --local > hardcoded fallback.
+func resolveNarratorModel(worldModel string) string {
+	if worldModel != "" {
+		// Normalise bare model names (no slash) to ollama/<model>.
+		if !strings.Contains(worldModel, "/") {
+			return "ollama/" + worldModel
+		}
+		return worldModel
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "glitch", "model", "--local").Output()
+	if err == nil {
+		s := strings.TrimSpace(string(out))
+		if strings.Contains(s, "/") {
+			return s // already "provider/model"
+		}
+	}
+	return "ollama/llama3.2"
 }

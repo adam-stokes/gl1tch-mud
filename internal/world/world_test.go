@@ -345,3 +345,24 @@ func TestAvailable(t *testing.T) {
 		t.Error("Available() should always include cyberspace")
 	}
 }
+
+func TestWorldUIProfileParsedFromYAML(t *testing.T) {
+	raw := []byte(`
+name: testworld
+start_room: r1
+rooms: []
+ui:
+  profile: kids
+  prompt: "$"
+  tagline: "test"
+  theme:
+    bg: "#000"
+`)
+	var w World
+	if err := yaml.Unmarshal(raw, &w); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if w.UI.Profile != "kids" {
+		t.Errorf("Profile: got %q want %q", w.UI.Profile, "kids")
+	}
+}

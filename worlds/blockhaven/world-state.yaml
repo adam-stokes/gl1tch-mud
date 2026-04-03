@@ -72,3 +72,14 @@ active_factions:
   - dunekeepers
   - frostborn
   - deepborn
+
+# NPC archetypes for pipeline generation — world-specific roles
+npc_archetypes:
+  - "faction elder: speaks for one of the five groups, holds ancient knowledge"
+  - "crystal shard seeker: searching the biomes for shards, will trade for help"
+  - "wandering craftsperson: carries rare materials between biomes, knows good prices"
+  - "ruin archaeologist: maps the old structures, looking for clues about the Core"
+  - "cinder's witness: claims to have seen the young dragon, conflicted about telling anyone"
+  - "displaced villager: driven from their biome by the fading, needs direction"
+  - "biome ranger: patrols the border between two biomes, carries news from both"
+  - "lore keeper: memorized the old stories, willing to trade them for something useful"

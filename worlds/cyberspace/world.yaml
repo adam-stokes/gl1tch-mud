@@ -17,7 +17,7 @@ ui:
     error: "#ff5555"
     success: "#50fa7b"
 start_room: net-0
-narrator_model: claude-haiku-4-5-20251001
+narrator_model: ""
 
 factions:
   - id: null-collective
