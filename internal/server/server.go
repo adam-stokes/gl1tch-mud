@@ -370,9 +370,10 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type: "world_meta",
 		Payload: WorldMetaPayload{
-			Name:    selectedWorld.Name,
-			Tagline: selectedWorld.UI.Tagline,
-			Theme:   selectedWorld.UI.Theme,
+			Name:      selectedWorld.Name,
+			Tagline:   selectedWorld.UI.Tagline,
+			Theme:     selectedWorld.UI.Theme,
+			UIProfile: selectedWorld.UI.Profile,
 		},
 	})
 

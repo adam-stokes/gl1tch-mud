@@ -14,6 +14,7 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
+	"github.com/adam-stokes/gl1tch-mud/internal/quests"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -241,14 +242,52 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		return
 	}
 
-	// Room name and exits.
+	// Room name, exits, and kids-mode presence data.
 	var roomName string
 	var exits []string
+	var roomNPCs []RoomNPCInfo
+	var roomItems []RoomItemInfo
+	var roomResources []RoomResourceInfo
 	if room := s.world.Room(s.state.RoomID); room != nil {
 		roomName = room.Name
 		for dir := range room.Exits {
 			exits = append(exits, dir)
 		}
+		for _, npc := range room.NPCs {
+			roomNPCs = append(roomNPCs, RoomNPCInfo{
+				ID:         npc.ID,
+				Name:       npc.Name,
+				CanTalk:    len(npc.Dialogue) > 0,
+				CanTrade:   len(npc.Trades) > 0,
+				Attackable: npc.Attack > 0,
+			})
+		}
+		for _, item := range room.Items {
+			roomItems = append(roomItems, RoomItemInfo{
+				ID:       item.ID,
+				Name:     item.Name,
+				Takeable: true,
+			})
+		}
+		for _, res := range room.Resources {
+			roomResources = append(roomResources, RoomResourceInfo{
+				ID:     res.ID,
+				Name:   res.ID,
+				Action: res.Type,
+			})
+		}
+	}
+
+	// Active quests for kids quest tracker.
+	activeQuests, _ := quests.Active(s.database)
+	questInfos := make([]QuestInfo, 0, len(activeQuests))
+	for _, q := range activeQuests {
+		questInfos = append(questInfos, QuestInfo{
+			ID:          q.ID,
+			Title:       q.Title,
+			ObjCount:    q.ObjCount,
+			ObjProgress: q.ObjProgress,
+		})
 	}
 
 	// Inventory with signal tier.
@@ -285,13 +324,17 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	}
 
 	payload := StateUpdatePayload{
-		HP:        s.state.HP,
-		MaxHP:     s.state.MaxHP,
-		RoomName:  roomName,
-		Exits:     exits,
-		Inventory: hudInv,
-		Credits:   credits.Get(s.database),
-		Recipes:   recipes,
+		HP:            s.state.HP,
+		MaxHP:         s.state.MaxHP,
+		RoomName:      roomName,
+		Exits:         exits,
+		Inventory:     hudInv,
+		Credits:       credits.Get(s.database),
+		Recipes:       recipes,
+		RoomNPCs:      roomNPCs,
+		RoomItems:     roomItems,
+		RoomResources: roomResources,
+		Quests:        questInfos,
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
 
