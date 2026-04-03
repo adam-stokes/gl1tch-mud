@@ -867,7 +867,7 @@
         <div class="panel" id="room-context">
           <div class="panel-title">who's here</div>
           <div id="room-npcs-list"></div>
-          <div class="panel-title" style="margin-top:0.5rem">exits</div>
+          <div class="panel-title kids-section-sep">exits</div>
           <div id="kids-exits"></div>
         </div>
 
@@ -916,7 +916,7 @@
 
       <!-- Input bar -->
       <div id="input-bar">
-        <button id="kids-input-toggle" title="Show/hide keyboard input">⌨️</button>
+        <button id="kids-input-toggle" type="button" aria-label="Show/hide keyboard input" title="Show/hide keyboard input">⌨️</button>
         <span class="prompt">&gt;</span>
         <input id="cmd-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="type a command..." />
         <button id="send-btn">Send</button>
@@ -963,7 +963,7 @@
 
     <!-- Kids quest modal -->
     <div class="modal-overlay" id="quest-kids-modal">
-      <div class="modal-box" style="max-width:340px;width:90%">
+      <div class="modal-box">
         <button class="modal-close" id="quest-kids-modal-close">✕</button>
         <div class="modal-title">your quests</div>
         <div id="quest-kids-list"></div>
