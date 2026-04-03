@@ -24,6 +24,7 @@ type ClientSession struct {
 	database     *sql.DB
 	state        *player.State
 	world        *world.World
+	worldName    string
 	cancel       context.CancelFunc
 	lastActivity time.Time
 	registry     *SessionRegistry
@@ -280,7 +281,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		Type: "players.update",
 		Payload: PlayersUpdatePayload{
 			HostOnline: true,
-			Players:    s.registry.Players(s.world),
+			Players:    s.registry.PlayersInWorld(s.worldName, s.world),
 		},
 	})
 }

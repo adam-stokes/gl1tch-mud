@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -75,14 +76,17 @@ func (r *SessionRegistry) GetRoomID(playerID string) string {
 	return ""
 }
 
-// Players returns a PlayerInfo slice for all sessions, including room names.
-func (r *SessionRegistry) Players(w *world.World) []PlayerInfo {
+// PlayersInWorld returns a PlayerInfo slice for sessions in the given world.
+func (r *SessionRegistry) PlayersInWorld(worldName string, w *world.World) []PlayerInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	result := make([]PlayerInfo, 0, len(r.sessions))
+	result := make([]PlayerInfo, 0)
 	for id, s := range r.sessions {
+		if s.worldName != worldName {
+			continue
+		}
 		roomName := ""
-		if s.state != nil {
+		if s.state != nil && w != nil {
 			if room := w.Room(s.state.RoomID); room != nil {
 				roomName = room.Name
 			}
@@ -90,6 +94,18 @@ func (r *SessionRegistry) Players(w *world.World) []PlayerInfo {
 		result = append(result, PlayerInfo{Name: id, RoomName: roomName})
 	}
 	return result
+}
+
+// BroadcastToWorld sends msg to every session in the given world.
+func (r *SessionRegistry) BroadcastToWorld(worldName string, msg ServerMsg) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ctx := context.Background()
+	for _, s := range r.sessions {
+		if s.worldName == worldName {
+			_ = writeMsg(ctx, s.conn, msg)
+		}
+	}
 }
 
 // closeAll sends a shutdown message to every session and removes them.
@@ -108,19 +124,21 @@ func (r *SessionRegistry) closeAll(ctx context.Context) {
 
 // GameServer is the embedded multiplayer HTTP/WebSocket server.
 type GameServer struct {
-	world      *world.World
-	worldMu    sync.RWMutex
-	registry   *SessionRegistry
-	passphrase string
-	httpServer *http.Server
-	lanURL     string
+	worlds      map[string]*world.World
+	lockedWorld string
+	registry    *SessionRegistry
+	passphrase  string
+	httpServer  *http.Server
+	lanURL      string
 }
 
-// New creates a GameServer sharing the given world instance.
-func New(w *world.World) *GameServer {
+// New creates a GameServer supporting multiple worlds.
+// If lockedWorld is non-empty, all connections are routed to that world regardless of query param.
+func New(worlds map[string]*world.World, lockedWorld string) *GameServer {
 	return &GameServer{
-		world:    w,
-		registry: newSessionRegistry(),
+		worlds:      worlds,
+		lockedWorld: lockedWorld,
+		registry:    newSessionRegistry(),
 	}
 }
 
@@ -133,6 +151,7 @@ func (gs *GameServer) Start(port int, passphrase string) (string, error) {
 	gs.passphrase = passphrase
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/worlds", gs.handleWorlds)
 	mux.HandleFunc("/ws", gs.handleWS)
 	mux.Handle("/", FileHandler())
 
@@ -198,20 +217,66 @@ func (gs *GameServer) Broadcast(msg ServerMsg) {
 	gs.registry.Broadcast(msg)
 }
 
-// broadcastPlayerList sends a players.update message to all connected sessions.
-func (gs *GameServer) broadcastPlayerList() {
-	gs.Broadcast(ServerMsg{
+// broadcastPlayerListForWorld sends a players.update message to all sessions in the given world.
+func (gs *GameServer) broadcastPlayerListForWorld(worldName string) {
+	wld := gs.worlds[worldName]
+	gs.registry.BroadcastToWorld(worldName, ServerMsg{
 		Type: "players.update",
 		Payload: PlayersUpdatePayload{
 			HostOnline: true,
-			Players:    gs.registry.Players(gs.world),
+			Players:    gs.registry.PlayersInWorld(worldName, wld),
 		},
 	})
+}
+
+// worldForRequest resolves a world from the given name parameter.
+// If the server has a lockedWorld, that world is always returned regardless of name.
+// For multi-world servers, name must be non-empty and refer to a known world.
+func (gs *GameServer) worldForRequest(name string) (*world.World, error) {
+	if gs.lockedWorld != "" {
+		w, ok := gs.worlds[gs.lockedWorld]
+		if !ok {
+			return nil, fmt.Errorf("locked world %q not found", gs.lockedWorld)
+		}
+		return w, nil
+	}
+	if name == "" {
+		return nil, fmt.Errorf("world param required")
+	}
+	w, ok := gs.worlds[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown world: %q", name)
+	}
+	return w, nil
+}
+
+// handleWorlds returns JSON list of WorldMeta for all available worlds.
+func (gs *GameServer) handleWorlds(w http.ResponseWriter, r *http.Request) {
+	metas := make([]world.WorldMeta, 0, len(gs.worlds))
+	for _, wld := range gs.worlds {
+		metas = append(metas, world.WorldMeta{
+			Name:    wld.Name,
+			Tagline: wld.UI.Tagline,
+			Theme:   wld.UI.Theme,
+		})
+	}
+	sort.Slice(metas, func(i, j int) bool { return metas[i].Name < metas[j].Name })
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metas); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
 }
 
 // handleWS upgrades an HTTP connection to WebSocket, performs the auth
 // handshake, then hands off to the session handler.
 func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
+	worldName := r.URL.Query().Get("world")
+	selectedWorld, err := gs.worldForRequest(worldName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		InsecureSkipVerify: true, // LAN-only; no origin check needed
 	})
@@ -269,7 +334,8 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	session := &ClientSession{
 		playerID:     auth.PlayerID,
 		conn:         conn,
-		world:        gs.world,
+		world:        selectedWorld,
+		worldName:    selectedWorld.Name,
 		cancel:       cancel,
 		lastActivity: time.Now(),
 		registry:     gs.registry,
@@ -283,16 +349,25 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		conn.Close(websocket.StatusPolicyViolation, "already connected")
 		return
 	}
-	defer gs.broadcastPlayerList() // registered first → runs second (after Close removes session)
-	defer session.Close()          // registered second → runs first
+	defer gs.broadcastPlayerListForWorld(session.worldName) // registered first → runs second (after Close removes session)
+	defer session.Close()                                    // registered second → runs first
 
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type:    "auth.ok",
 		Payload: AuthOKPayload{PlayerID: auth.PlayerID, Level: 1, Title: "Script Kiddie", XP: 0},
 	})
 
+	_ = writeMsg(ctx, conn, ServerMsg{
+		Type: "world_meta",
+		Payload: WorldMetaPayload{
+			Name:    selectedWorld.Name,
+			Tagline: selectedWorld.UI.Tagline,
+			Theme:   selectedWorld.UI.Theme,
+		},
+	})
+
 	// Notify all clients (including new joiner) of updated roster.
-	gs.broadcastPlayerList()
+	gs.broadcastPlayerListForWorld(session.worldName)
 
 	session.Handle(ctx)
 }

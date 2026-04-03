@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"nhooyr.io/websocket"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
 // ClientMsg is a message sent from the browser client to the server.
@@ -108,6 +110,13 @@ type AuthPayload struct {
 // InputPayload is the payload of an incoming "input" ClientMsg.
 type InputPayload struct {
 	Text string `json:"text"`
+}
+
+// WorldMetaPayload is sent to the client on WebSocket connect, before the first state.update.
+type WorldMetaPayload struct {
+	Name    string           `json:"name"`
+	Tagline string           `json:"tagline"`
+	Theme   world.WorldTheme `json:"theme"`
 }
 
 // writeMsg marshals msg to JSON and sends it as a text WebSocket frame.
