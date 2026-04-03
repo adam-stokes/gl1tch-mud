@@ -87,6 +87,9 @@ func runGame() {
 		os.Exit(1)
 	}
 
+	world.SeedCrystalShards(database, s.World)  //nolint:errcheck
+	world.SeedStartingItems(database, s.World)  //nolint:errcheck
+
 	bus := busd.Connect()
 	defer bus.Close()
 
@@ -176,6 +179,8 @@ func runGame() {
 					commands.SetLANServer(lanSrv)
 					newState, _ := player.Load(database)
 					*s = *newState
+					world.SeedCrystalShards(database, s.World)  //nolint:errcheck
+					world.SeedStartingItems(database, s.World)  //nolint:errcheck
 					lookResult := commands.Look(database, s, w, nil)
 					fmt.Println(lookResult.Output)
 				}

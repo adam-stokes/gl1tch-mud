@@ -1324,6 +1324,14 @@ func questComplete(db *sql.DB, id string) Result {
 		if err := player.AddItem(db, q.RewardItemID, name, desc); err == nil {
 			out.WriteString(fmt.Sprintf("  + item: %s\n", name))
 		}
+		// Mark crystal shard collected if this quest rewards one.
+		shardIDs := map[string]bool{
+			"meadow-shard": true, "forest-shard": true, "desert-shard": true,
+			"mountain-shard": true, "cave-shard": true,
+		}
+		if shardIDs[q.RewardItemID] {
+			player.MarkShardCollected(db, q.RewardItemID) //nolint:errcheck
+		}
 	}
 
 	return Result{Output: strings.TrimRight(out.String(), "\n")}

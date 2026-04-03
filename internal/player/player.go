@@ -220,3 +220,14 @@ func AnyDeathPile(db *sql.DB) (roomID string, count int, err error) {
 	}
 	return
 }
+
+// MarkShardCollected marks a Crystal Shard as collected.
+func MarkShardCollected(db *sql.DB, shardID string) error {
+	var actionCnt int
+	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&actionCnt) //nolint:errcheck
+	_, err := db.Exec(
+		`UPDATE crystal_shards SET collected=1, collected_at=? WHERE shard_id=?`,
+		actionCnt, shardID,
+	)
+	return err
+}

@@ -1,6 +1,7 @@
 package world
 
 import (
+	"database/sql"
 	"embed"
 	"fmt"
 	"os"
@@ -378,4 +379,51 @@ func (r *Room) Render(visitedBefore bool) string {
 func worldPath(name string) string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".local", "share", "gl1tch-mud", "worlds", name, "world.yaml")
+}
+
+// SeedCrystalShards inserts the five Crystal Shard rows for Blockhaven if they don't exist.
+// Safe to call on any world — only acts when world name is "blockhaven".
+func SeedCrystalShards(db *sql.DB, worldName string) error {
+	if worldName != "blockhaven" {
+		return nil
+	}
+	shards := []struct{ id, biome string }{
+		{"meadow-shard", "meadow"},
+		{"forest-shard", "forest"},
+		{"desert-shard", "desert"},
+		{"mountain-shard", "snow"},
+		{"cave-shard", "caves"},
+	}
+	for _, s := range shards {
+		if _, err := db.Exec(
+			`INSERT OR IGNORE INTO crystal_shards (shard_id, biome, collected, collected_at) VALUES (?,?,0,0)`,
+			s.id, s.biome,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SeedStartingItems adds starting items for the blockhaven world if inventory is empty.
+func SeedStartingItems(db *sql.DB, worldName string) error {
+	if worldName != "blockhaven" {
+		return nil
+	}
+	var cnt int
+	db.QueryRow(`SELECT COUNT(*) FROM inventory`).Scan(&cnt) //nolint:errcheck
+	if cnt > 0 {
+		return nil
+	}
+	items := []struct{ id, name, desc string }{
+		{"wooden-pickaxe", "Wooden Pickaxe", "A basic pickaxe. Required for mining stone and ore."},
+		{"wooden-sword", "Wooden Sword", "A basic sword. 5 attack."},
+		{"bread", "Bread", "Restores 20 HP when eaten."},
+		{"builders-map", "Builder's Map", "A hand-drawn map of Blockhaven."},
+	}
+	for _, it := range items {
+		db.Exec(`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`, //nolint:errcheck
+			it.id, it.name, it.desc)
+	}
+	return nil
 }
