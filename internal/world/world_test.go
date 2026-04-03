@@ -199,3 +199,58 @@ func TestDefaultWorldLoads(t *testing.T) {
 		t.Errorf("start room %q not found", w.StartRoom)
 	}
 }
+
+func TestRoomBiomeAndResources(t *testing.T) {
+	raw := `
+name: test
+start_room: r1
+narrator_model: test
+rooms:
+  - id: r1
+    name: Test Room
+    desc: A test room.
+    exits: {}
+    biome: forest
+    resources:
+      - id: oak-tree
+        type: harvest
+        yields:
+          - item_id: wood-log
+            probability: 1.0
+            count_min: 1
+            count_max: 3
+        tool_required: ""
+        respawn_actions: 10
+        grow_actions: 0
+weather_table:
+  - biome: forest
+    possible: [clear, rainy]
+`
+	var w World
+	if err := yaml.Unmarshal([]byte(raw), &w); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	r := w.Rooms[0]
+	if r.Biome != "forest" {
+		t.Errorf("biome: want forest, got %q", r.Biome)
+	}
+	if len(r.Resources) != 1 || r.Resources[0].ID != "oak-tree" {
+		t.Errorf("resources: got %+v", r.Resources)
+	}
+	if len(w.WeatherTable) != 1 || w.WeatherTable[0].Biome != "forest" {
+		t.Errorf("weather_table: got %+v", w.WeatherTable)
+	}
+}
+
+func TestAvailable(t *testing.T) {
+	names := Available()
+	found := false
+	for _, n := range names {
+		if n == "cyberspace" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Available() should always include cyberspace")
+	}
+}

@@ -82,6 +82,22 @@ type LootEntry struct {
 	Faction     string  `yaml:"faction,omitempty"`
 }
 
+// Resource is a mineable or harvestable node inside a room.
+type Resource struct {
+	ID             string      `yaml:"id"`
+	Type           string      `yaml:"type"` // "mine" | "harvest" | "plant"
+	Yields         []LootEntry `yaml:"yields"`
+	ToolRequired   string      `yaml:"tool_required,omitempty"`
+	RespawnActions int         `yaml:"respawn_actions,omitempty"`
+	GrowActions    int         `yaml:"grow_actions,omitempty"` // for plant seeds
+}
+
+// WeatherEntry lists possible weather conditions for one biome.
+type WeatherEntry struct {
+	Biome    string   `yaml:"biome"`
+	Possible []string `yaml:"possible"`
+}
+
 // LootTable holds a named set of loot entries.
 type LootTable struct {
 	ID      string      `yaml:"id"`
@@ -148,8 +164,10 @@ type Room struct {
 	Exits   map[string]string `yaml:"exits"`
 	NPCs    []NPC             `yaml:"npcs"`
 	Items   []Item            `yaml:"items"`
-	Systems []System          `yaml:"systems,omitempty"`
-	Locks   []Lock            `yaml:"locks,omitempty"`
+	Systems   []System   `yaml:"systems,omitempty"`
+	Locks     []Lock     `yaml:"locks,omitempty"`
+	Biome     string     `yaml:"biome,omitempty"`
+	Resources []Resource `yaml:"resources,omitempty"`
 }
 
 // WorldQuest is a pre-defined quest loaded from world YAML.
@@ -180,6 +198,7 @@ type World struct {
 	LootTables      []LootTable      `yaml:"loot_tables,omitempty"`
 	Factions        []Faction        `yaml:"factions,omitempty"`
 	Quests          []WorldQuest     `yaml:"quests,omitempty"`
+	WeatherTable    []WeatherEntry   `yaml:"weather_table,omitempty"`
 	index           map[string]*Room
 }
 
@@ -204,6 +223,36 @@ func Load(name string) (*World, error) {
 		w.index[w.Rooms[i].ID] = &w.Rooms[i]
 	}
 	return &w, nil
+}
+
+// Available returns the names of all installed worlds plus the embedded default.
+// Always includes "cyberspace".
+func Available() []string {
+	names := []string{"cyberspace"}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return names
+	}
+	dir := filepath.Join(home, ".local", "share", "gl1tch-mud", "worlds")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return names
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		n := e.Name()
+		if n == "cyberspace" {
+			continue // already included
+		}
+		// Only include if world.yaml exists
+		p := filepath.Join(dir, n, "world.yaml")
+		if _, err := os.Stat(p); err == nil {
+			names = append(names, n)
+		}
+	}
+	return names
 }
 
 // Room returns the room with the given ID, or nil.
