@@ -1,0 +1,74 @@
+chapter: shard-hunt
+
+# Tracks shards collected (updated by pipeline after quest completions)
+shards_collected: 0
+
+# Lists all room IDs currently in world.yaml — pipelines use this for idempotency
+existing_room_ids:
+  - meadow-0
+  - meadow-1
+  - forest-0
+  - forest-1
+  - desert-0
+  - desert-1
+  - snow-0
+  - snow-1
+  - caves-0
+  - caves-1
+  - ember-0
+
+# Lists all item IDs currently in world.yaml
+existing_item_ids:
+  - builders-map
+  - coal-stack
+  - coal
+  - wood-log
+  - stick
+  - flint
+  - stone
+  - iron-ore
+  - gold-ore
+  - iron-ingot
+  - gold-ingot
+  - iron-sword
+  - gold-sword
+  - wooden-pickaxe
+  - stone-pickaxe
+  - iron-pickaxe
+  - wooden-sword
+  - frost-essence
+  - ice-shard
+  - frostcore-ingot
+  - diamond
+  - obsidian
+  - sand
+  - sandstone
+  - vine
+  - root
+  - seed
+  - leaf
+  - herb
+  - rare-seed
+  - coal-ore
+  - charcoal
+  - brick
+  - clay
+  - glass
+  - glowstone
+  - crystal-fragment
+  - dragon-scale-fragment
+  - meadow-shard
+  - forest-shard
+  - desert-shard
+  - mountain-shard
+  - cave-shard
+  - crystal-key
+  - meadow-shard-fragment
+
+# Active factions — never add to this list in generation
+active_factions:
+  - stoneguard
+  - thornwalkers
+  - dunekeepers
+  - frostborn
+  - deepborn
