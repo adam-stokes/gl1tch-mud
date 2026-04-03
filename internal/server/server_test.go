@@ -10,6 +10,7 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -291,3 +292,30 @@ func TestWorldMetaPayloadUIProfileJSON(t *testing.T) {
 	}
 }
 
+func TestOnlinePlayersInWorldExcludesSelf(t *testing.T) {
+	reg := newSessionRegistry()
+	reg.sessions["alice"] = &ClientSession{playerID: "alice", worldName: "bh", state: &player.State{RoomID: "room-1"}}
+	reg.sessions["bob"]   = &ClientSession{playerID: "bob",   worldName: "bh", state: &player.State{RoomID: "room-2"}}
+	reg.sessions["carol"] = &ClientSession{playerID: "carol", worldName: "other", state: &player.State{RoomID: "room-x"}}
+
+	result := reg.OnlinePlayersInWorld("bh", "alice")
+	if len(result) != 1 {
+		t.Fatalf("want 1 player got %d: %+v", len(result), result)
+	}
+	if result[0].Name != "bob" || result[0].RoomID != "room-2" {
+		t.Errorf("unexpected player info: %+v", result[0])
+	}
+}
+
+func TestOnlinePlayersInWorldSkipsNoRoom(t *testing.T) {
+	reg := newSessionRegistry()
+	// nil state — excluded
+	reg.sessions["ghost"]  = &ClientSession{playerID: "ghost",  worldName: "bh", state: nil}
+	// empty RoomID — excluded
+	reg.sessions["newbie"] = &ClientSession{playerID: "newbie", worldName: "bh", state: &player.State{RoomID: ""}}
+
+	result := reg.OnlinePlayersInWorld("bh", "other")
+	if len(result) != 0 {
+		t.Errorf("expected 0 results, got %d: %+v", len(result), result)
+	}
+}

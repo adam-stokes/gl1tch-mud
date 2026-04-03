@@ -428,6 +428,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	payload := StateUpdatePayload{
 		HP:            s.state.HP,
 		MaxHP:         s.state.MaxHP,
+		RoomID:        s.state.RoomID,
 		RoomName:      roomName,
 		Exits:         exits,
 		Inventory:     hudInv,
@@ -438,6 +439,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		RoomResources: roomResources,
 		Quests:        questInfos,
 		Skills:        skillInfos,
+		OnlinePlayers: s.registry.OnlinePlayersInWorld(s.worldName, s.playerID),
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
 

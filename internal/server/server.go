@@ -114,6 +114,24 @@ func (r *SessionRegistry) PlayersInWorld(worldName string, w *world.World) []Pla
 	return result
 }
 
+// OnlinePlayersInWorld returns OnlinePlayerInfo for all sessions in worldName
+// except excludeID. Sessions without a known room are omitted.
+func (r *SessionRegistry) OnlinePlayersInWorld(worldName string, excludeID string) []OnlinePlayerInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make([]OnlinePlayerInfo, 0)
+	for id, s := range r.sessions {
+		if id == excludeID || s.worldName != worldName {
+			continue
+		}
+		if s.state == nil || s.state.RoomID == "" {
+			continue
+		}
+		result = append(result, OnlinePlayerInfo{Name: id, RoomID: s.state.RoomID})
+	}
+	return result
+}
+
 // BroadcastToWorld sends msg to every session in the given world.
 func (r *SessionRegistry) BroadcastToWorld(worldName string, msg ServerMsg) {
 	r.mu.RLock()
@@ -409,6 +427,16 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		Payload: AuthOKPayload{PlayerID: auth.PlayerID, Level: 1, Title: "Script Kiddie", XP: 0},
 	})
 
+	mapRooms := make([]MapRoomInfo, 0, len(selectedWorld.Rooms))
+	for _, r := range selectedWorld.Rooms {
+		mapRooms = append(mapRooms, MapRoomInfo{
+			ID:    r.ID,
+			Name:  r.Name,
+			Biome: r.Biome,
+			X:     r.GridX,
+			Y:     r.GridY,
+		})
+	}
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type: "world_meta",
 		Payload: WorldMetaPayload{
@@ -416,6 +444,7 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 			Tagline:   selectedWorld.UI.Tagline,
 			Theme:     selectedWorld.UI.Theme,
 			UIProfile: selectedWorld.UI.Profile,
+			MapRooms:  mapRooms,
 		},
 	})
 
