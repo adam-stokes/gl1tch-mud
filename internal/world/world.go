@@ -112,6 +112,7 @@ type WorldTheme struct {
 
 // WorldUI holds the presentation config for a world, read from the ui: block.
 type WorldUI struct {
+	Profile string     `yaml:"profile,omitempty"`
 	Banner  string     `yaml:"banner"`
 	Prompt  string     `yaml:"prompt"`
 	Tagline string     `yaml:"tagline"`
