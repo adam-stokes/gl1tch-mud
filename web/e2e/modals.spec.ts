@@ -74,3 +74,34 @@ test.describe('item modal', () => {
     await gamePage.screenshot({ path: ss('item-closed-overlay') });
   });
 });
+
+// ── Quest modal (kids mode) ───────────────────────────────────────────────────
+
+test.describe('quest modal', () => {
+  test('body has data-ui=kids (kids mode active)', async ({ gamePage }) => {
+    // Confirms applyKidsMode() ran — prerequisite for all quest modal tests
+    await expect(gamePage.locator('body')).toHaveAttribute('data-ui', 'kids');
+  });
+
+  test('opens when Quests button is clicked', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="quests"]');
+    await expect(gamePage.locator('#quest-kids-modal')).toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('quest-open') });
+  });
+
+  test('closes via close button', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="quests"]');
+    await expect(gamePage.locator('#quest-kids-modal')).toHaveClass(/open/);
+    await gamePage.click('#quest-kids-modal-close');
+    await expect(gamePage.locator('#quest-kids-modal')).not.toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('quest-closed-btn') });
+  });
+
+  test('closes via overlay click', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="quests"]');
+    await expect(gamePage.locator('#quest-kids-modal')).toHaveClass(/open/);
+    await gamePage.locator('#quest-kids-modal').click({ position: { x: 5, y: 5 } });
+    await expect(gamePage.locator('#quest-kids-modal')).not.toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('quest-closed-overlay') });
+  });
+});
