@@ -74,7 +74,7 @@ func rollYield(db *sql.DB, yields []world.LootEntry, biome string) []world.LootE
 
 	var out []world.LootEntry
 	for _, entry := range yields {
-		if rand.Float64() > entry.Probability*weatherBonus {
+		if rand.Float64() >= entry.Probability*weatherBonus {
 			continue
 		}
 		count := entry.CountMin + rand.Intn(entry.CountMax-entry.CountMin+1) + bonusCount
@@ -270,8 +270,8 @@ func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: "you need to rest before gathering again."}
 	}
 
-	depleteResource(db, s.RoomID+"-gather", "gather-cooldown")
 	bumpActions(db)
+	depleteResource(db, s.RoomID+"-gather", "gather-cooldown")
 
 	ambient := map[string][]world.LootEntry{
 		"meadow": {
@@ -382,8 +382,14 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("you don't have %s.", itemID)}
 	}
 
-	player.RemoveItem(db, itemID) //nolint:errcheck
-	player.RemoveItem(db, fuel)   //nolint:errcheck
+	if err := player.RemoveItem(db, itemID); err != nil {
+		return Result{Output: fmt.Sprintf("you don't have %s.", itemID)}
+	}
+	if fuel != itemID {
+		if err := player.RemoveItem(db, fuel); err != nil {
+			return Result{Output: fmt.Sprintf("you don't have %s for fuel.", fuel)}
+		}
+	}
 	player.AddItem(db, result[0], result[1], fmt.Sprintf("Smelted from %s.", itemID)) //nolint:errcheck
 	bumpActions(db)
 
@@ -438,9 +444,26 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	current := actionCount(db)
-	var slot int
-	db.QueryRow(`SELECT COALESCE(MAX(slot)+1, 0) FROM crops WHERE room_id=? AND harvested=0`, s.RoomID).Scan(&slot) //nolint:errcheck
-	if slot >= 4 {
+
+	// Find the lowest available slot (0-3) not occupied by an active crop.
+	usedSlots := map[int]bool{}
+	slotRows, _ := db.Query(`SELECT slot FROM crops WHERE room_id=? AND harvested=0`, s.RoomID)
+	if slotRows != nil {
+		defer slotRows.Close()
+		for slotRows.Next() {
+			var used int
+			slotRows.Scan(&used) //nolint:errcheck
+			usedSlots[used] = true
+		}
+	}
+	slot := -1
+	for i := 0; i < 4; i++ {
+		if !usedSlots[i] {
+			slot = i
+			break
+		}
+	}
+	if slot == -1 {
 		return Result{Output: "the farmland is full. harvest some crops first."}
 	}
 
