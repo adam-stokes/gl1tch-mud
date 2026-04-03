@@ -47,6 +47,7 @@ type ErrorPayload struct {
 type StateUpdatePayload struct {
 	HP            int                `json:"hp"`
 	MaxHP         int                `json:"maxHp"`
+	RoomID        string             `json:"room_id"`
 	RoomName      string             `json:"roomName"`
 	Exits         []string           `json:"exits"`
 	Inventory     []InvItem          `json:"inventory"`
@@ -57,6 +58,7 @@ type StateUpdatePayload struct {
 	RoomResources []RoomResourceInfo `json:"room_resources,omitempty"`
 	Quests        []QuestInfo        `json:"quests,omitempty"`
 	Skills        []SkillInfo        `json:"skills,omitempty"`
+	OnlinePlayers []OnlinePlayerInfo `json:"online_players,omitempty"`
 }
 
 // RecipeIngredient is a single crafting ingredient as sent to the client.
@@ -114,6 +116,21 @@ type SkillInfo struct {
 	XP    int    `json:"xp"`
 }
 
+// MapRoomInfo describes a room's position in the world grid, sent in world_meta.
+type MapRoomInfo struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Biome string `json:"biome,omitempty"`
+	X     int    `json:"x"`
+	Y     int    `json:"y"`
+}
+
+// OnlinePlayerInfo describes another connected player's current room, sent in state.update.
+type OnlinePlayerInfo struct {
+	Name   string `json:"name"`
+	RoomID string `json:"room_id"`
+}
+
 // QuestInfo is a summary of an active quest sent in state.update.
 type QuestInfo struct {
 	ID          string `json:"id"`
@@ -163,6 +180,7 @@ type WorldMetaPayload struct {
 	Tagline   string           `json:"tagline"`
 	Theme     world.WorldTheme `json:"theme"`
 	UIProfile string           `json:"ui_profile,omitempty"`
+	MapRooms  []MapRoomInfo    `json:"map_rooms,omitempty"`
 }
 
 // writeMsg marshals msg to JSON and sends it as a text WebSocket frame.
