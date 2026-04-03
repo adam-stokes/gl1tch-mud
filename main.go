@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -12,8 +14,12 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
+	"github.com/adam-stokes/gl1tch-mud/internal/server"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
+
+//go:embed all:web/dist
+var webDist embed.FS
 
 func main() {
 	database, err := db.Open()
@@ -44,6 +50,17 @@ func main() {
 		"world":   s.World,
 	})
 
+	// Wire the embedded frontend and the LAN server into the /lan command.
+	sub, err := fs.Sub(webDist, "web/dist")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "gl1tch-mud: embed:", err)
+		os.Exit(1)
+	}
+	server.SetFS(sub)
+
+	lanSrv := server.New(w)
+	commands.SetLANServer(lanSrv)
+
 	interactive := term.IsTerminal(int(os.Stdin.Fd()))
 
 	if interactive {
@@ -55,7 +72,7 @@ func main() {
   ██████  ███████ ██    ██     ██████ ██   ██       ██      ██  ██████  ██████
 
   jack in. ghost the gibson. don't get traced.
-  type 'help' for commands.`)
+  type 'help' for commands. type '/lan' to start a multiplayer session.`)
 
 		// Show the starting room only in interactive mode.
 		res := commands.Look(database, s, w, nil)
@@ -78,6 +95,9 @@ func main() {
 			continue
 		}
 		if line == "quit" || line == "exit" || line == "q" {
+			if lanSrv.IsRunning() {
+				lanSrv.Stop()
+			}
 			bus.Publish("mud.session.ended", map[string]any{
 				"player":  s.Name,
 				"room_id": s.RoomID,
@@ -87,6 +107,9 @@ func main() {
 			}
 			break
 		}
+
+		// Strip leading slash from commands like /lan → lan
+		line = strings.TrimPrefix(line, "/")
 
 		verb, args := commands.Parse(line)
 		handler, ok := commands.Registry[verb]

@@ -3,9 +3,12 @@ BINARY       := gl1tch-mud
 PIPELINE_SRC := pipelines
 PIPELINE_DST := $(HOME)/.config/glitch/pipelines
 
-.PHONY: build install install-pipelines clean
+.PHONY: build web-build install install-pipelines clean
 
-build:
+web-build:
+	cd web && npm run build
+
+build: web-build
 	go build -o $(BINARY) .
 
 install: build install-pipelines
