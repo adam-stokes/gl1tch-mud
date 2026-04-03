@@ -262,6 +262,77 @@ function formatResourceName(id: string): string {
   return id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function rebuildRoomContext(state: StateUpdate): void {
+  const npcList = document.getElementById('room-npcs-list');
+  if (npcList) {
+    while (npcList.firstChild) npcList.removeChild(npcList.firstChild);
+    const npcs = state.room_npcs ?? [];
+    if (npcs.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:0.7rem;color:var(--comment)';
+      empty.textContent = 'Nobody here.';
+      npcList.appendChild(empty);
+    } else {
+      for (const npc of npcs) {
+        const row = document.createElement('div');
+        row.className = 'room-npc-row';
+
+        const nameEl = document.createElement('span');
+        nameEl.textContent = npc.name;
+
+        const badges = document.createElement('span');
+        badges.className = 'room-npc-badges';
+        if (npc.can_talk) {
+          const b = document.createElement('span');
+          b.className = 'room-npc-badge';
+          b.title = 'Can talk';
+          b.textContent = '💬';
+          badges.appendChild(b);
+        }
+        if (npc.can_trade) {
+          const b = document.createElement('span');
+          b.className = 'room-npc-badge';
+          b.title = 'Can trade';
+          b.textContent = '🛒';
+          badges.appendChild(b);
+        }
+        if (npc.attackable) {
+          const b = document.createElement('span');
+          b.className = 'room-npc-badge';
+          b.title = 'Hostile';
+          b.textContent = '⚔️';
+          badges.appendChild(b);
+        }
+        row.appendChild(nameEl);
+        row.appendChild(badges);
+        npcList.appendChild(row);
+      }
+    }
+  }
+
+  const exitsEl = document.getElementById('kids-exits');
+  if (exitsEl) {
+    while (exitsEl.firstChild) exitsEl.removeChild(exitsEl.firstChild);
+    const DIR_ARROW: Record<string, string> = {
+      north: '↑ North', south: '↓ South', east: '→ East', west: '← West',
+      up: '▲ Up', down: '▼ Down',
+    };
+    for (const exit of (state.exits ?? [])) {
+      const btn = document.createElement('button');
+      btn.className = 'kids-exit-btn';
+      btn.textContent = DIR_ARROW[exit.toLowerCase()] ?? exit;
+      const captured = exit;
+      btn.addEventListener('click', () => {
+        if (inputEnabled) sendCommand(captured);
+      });
+      exitsEl.appendChild(btn);
+    }
+  }
+}
+
+// stub — replaced in Task 9
+function rebuildKidsActionButtons(_state: StateUpdate): void {}
+
 // ── Player list ───────────────────────────────────────────────────────────────
 
 let _myPlayerID = '';
@@ -758,13 +829,20 @@ export function initMUD() {
   }
 
   function applyStateUpdate(state: StateUpdate) {
+    _lastState = state;
     roomEl.textContent    = state.roomName || '—';
     hpHearts.innerHTML    = renderHearts(state.hp, state.maxHp);
     hpText.textContent    = `${state.hp}/${state.maxHp}`;
     creditsEl.textContent = `¢ ${state.credits}`;
-    updateCompass(state.exits ?? []);
-    renderInventory(state.inventory ?? [], (item) => openItemModal(item, sendCommand));
     if (state.recipes) _recipes = state.recipes;
+
+    if (_kidsMode) {
+      rebuildRoomContext(state);
+      rebuildKidsActionButtons(state);
+    } else {
+      updateCompass(state.exits ?? []);
+    }
+    renderInventory(state.inventory ?? [], (item) => openItemModal(item, sendCommand));
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────
