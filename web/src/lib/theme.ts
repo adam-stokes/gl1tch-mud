@@ -12,6 +12,7 @@ export interface WorldMeta {
   name: string;
   tagline: string;
   theme: WorldTheme;
+  ui_profile?: string;
 }
 
 /**

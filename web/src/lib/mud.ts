@@ -13,6 +13,10 @@ interface StateUpdate {
   inventory: InvItem[];
   credits: number;
   recipes?: Recipe[];
+  room_npcs?: RoomNPCInfo[];
+  room_items?: RoomItemInfo[];
+  room_resources?: RoomResourceInfo[];
+  quests?: QuestInfo[];
 }
 
 interface InvItem {
@@ -34,6 +38,33 @@ interface Recipe {
   outputId: string;
   outputName: string;
   skillReq?: number;
+}
+
+interface RoomNPCInfo {
+  id: string;
+  name: string;
+  can_talk: boolean;
+  can_trade: boolean;
+  attackable: boolean;
+}
+
+interface RoomItemInfo {
+  id: string;
+  name: string;
+  takeable: boolean;
+}
+
+interface RoomResourceInfo {
+  id: string;
+  name: string;
+  action: string;
+}
+
+interface QuestInfo {
+  id: string;
+  title: string;
+  obj_count: number;
+  obj_progress: number;
 }
 
 // ── ANSI → HTML ──────────────────────────────────────────────────────────────
@@ -220,10 +251,23 @@ function updateCompass(exits: string[]) {
   }
 }
 
+// ── Kids mode ────────────────────────────────────────────────────────────────
+
+function applyKidsMode(): void {
+  _kidsMode = true;
+  document.body.dataset.ui = 'kids';
+}
+
+function formatResourceName(id: string): string {
+  return id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ── Player list ───────────────────────────────────────────────────────────────
 
 let _myPlayerID = '';
 let _worldName = 'cyberspace';
+let _kidsMode = false;
+let _lastState: StateUpdate | null = null;
 
 /** Set the world name before calling initMUD. Called by game.astro. */
 export function setWorld(name: string): void {
@@ -613,6 +657,9 @@ export function initMUD() {
         import('./theme').then(({ applyTheme }) => {
           applyTheme(meta);
         });
+        if (meta.ui_profile === 'kids') {
+          applyKidsMode();
+        }
         rebuildActionButtons(meta.name);
         break;
       }
