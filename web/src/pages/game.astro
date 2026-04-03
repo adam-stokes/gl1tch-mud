@@ -620,6 +620,266 @@
 
       .modal-close:hover { color: var(--red); }
 
+      .kids-workbench-msg[hidden] { display: none !important; }
+
+      .kids-craft-box {
+        width: min(380px, 95vw);
+        max-height: 90vh;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .kids-craft-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+      }
+
+      .kids-recipe-btn {
+        background: #1a1a1a;
+        border: 1px solid var(--comment);
+        color: var(--green);
+        font-size: 1rem;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        cursor: pointer;
+        line-height: 1;
+        font-family: inherit;
+      }
+
+      .kids-inv-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 0.75rem;
+        min-height: 36px;
+      }
+
+      .kids-inv-chip {
+        background: #1a1a1a;
+        border: 2px solid var(--comment);
+        color: var(--fg);
+        padding: 3px 10px;
+        border-radius: 14px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-family: inherit;
+        transition: border-color 0.1s, color 0.1s;
+      }
+
+      .kids-inv-chip.armed {
+        border-color: var(--green);
+        color: var(--green);
+        box-shadow: 0 0 8px rgba(80,250,123,0.2);
+      }
+
+      .kids-inv-chip.eraser {
+        border-color: var(--red);
+        color: var(--red);
+      }
+
+      .kids-craft-layout {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 0.75rem;
+      }
+
+      .kids-craft-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 52px);
+        grid-template-rows: repeat(3, 52px);
+        gap: 3px;
+      }
+
+      .kids-craft-cell {
+        width: 52px;
+        height: 52px;
+        background: #1a1a1a;
+        border: 2px solid #333;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        cursor: crosshair;
+        user-select: none;
+        color: var(--comment);
+        transition: background 0.1s, border-color 0.1s;
+      }
+
+      .kids-craft-cell.filled {
+        border-color: #555;
+        background: #222;
+        color: inherit;
+      }
+
+      .kids-craft-cell:hover { background: #2a2a2a; }
+
+      .kids-craft-output {
+        width: 60px;
+        height: 60px;
+        background: #1a1a1a;
+        border: 2px solid #444;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        color: var(--comment);
+      }
+
+      .kids-craft-do-btn {
+        width: 100%;
+        padding: 0.6rem;
+        background: #1a1a1a;
+        border: 1px solid #444;
+        color: #888;
+        font-size: 0.9rem;
+        font-family: inherit;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .kids-craft-do-btn.ready {
+        background: #0a1a0a;
+        border-color: var(--green);
+        color: var(--green);
+        box-shadow: 0 0 10px rgba(80,250,123,0.15);
+      }
+
+      .kids-craft-do-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .kids-recipe-drawer {
+        position: absolute;
+        inset: 0;
+        background: var(--bg-dark);
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        transform: translateY(100%);
+        transition: transform 0.22s ease;
+        overflow: hidden;
+        z-index: 10;
+      }
+
+      .kids-recipe-drawer.open { transform: translateY(0); }
+
+      .kids-recipe-drawer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #333;
+        color: var(--green);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        flex-shrink: 0;
+      }
+
+      .kids-recipe-close {
+        background: none;
+        border: none;
+        color: var(--comment);
+        font-family: inherit;
+        font-size: 1rem;
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      .kids-recipe-close:hover { color: var(--red); }
+
+      .kids-recipe-list {
+        overflow-y: auto;
+        flex: 1;
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .kids-recipe-card {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 8px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: border-color 0.12s;
+      }
+
+      .kids-recipe-card:hover { border-color: #555; }
+
+      .kids-recipe-card.needs-workbench { opacity: 0.5; }
+
+      .kids-recipe-ing-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 18px);
+        gap: 1px;
+        flex-shrink: 0;
+      }
+
+      .kids-recipe-ing-cell {
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        background: #111;
+        border-radius: 2px;
+      }
+
+      .kids-recipe-arrow {
+        color: var(--comment);
+        font-size: 0.85rem;
+        flex-shrink: 0;
+      }
+
+      .kids-recipe-output-label {
+        color: var(--fg);
+        font-size: 0.8rem;
+        flex: 1;
+      }
+
+      .kids-workbench-badge {
+        font-size: 0.65rem;
+        background: #1a1000;
+        border: 1px solid #664;
+        color: #a86;
+        padding: 2px 5px;
+        border-radius: 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .kids-workbench-msg {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        padding: 1.5rem;
+        text-align: center;
+        color: #fc0;
+        font-size: 1rem;
+        line-height: 1.6;
+        cursor: pointer;
+        z-index: 20;
+      }
+
       .modal-title {
         font-size: 0.65rem;
         color: var(--comment);
@@ -1243,6 +1503,37 @@
         <button class="modal-close" id="quest-kids-modal-close">✕</button>
         <div class="modal-title">your quests</div>
         <div id="quest-kids-list"></div>
+      </div>
+    </div>
+
+    <!-- Kids Craft Modal -->
+    <div class="modal-overlay" id="kids-craft-modal">
+      <div class="modal-box kids-craft-box">
+        <button class="modal-close" id="kids-craft-close">&#x2715;</button>
+        <div class="kids-craft-header">
+          <div class="modal-title">crafting</div>
+          <button class="kids-recipe-btn" id="kids-recipe-btn" title="Show recipes">?</button>
+        </div>
+
+        <div class="kids-inv-picker" id="kids-inv-picker"></div>
+
+        <div class="kids-craft-layout">
+          <div class="kids-craft-grid" id="kids-craft-grid"></div>
+          <div class="craft-arrow">&#9654;</div>
+          <div class="kids-craft-output" id="kids-craft-output">?</div>
+        </div>
+
+        <button id="kids-craft-do-btn" class="kids-craft-do-btn">&#x1F527; Open Recipe Guide</button>
+
+        <div class="kids-recipe-drawer" id="kids-recipe-drawer">
+          <div class="kids-recipe-drawer-header">
+            <span>Crafting Recipes</span>
+            <button class="kids-recipe-close" id="kids-recipe-close">&#x2715;</button>
+          </div>
+          <div class="kids-recipe-list" id="kids-recipe-list"></div>
+        </div>
+
+        <div class="kids-workbench-msg" id="kids-workbench-msg" hidden></div>
       </div>
     </div>
 
