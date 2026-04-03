@@ -426,32 +426,53 @@ func (r *Room) FindSystem(systemID string) *System {
 
 // Render returns a formatted description of the room.
 func (r *Room) Render(visitedBefore bool) string {
+	const (
+		reset  = "\x1b[0m"
+		bold   = "\x1b[1m"
+		cyan   = "\x1b[36m"
+		green  = "\x1b[32m"
+		yellow = "\x1b[33m"
+		purple = "\x1b[34m"
+		orange = "\x1b[33m" // bold yellow for high-tier items
+		red    = "\x1b[31m"
+		dim    = "\x1b[37m"
+	)
+
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString("[ " + r.Name + " ]\n")
-	b.WriteString(strings.TrimSpace(r.Desc) + "\n")
+	b.WriteString(bold + cyan + "[ " + r.Name + " ]" + reset + "\n")
+	b.WriteString(dim + strings.TrimSpace(r.Desc) + reset + "\n")
 
 	if len(r.Exits) > 0 {
 		dirs := make([]string, 0, len(r.Exits))
 		for d := range r.Exits {
 			dirs = append(dirs, d)
 		}
-		b.WriteString("\nexits: " + strings.Join(dirs, ", ") + "\n")
+		b.WriteString("\n" + green + "exits: " + strings.Join(dirs, ", ") + reset + "\n")
 	}
 
 	if len(r.NPCs) > 0 {
 		for _, npc := range r.NPCs {
-			b.WriteString("  ! " + npc.Name + " is here.\n")
+			b.WriteString(yellow + "  ! " + npc.Name + " is here." + reset + "\n")
 		}
 	}
 
 	if len(r.Items) > 0 {
 		for _, item := range r.Items {
+			var color string
+			switch item.SignalTier {
+			case "ghost", "zero-day":
+				color = bold + orange
+			case "flatline":
+				color = bold + red
+			default:
+				color = purple
+			}
 			prefix := "  + "
 			if item.SignalTier != "" && item.SignalTier != "noise" && item.SignalTier != "signal" {
 				prefix = "  + [" + strings.ToUpper(item.SignalTier) + "] "
 			}
-			b.WriteString(prefix + item.Name + " is on the ground.\n")
+			b.WriteString(color + prefix + item.Name + " is on the ground." + reset + "\n")
 		}
 	}
 
