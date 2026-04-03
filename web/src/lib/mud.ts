@@ -319,6 +319,7 @@ function rebuildRoomContext(state: StateUpdate): void {
     };
     for (const exit of (state.exits ?? [])) {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'kids-exit-btn';
       btn.textContent = DIR_ARROW[exit.toLowerCase()] ?? exit;
       const captured = exit;
