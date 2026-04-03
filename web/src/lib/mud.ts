@@ -710,6 +710,22 @@ const _craftSlots: (InvItem | null)[] = Array(9).fill(null);
 // The recipe that currently matches the placed items, if any.
 let _matchedRecipe: Recipe | null = null;
 
+// -- Kids craft modal state ---------------------------------------------------
+
+interface KidsCraftState {
+  armedItem: InvItem | null;
+  eraser: boolean;
+  slots: (string | null)[];  // 9 grid cells storing item IDs
+  painting: boolean;          // true while mouse/touch button is held
+}
+
+const _kidscraft: KidsCraftState = {
+  armedItem: null,
+  eraser: false,
+  slots: Array(9).fill(null),
+  painting: false,
+};
+
 /** Count item IDs in the craft grid and match against known recipes. */
 function matchRecipe(): Recipe | null {
   const counts: Record<string, number> = {};
@@ -903,6 +919,58 @@ function openCraftModal() {
 
 function closeCraftModal() {
   document.getElementById('craft-modal')!.classList.remove('open');
+}
+
+// -- Kids Craft Modal ---------------------------------------------------------
+
+function renderKidsInvPicker() { /* Task 4 */ }
+function wireKidsCraftCell(_cell: HTMLElement, _i: number) { /* Task 5 */ }
+function refreshKidsCraftGrid() { /* Task 5 */ }
+function renderKidsRecipeList() { /* Task 6 */ }
+
+function openKidsCraftModal() {
+  _kidscraft.armedItem = null;
+  _kidscraft.eraser = false;
+  _kidscraft.slots = Array(9).fill(null);
+  _kidscraft.painting = false;
+
+  renderKidsInvPicker();
+
+  const grid = document.getElementById('kids-craft-grid')!;
+  grid.replaceChildren();
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'kids-craft-cell';
+    cell.dataset.index = String(i);
+    cell.textContent = '+';
+    wireKidsCraftCell(cell, i);
+    grid.appendChild(cell);
+  }
+
+  refreshKidsCraftGrid();
+  document.getElementById('kids-craft-modal')!.classList.add('open');
+}
+
+function closeKidsCraftModal() {
+  document.getElementById('kids-craft-modal')!.classList.remove('open');
+  document.getElementById('kids-recipe-drawer')!.classList.remove('open');
+  const msg = document.getElementById('kids-workbench-msg')!;
+  msg.hidden = true;
+}
+
+function openKidsRecipeDrawer() {
+  renderKidsRecipeList();
+  document.getElementById('kids-recipe-drawer')!.classList.add('open');
+}
+
+function closeKidsRecipeDrawer() {
+  document.getElementById('kids-recipe-drawer')!.classList.remove('open');
+}
+
+function showKidsWorkbenchMsg(text: string) {
+  const el = document.getElementById('kids-workbench-msg')!;
+  el.textContent = text + ' (tap to dismiss)';
+  el.hidden = false;
 }
 
 // ── Main init ─────────────────────────────────────────────────────────────────
@@ -1299,7 +1367,14 @@ export function initMUD() {
   document.getElementById('action-grid')?.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.action-btn');
     if (!btn) return;
-    if (btn.dataset.special === 'craft') { openCraftModal(); return; }
+    if (btn.dataset.special === 'craft') {
+      if (document.body.dataset.ui === 'kids') {
+        openKidsCraftModal();
+      } else {
+        openCraftModal();
+      }
+      return;
+    }
 
     if (_kidsMode && btn.dataset.kidsAction) {
       handleKidsAction(btn.dataset.kidsAction);
@@ -1343,6 +1418,43 @@ export function initMUD() {
   document.getElementById('craft-modal')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeCraftModal();
   });
+
+  // -- Kids Craft Modal event handlers ----------------------------------------
+
+  document.getElementById('kids-craft-close')?.addEventListener('click', closeKidsCraftModal);
+
+  document.getElementById('kids-craft-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeKidsCraftModal();
+  });
+
+  document.getElementById('kids-recipe-btn')?.addEventListener('click', openKidsRecipeDrawer);
+  document.getElementById('kids-recipe-close')?.addEventListener('click', closeKidsRecipeDrawer);
+
+  document.getElementById('kids-workbench-msg')?.addEventListener('click', () => {
+    const el = document.getElementById('kids-workbench-msg')!;
+    el.hidden = true;
+  });
+
+  document.getElementById('kids-craft-do-btn')?.addEventListener('click', () => {
+    const matched = matchRecipeByIds(_kidscraft.slots);
+    if (!matched) {
+      openKidsRecipeDrawer();
+      return;
+    }
+    if (matched.workbench) {
+      const roomLabel = matched.workbench.replace(/-/g, ' ');
+      showKidsWorkbenchMsg(
+        `You need a ${roomLabel} to make this!\nFind one out in the world. \u{1F528}`
+      );
+      return;
+    }
+    closeKidsCraftModal();
+    sendCommand(`craft ${matched.id}`);
+  });
+
+  // Stop painting globally when mouse/touch is released
+  document.addEventListener('mouseup', () => { _kidscraft.painting = false; });
+  document.addEventListener('touchend', () => { _kidscraft.painting = false; });
 
   // ── Kids input toggle ──────────────────────────────────────────────────────
   const kidsToggle    = document.getElementById('kids-input-toggle');
