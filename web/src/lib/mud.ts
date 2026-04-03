@@ -39,6 +39,7 @@ interface Recipe {
   outputId: string;
   outputName: string;
   skillReq?: number;
+  workbench?: string;   // room ID required to craft, e.g. "workbench", "furnace"
 }
 
 interface RoomNPCInfo {
@@ -132,6 +133,27 @@ const TIER_ICON: Record<string, string> = {
   'zero-day': '⚡',
   'flatline': '☠',
 };
+
+// ── Kids crafting emoji map ──────────────────────────────────────────────────
+
+const KIDS_ITEM_EMOJI: Record<string, string> = {
+  'wood-log':      '🪵',
+  'stick':         '🪴',
+  'stone':         '🪨',
+  'iron-ore':      '⛏️',
+  'iron-ingot':    '🔩',
+  'frost-essence': '❄️',
+  'diamond':       '💎',
+  'obsidian':      '⬛',
+  'dirt':          '🟫',
+  'workbench':     '🔨',
+  'furnace':       '🔥',
+  'chest':         '📦',
+};
+
+function kidsItemEmoji(itemId: string): string {
+  return KIDS_ITEM_EMOJI[itemId] ?? '📦';
+}
 
 // ── World-specific action buttons ────────────────────────────────────────────
 
@@ -693,6 +715,32 @@ function matchRecipe(): Recipe | null {
   const counts: Record<string, number> = {};
   for (const item of _craftSlots) {
     if (item) counts[item.id] = (counts[item.id] ?? 0) + 1;
+  }
+  const placedKeys = Object.keys(counts);
+  if (placedKeys.length === 0) return null;
+
+  for (const recipe of _recipes) {
+    const req: Record<string, number> = {};
+    for (const ing of recipe.ingredients) {
+      req[ing.id] = (req[ing.id] ?? 0) + ing.count;
+    }
+    const reqKeys = Object.keys(req);
+    if (reqKeys.length !== placedKeys.length) continue;
+    if (reqKeys.every(k => counts[k] === req[k]) && placedKeys.every(k => req[k] === counts[k])) {
+      return recipe;
+    }
+  }
+  return null;
+}
+
+/**
+ * Like matchRecipe() but works with slot item IDs (string | null)[]
+ * instead of full InvItem objects. Used by the kids craft modal.
+ */
+function matchRecipeByIds(slots: (string | null)[]): Recipe | null {
+  const counts: Record<string, number> = {};
+  for (const id of slots) {
+    if (id) counts[id] = (counts[id] ?? 0) + 1;
   }
   const placedKeys = Object.keys(counts);
   if (placedKeys.length === 0) return null;
