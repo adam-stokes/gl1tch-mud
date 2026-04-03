@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS death_pile (
     item_desc   TEXT    NOT NULL DEFAULT '',
     died_at     INTEGER NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS idx_death_pile_room ON death_pile(room_id);
 
 CREATE TABLE IF NOT EXISTS enchanting_xp (
     id      INTEGER PRIMARY KEY CHECK (id = 1),

@@ -120,8 +120,18 @@ func HasVisited(db *sql.DB, roomID string) bool {
 
 // RemoveItem removes an item from inventory by ID.
 func RemoveItem(db *sql.DB, itemID string) error {
-	_, err := db.Exec(`DELETE FROM inventory WHERE item_id=?`, itemID)
-	return err
+	res, err := db.Exec(`DELETE FROM inventory WHERE item_id=?`, itemID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("item %q not in inventory", itemID)
+	}
+	return nil
 }
 
 // DumpToDeathPile moves all inventory items to the death_pile table for roomID.
@@ -131,16 +141,26 @@ func DumpToDeathPile(db *sql.DB, roomID string, actionCount int) error {
 	if err != nil {
 		return err
 	}
+	if len(items) == 0 {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
 	for _, it := range items {
-		if _, err := db.Exec(
+		if _, err := tx.Exec(
 			`INSERT INTO death_pile (room_id, item_id, item_name, item_desc, died_at) VALUES (?,?,?,?,?)`,
 			roomID, it.ID, it.Name, it.Desc, actionCount,
 		); err != nil {
 			return err
 		}
 	}
-	_, err = db.Exec(`DELETE FROM inventory`)
-	return err
+	if _, err := tx.Exec(`DELETE FROM inventory`); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // GetDeathPile returns death pile items for a given room.
@@ -167,18 +187,36 @@ func ClaimDeathPile(db *sql.DB, roomID string) error {
 	if err != nil {
 		return err
 	}
+	if len(items) == 0 {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
 	for _, it := range items {
-		if err := AddItem(db, it.ID, it.Name, it.Desc); err != nil {
+		if _, err := tx.Exec(
+			`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
+			it.ID, it.Name, it.Desc,
+		); err != nil {
 			return err
 		}
 	}
-	_, err = db.Exec(`DELETE FROM death_pile WHERE room_id=?`, roomID)
-	return err
+	if _, err := tx.Exec(`DELETE FROM death_pile WHERE room_id=?`, roomID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
-// AnyDeathPile returns the room_id of the most recent death pile, or "" if none.
-func AnyDeathPile(db *sql.DB) (roomID string, count int) {
-	db.QueryRow(`SELECT room_id, COUNT(*) FROM death_pile GROUP BY room_id ORDER BY died_at DESC LIMIT 1`). //nolint:errcheck
-		Scan(&roomID, &count)
+// AnyDeathPile returns the room_id and item count of the most recent death pile.
+// Returns ("", 0, nil) if no pile exists.
+func AnyDeathPile(db *sql.DB) (roomID string, count int, err error) {
+	err = db.QueryRow(
+		`SELECT room_id, COUNT(*) FROM death_pile GROUP BY room_id ORDER BY MAX(died_at) DESC, MAX(id) DESC LIMIT 1`,
+	).Scan(&roomID, &count)
+	if err == sql.ErrNoRows {
+		return "", 0, nil
+	}
 	return
 }

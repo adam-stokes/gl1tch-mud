@@ -51,7 +51,10 @@ func TestDumpAndClaimDeathPile(t *testing.T) {
 	}
 
 	// Inventory should be empty
-	items, _ := player.Inventory(db)
+	items, err := player.Inventory(db)
+	if err != nil {
+		t.Fatalf("Inventory: %v", err)
+	}
 	if len(items) != 0 {
 		t.Errorf("inventory should be empty after dump, got %d items", len(items))
 	}
@@ -66,18 +69,24 @@ func TestDumpAndClaimDeathPile(t *testing.T) {
 	}
 
 	// Claim death pile
-	if err := player.ClaimDeathPile(db, "forest-1"); err != nil {
+	if err = player.ClaimDeathPile(db, "forest-1"); err != nil {
 		t.Fatalf("ClaimDeathPile: %v", err)
 	}
 
 	// Inventory should have 2 items again
-	items, _ = player.Inventory(db)
+	items, err = player.Inventory(db)
+	if err != nil {
+		t.Fatalf("Inventory after claim: %v", err)
+	}
 	if len(items) != 2 {
 		t.Errorf("inventory after claim: want 2, got %d", len(items))
 	}
 
 	// Death pile should be empty
-	pile, _ = player.GetDeathPile(db, "forest-1")
+	pile, err = player.GetDeathPile(db, "forest-1")
+	if err != nil {
+		t.Fatalf("GetDeathPile after claim: %v", err)
+	}
 	if len(pile) != 0 {
 		t.Errorf("death pile after claim: want 0, got %d", len(pile))
 	}
@@ -94,7 +103,10 @@ func TestRemoveItem(t *testing.T) {
 	if err := player.RemoveItem(db, "coal"); err != nil {
 		t.Fatalf("RemoveItem: %v", err)
 	}
-	items, _ := player.Inventory(db)
+	items, err := player.Inventory(db)
+	if err != nil {
+		t.Fatalf("Inventory: %v", err)
+	}
 	if len(items) != 0 {
 		t.Errorf("item should be removed, got %d", len(items))
 	}
