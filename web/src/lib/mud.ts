@@ -94,6 +94,41 @@ const TIER_ICON: Record<string, string> = {
   'flatline': '☠',
 };
 
+// ── World-specific action buttons ────────────────────────────────────────────
+
+interface ActionDef {
+  cmd?: string;
+  icon: string;
+  label: string;
+  special?: string;
+  cls?: string;
+}
+
+const WORLD_ACTIONS: Record<string, ActionDef[]> = {
+  cyberspace: [
+    { icon: '👁',  label: 'Look',    cmd: 'look' },
+    { icon: '⚔️', label: 'Attack',  cmd: 'attack' },
+    { icon: '💻',  label: 'Hack',    cmd: 'hack' },
+    { icon: '🔍',  label: 'Search',  cmd: 'search' },
+    { icon: '🗺',  label: 'Explore', cmd: 'explore' },
+    { icon: '⚡',  label: 'Skills',  cmd: 'skills' },
+    { icon: '📋',  label: 'Quests',  cmd: 'quests' },
+    { icon: '🔧',  label: 'Craft',   special: 'craft', cls: 'craft-btn' },
+  ],
+  blockhaven: [
+    { icon: '👁',  label: 'Look',    cmd: 'look' },
+    { icon: '⚔️', label: 'Attack',  cmd: 'attack' },
+    { icon: '🌿',  label: 'Forage',  cmd: 'forage' },
+    { icon: '🔍',  label: 'Search',  cmd: 'search' },
+    { icon: '🗺',  label: 'Explore', cmd: 'explore' },
+    { icon: '⚡',  label: 'Skills',  cmd: 'skills' },
+    { icon: '📋',  label: 'Quests',  cmd: 'quests' },
+    { icon: '🔧',  label: 'Craft',   special: 'craft', cls: 'craft-btn' },
+  ],
+};
+
+const DEFAULT_ACTIONS: ActionDef[] = WORLD_ACTIONS['cyberspace'];
+
 // ── HP hearts ────────────────────────────────────────────────────────────────
 
 function renderHearts(hp: number, maxHP: number): string {
@@ -573,11 +608,14 @@ export function initMUD() {
 
   function handleServerMsg(msg: ServerMsg) {
     switch (msg.type) {
-      case 'world_meta':
+      case 'world_meta': {
+        const meta = msg.payload as import('./theme').WorldMeta;
         import('./theme').then(({ applyTheme }) => {
-          applyTheme(msg.payload as import('./theme').WorldMeta);
+          applyTheme(meta);
         });
+        rebuildActionButtons(meta.name);
         break;
+      }
       case 'auth.ok':
         _myPlayerID = nameInput.value.trim();
         _teleportFn = (targetID: string) => {
@@ -623,6 +661,25 @@ export function initMUD() {
 
   // ── HUD helpers ──────────────────────────────────────────────────────────
 
+  function rebuildActionButtons(worldName: string) {
+    const grid = document.getElementById('action-grid');
+    if (!grid) return;
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+    const actions = WORLD_ACTIONS[worldName] ?? DEFAULT_ACTIONS;
+    for (const a of actions) {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn' + (a.cls ? ' ' + a.cls : '');
+      if (a.cmd)     btn.dataset.cmd     = a.cmd;
+      if (a.special) btn.dataset.special = a.special;
+      const icon = document.createElement('span');
+      icon.className = 'btn-icon';
+      icon.textContent = a.icon;
+      btn.appendChild(icon);
+      btn.appendChild(document.createTextNode(' ' + a.label));
+      grid.appendChild(btn);
+    }
+  }
+
   function showHUD() {
     loginScreen.style.display = 'none';
     hudScreen.classList.add('active');
@@ -630,6 +687,7 @@ export function initMUD() {
     cmdInput.focus();
     renderInventory([], (item) => openItemModal(item, sendCommand));
     updateCompass([]);
+    rebuildActionButtons(_worldName);
   }
 
   function appendOutput(text: string) {
@@ -708,19 +766,16 @@ export function initMUD() {
     });
   }
 
-  // ── Action buttons ─────────────────────────────────────────────────────────
+  // ── Action buttons (delegated) ─────────────────────────────────────────────
 
-  document.querySelectorAll<HTMLButtonElement>('.action-btn[data-cmd]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (inputEnabled) sendCommand(btn.dataset.cmd!);
-    });
+  document.getElementById('action-grid')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.action-btn');
+    if (!btn) return;
+    if (btn.dataset.special === 'craft') { openCraftModal(); return; }
+    if (btn.dataset.cmd && inputEnabled) sendCommand(btn.dataset.cmd);
   });
 
   // ── Craft modal ────────────────────────────────────────────────────────────
-
-  document.getElementById('open-craft-btn')?.addEventListener('click', () => {
-    openCraftModal();
-  });
 
   document.getElementById('craft-modal-close')?.addEventListener('click', closeCraftModal);
 

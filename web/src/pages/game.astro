@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>gl1tch-mud</title>
-    <style>
+    <style is:global>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       :root {
@@ -892,15 +892,8 @@
         <!-- Actions -->
         <div class="panel">
           <div class="panel-title">actions</div>
-          <div class="action-grid">
-            <button class="action-btn" data-cmd="look">       <span class="btn-icon">👁</span> Look</button>
-            <button class="action-btn" data-cmd="attack">     <span class="btn-icon">⚔️</span> Attack</button>
-            <button class="action-btn" data-cmd="hack">       <span class="btn-icon">💻</span> Hack</button>
-            <button class="action-btn" data-cmd="search">     <span class="btn-icon">🔍</span> Search</button>
-            <button class="action-btn" data-cmd="explore">    <span class="btn-icon">🗺</span> Explore</button>
-            <button class="action-btn" data-cmd="skills">     <span class="btn-icon">⚡</span> Skills</button>
-            <button class="action-btn" data-cmd="quests">     <span class="btn-icon">📋</span> Quests</button>
-            <button class="action-btn craft-btn" id="open-craft-btn"><span class="btn-icon">🔧</span> Craft</button>
+          <div class="action-grid" id="action-grid">
+            <!-- populated by JS based on world -->
           </div>
         </div>
 

@@ -6,17 +6,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>gl1tch-mud</title>
-    <style>
+    <style is:global>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       :root {
-        --bg:      #282a36;
-        --bg-dark: #1e1f29;
-        --fg:      #f8f8f2;
-        --comment: #6272a4;
+        --bg:      #0d0d0f;
+        --bg-card: #111115;
+        --fg:      #e8e8f0;
+        --dim:     #4a4a5e;
+        --border:  #22222e;
         --purple:  #bd93f9;
+        --cyan:    #8be9fd;
         --red:     #ff5555;
-        --border:  #44475a;
       }
 
       html, body {
@@ -31,74 +32,139 @@
 
       #lobby {
         width: 100%;
-        max-width: 640px;
-        padding: 2rem 1.5rem;
+        max-width: 560px;
+        padding: 2.5rem 1.5rem;
       }
 
-      h1 {
-        font-size: 1.4rem;
-        color: var(--purple);
-        letter-spacing: 0.12em;
+      .lobby-header {
+        margin-bottom: 2rem;
+      }
+
+      .lobby-title {
+        font-size: 1.1rem;
+        color: var(--cyan);
+        letter-spacing: 0.14em;
         margin-bottom: 0.3rem;
       }
 
-      .subtitle {
-        font-size: 0.72rem;
-        color: var(--comment);
-        margin-bottom: 2rem;
-        letter-spacing: 0.06em;
+      .lobby-sub {
+        font-size: 0.68rem;
+        color: var(--dim);
+        letter-spacing: 0.05em;
       }
 
       #world-list {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 2px;
       }
 
-      .world-card {
-        display: block;
-        background: var(--bg-dark);
+      .world-entry {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: var(--bg-card);
         border: 1px solid var(--border);
-        padding: 1rem 1.25rem;
+        padding: 0.75rem 1rem;
         text-decoration: none;
         color: inherit;
         cursor: pointer;
-        transition: border-color 0.15s, box-shadow 0.15s;
-        border-radius: 3px;
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.12s, background 0.12s;
       }
 
-      .world-card:hover {
-        border-color: var(--card-accent, var(--purple));
-        box-shadow: 0 0 16px rgba(0,0,0,0.4);
+      .world-entry::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--entry-accent, var(--purple));
+        opacity: 0;
+        transition: opacity 0.12s;
       }
 
-      .world-name {
-        font-size: 1rem;
+      .world-entry:hover,
+      .world-entry.focused {
+        border-color: var(--entry-accent, var(--purple));
+        background: color-mix(in srgb, var(--entry-accent, var(--purple)) 5%, var(--bg-card));
+      }
+
+      .world-entry:hover::before,
+      .world-entry.focused::before {
+        opacity: 1;
+      }
+
+      .entry-index {
+        font-size: 0.62rem;
+        color: var(--dim);
+        min-width: 1rem;
+        text-align: right;
+        flex-shrink: 0;
+      }
+
+      .entry-body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .entry-name {
+        font-size: 0.88rem;
         font-weight: bold;
-        letter-spacing: 0.06em;
-        margin-bottom: 0.25rem;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.15rem;
+        color: var(--entry-accent, var(--purple));
       }
 
-      .world-tagline {
+      .entry-tagline {
+        font-size: 0.64rem;
+        color: var(--dim);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .entry-arrow {
         font-size: 0.72rem;
-        color: var(--comment);
+        color: var(--dim);
+        flex-shrink: 0;
+        transition: color 0.12s, transform 0.12s;
+      }
+
+      .world-entry:hover .entry-arrow,
+      .world-entry.focused .entry-arrow {
+        color: var(--entry-accent, var(--purple));
+        transform: translateX(3px);
+      }
+
+      .lobby-hint {
+        margin-top: 1.25rem;
+        font-size: 0.6rem;
+        color: var(--dim);
+        letter-spacing: 0.04em;
       }
 
       #status-msg {
-        font-size: 0.8rem;
-        color: var(--comment);
+        font-size: 0.75rem;
+        color: var(--dim);
+        padding: 0.5rem 0;
       }
 
       #error-msg {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         color: var(--red);
+        margin-top: 0.5rem;
       }
     </style>
   </head>
   <body>
     <div id="lobby">
-      <h1>gl1tch-mud</h1>
-      <p class="subtitle">select a world to enter</p>
+      <div class="lobby-header">
+        <div class="lobby-title">gl1tch-mud</div>
+        <div class="lobby-sub">select a world to enter</div>
+      </div>
       <div id="world-list">
         <p id="status-msg">loading worlds...</p>
       </div>
@@ -107,59 +173,94 @@
 
     <script>
       (async () => {
-        const list      = document.getElementById('world-list');
-        const statusMsg = document.getElementById('status-msg');
-        const errorMsg  = document.getElementById('error-msg');
+        const list      = document.getElementById('world-list')!;
+        const statusMsg = document.getElementById('status-msg')!;
+        const errorMsg  = document.getElementById('error-msg')!;
 
-        let worlds: Array<{ name: string; tagline: string; theme?: { accent?: string } }> = [];
+        type WorldMeta = { name: string; tagline: string; theme?: { accent?: string } };
+        let worlds: WorldMeta[] = [];
 
         try {
           const res = await fetch('/api/worlds');
           if (!res.ok) throw new Error(`server returned ${res.status}`);
           worlds = await res.json();
         } catch (e: any) {
-          statusMsg!.remove();
-          errorMsg!.textContent = `failed to load worlds: ${e.message}`;
+          statusMsg.remove();
+          errorMsg.textContent = `failed to load worlds: ${e.message}`;
           return;
         }
 
-        statusMsg!.remove();
+        statusMsg.remove();
 
         if (worlds.length === 0) {
           const p = document.createElement('p');
-          p.style.color = 'var(--comment)';
+          p.style.cssText = 'font-size:0.72rem;color:var(--dim);padding:0.5rem 0;';
           p.textContent = 'no worlds available.';
-          list!.appendChild(p);
+          list.appendChild(p);
           return;
         }
 
-        // Single world: skip the lobby and navigate directly.
+        // Single world: skip lobby and navigate directly.
         if (worlds.length === 1) {
           window.location.replace(`/game?world=${encodeURIComponent(worlds[0].name)}`);
           return;
         }
 
-        for (const w of worlds) {
-          const card = document.createElement('a');
-          card.className = 'world-card';
-          card.href = `/game?world=${encodeURIComponent(w.name)}`;
-          if (w.theme?.accent) {
-            card.style.setProperty('--card-accent', w.theme.accent);
-          }
+        const entries: HTMLAnchorElement[] = [];
+
+        for (let i = 0; i < worlds.length; i++) {
+          const w = worlds[i];
+          const accent = w.theme?.accent ?? 'var(--purple)';
+
+          const entry = document.createElement('a');
+          entry.className = 'world-entry';
+          entry.href = `/game?world=${encodeURIComponent(w.name)}`;
+          entry.style.setProperty('--entry-accent', accent);
+
+          const idx = document.createElement('div');
+          idx.className = 'entry-index';
+          idx.textContent = `${i + 1}`;
+
+          const body = document.createElement('div');
+          body.className = 'entry-body';
 
           const nameEl = document.createElement('div');
-          nameEl.className = 'world-name';
-          nameEl.style.color = w.theme?.accent ?? 'var(--purple)';
+          nameEl.className = 'entry-name';
           nameEl.textContent = w.name;
 
           const tagEl = document.createElement('div');
-          tagEl.className = 'world-tagline';
+          tagEl.className = 'entry-tagline';
           tagEl.textContent = w.tagline || '—';
 
-          card.appendChild(nameEl);
-          card.appendChild(tagEl);
-          list!.appendChild(card);
+          body.appendChild(nameEl);
+          body.appendChild(tagEl);
+
+          const arrow = document.createElement('div');
+          arrow.className = 'entry-arrow';
+          arrow.textContent = '→';
+
+          entry.appendChild(idx);
+          entry.appendChild(body);
+          entry.appendChild(arrow);
+          list.appendChild(entry);
+          entries.push(entry);
         }
+
+        // Show keyboard hint when there are multiple worlds.
+        if (worlds.length > 1) {
+          const hint = document.createElement('p');
+          hint.className = 'lobby-hint';
+          hint.textContent = `press 1–${Math.min(worlds.length, 9)} to select`;
+          document.getElementById('lobby')!.appendChild(hint);
+        }
+
+        // Keyboard shortcuts 1-9.
+        document.addEventListener('keydown', (e) => {
+          const n = parseInt(e.key);
+          if (!isNaN(n) && n >= 1 && n <= worlds.length) {
+            window.location.href = entries[n - 1].href;
+          }
+        });
       })();
     </script>
   </body>
