@@ -158,6 +158,12 @@ func TestListAvailable(t *testing.T) {
 	for _, m := range metas {
 		if m.Name == "cyberspace" {
 			found = true
+			if m.Tagline == "" {
+				t.Error("cyberspace should have a non-empty tagline after adding ui: block")
+			}
+			if m.Theme.Accent == "" {
+				t.Error("cyberspace should have a non-empty theme accent")
+			}
 		}
 	}
 	if !found {
