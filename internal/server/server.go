@@ -13,18 +13,26 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
-
 // SessionRegistry tracks active WebSocket sessions by playerID.
 type SessionRegistry struct {
-	mu      sync.RWMutex
+	mu       sync.RWMutex
 	sessions map[string]*ClientSession
+	busPub   func(topic string, payload any)
 }
 
 func newSessionRegistry() *SessionRegistry {
 	return &SessionRegistry{sessions: make(map[string]*ClientSession)}
+}
+
+// PublishEvent sends an event to the bus, if connected.
+func (r *SessionRegistry) PublishEvent(topic string, payload any) {
+	if r.busPub != nil {
+		r.busPub(topic, payload)
+	}
 }
 
 // Register adds a session. Returns an error if that playerID is already connected.
@@ -140,6 +148,7 @@ type GameServer struct {
 	passphrase  string
 	httpServer  *http.Server
 	lanURL      string
+	busClient   *busd.Client
 }
 
 // New creates a GameServer supporting multiple worlds.
@@ -159,6 +168,35 @@ func (gs *GameServer) Start(port int, passphrase string) (string, error) {
 		return gs.lanURL, nil // already running
 	}
 	gs.passphrase = passphrase
+
+	// Connect to gl1tch event bus and subscribe to chat replies.
+	gs.busClient = busd.ConnectWithSubscriptions([]string{"mud.chat.reply"})
+	gs.registry.busPub = gs.busClient.Publish
+	go gs.busClient.Listen(func(ev busd.Event) {
+		if ev.Topic != "mud.chat.reply" {
+			return
+		}
+		var p struct {
+			Text  string `json:"text"`
+			World string `json:"world"`
+		}
+		if err := json.Unmarshal(ev.Payload, &p); err != nil || p.Text == "" {
+			return
+		}
+		targetWorld := p.World
+		if targetWorld == "" {
+			// broadcast to all worlds if no world specified
+			gs.registry.Broadcast(ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: "glitch", Text: p.Text},
+			})
+			return
+		}
+		gs.registry.BroadcastToWorld(targetWorld, ServerMsg{
+			Type:    "chat.message",
+			Payload: ChatMessagePayload{From: "glitch", Text: p.Text},
+		})
+	})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/worlds", gs.handleWorlds)
@@ -205,6 +243,10 @@ func (gs *GameServer) Stop() {
 	_ = gs.httpServer.Shutdown(ctx)
 	gs.httpServer = nil
 	gs.lanURL = ""
+	if gs.busClient != nil {
+		gs.busClient.Close()
+		gs.busClient = nil
+	}
 }
 
 // IsRunning reports whether the server is active.
@@ -360,7 +402,7 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer gs.broadcastPlayerListForWorld(session.worldName) // registered first → runs second (after Close removes session)
-	defer session.Close()                                    // registered second → runs first
+	defer session.Close()                                   // registered second → runs first
 
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type:    "auth.ok",

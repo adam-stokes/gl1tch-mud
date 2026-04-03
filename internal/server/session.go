@@ -125,6 +125,16 @@ func (s *ClientSession) Handle(ctx context.Context) {
 				Type:    "chat.message",
 				Payload: ChatMessagePayload{From: s.playerID, Text: text},
 			})
+			// If the player addressed glitch, publish a mention event so the
+			// companion pipeline can generate a reply via mud.chat.reply.
+			lower := strings.ToLower(text)
+			if strings.Contains(lower, "glitch") {
+				s.registry.PublishEvent("mud.chat.mention", map[string]any{
+					"from":  s.playerID,
+					"text":  text,
+					"world": s.worldName,
+				})
+			}
 
 		default:
 			_ = writeMsg(ctx, s.conn, ServerMsg{
@@ -153,6 +163,13 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 				Type:    "chat.message",
 				Payload: ChatMessagePayload{From: s.playerID, Text: text},
 			})
+			if strings.Contains(strings.ToLower(text), "glitch") {
+				s.registry.PublishEvent("mud.chat.mention", map[string]any{
+					"from":  s.playerID,
+					"text":  text,
+					"world": s.worldName,
+				})
+			}
 		}
 		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
 		return
