@@ -481,61 +481,6 @@ function openKidsQuestModal(): void {
   modal.classList.add('open');
 }
 
-function handleKidsAction(action: string): void {
-  if (!inputEnabled) return;
-  const state = _lastState;
-
-  if (action === 'quests') {
-    openKidsQuestModal();
-    return;
-  }
-  if (action === 'look' || action === 'search' || action === 'skills') {
-    hideTargetPicker();
-    sendCommand(action);
-    return;
-  }
-  if (action === 'craft') {
-    return; // handled by the existing craft special in the click listener
-  }
-
-  if (action === 'talk') {
-    const talkers = (state?.room_npcs ?? []).filter(n => n.can_talk);
-    if (talkers.length === 0) return;
-    if (talkers.length === 1) { sendCommand(`talk ${talkers[0].id}`); return; }
-    showTargetPicker('Who do you want to talk to?', talkers, id => sendCommand(`talk ${id}`));
-    return;
-  }
-
-  if (action === 'attack') {
-    const hostiles = (state?.room_npcs ?? []).filter(n => n.attackable);
-    if (hostiles.length === 0) return;
-    if (hostiles.length === 1) { sendCommand(`attack ${hostiles[0].id}`); return; }
-    showTargetPicker('Who do you want to attack?', hostiles, id => sendCommand(`attack ${id}`));
-    return;
-  }
-
-  if (action === 'trade') {
-    const traders = (state?.room_npcs ?? []).filter(n => n.can_trade);
-    if (traders.length === 0) return;
-    if (traders.length === 1) { sendCommand(`trade ${traders[0].id}`); return; }
-    showTargetPicker('Who do you want to trade with?', traders, id => sendCommand(`trade ${id}`));
-    return;
-  }
-
-  if (action === 'forage') {
-    const resources = state?.room_resources ?? [];
-    if (resources.length === 0) return;
-    if (resources.length === 1) {
-      sendCommand(`${resources[0].action} ${resources[0].id}`);
-      return;
-    }
-    const namedResources = resources.map(r => ({ id: r.id, name: formatResourceName(r.id) }));
-    showTargetPicker('What do you want to gather?', namedResources, id => {
-      const res = resources.find(r => r.id === id);
-      if (res) sendCommand(`${res.action} ${res.id}`);
-    });
-  }
-}
 
 // ── Player list ───────────────────────────────────────────────────────────────
 
@@ -1152,6 +1097,62 @@ export function initMUD() {
   }
 
   // ── Action buttons (delegated) ─────────────────────────────────────────────
+
+  function handleKidsAction(action: string): void {
+    if (action === 'quests') {
+      openKidsQuestModal();
+      return;
+    }
+    if (!inputEnabled) return;
+    const state = _lastState;
+
+    if (action === 'look' || action === 'search' || action === 'skills') {
+      hideTargetPicker();
+      sendCommand(action);
+      return;
+    }
+    if (action === 'craft') {
+      return; // handled by the existing craft special in the click listener
+    }
+
+    if (action === 'talk') {
+      const talkers = (state?.room_npcs ?? []).filter(n => n.can_talk);
+      if (talkers.length === 0) return;
+      if (talkers.length === 1) { sendCommand(`talk ${talkers[0].id}`); return; }
+      showTargetPicker('Who do you want to talk to?', talkers, id => sendCommand(`talk ${id}`));
+      return;
+    }
+
+    if (action === 'attack') {
+      const hostiles = (state?.room_npcs ?? []).filter(n => n.attackable);
+      if (hostiles.length === 0) return;
+      if (hostiles.length === 1) { sendCommand(`attack ${hostiles[0].id}`); return; }
+      showTargetPicker('Who do you want to attack?', hostiles, id => sendCommand(`attack ${id}`));
+      return;
+    }
+
+    if (action === 'trade') {
+      const traders = (state?.room_npcs ?? []).filter(n => n.can_trade);
+      if (traders.length === 0) return;
+      if (traders.length === 1) { sendCommand(`trade ${traders[0].id}`); return; }
+      showTargetPicker('Who do you want to trade with?', traders, id => sendCommand(`trade ${id}`));
+      return;
+    }
+
+    if (action === 'forage') {
+      const resources = state?.room_resources ?? [];
+      if (resources.length === 0) return;
+      if (resources.length === 1) {
+        sendCommand(`${resources[0].action} ${resources[0].id}`);
+        return;
+      }
+      const namedResources = resources.map(r => ({ id: r.id, name: formatResourceName(r.id) }));
+      showTargetPicker('What do you want to gather?', namedResources, id => {
+        const res = resources.find(r => r.id === id);
+        if (res) sendCommand(`${res.action} ${res.id}`);
+      });
+    }
+  }
 
   document.getElementById('action-grid')?.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.action-btn');
