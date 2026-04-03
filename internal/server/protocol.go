@@ -102,7 +102,7 @@ type RoomItemInfo struct {
 type RoomResourceInfo struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
-	Action string `json:"action"`
+	Action string `json:"action"` // verb used to interact, e.g. "mine", "harvest", "gather"
 }
 
 // QuestInfo is a summary of an active quest sent in state.update.
