@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -25,22 +26,95 @@ import (
 var webDist embed.FS
 
 func main() {
-	// --serve mode: run only the HTTP/WebSocket server (used by /lan).
 	serveMode := flag.Bool("serve", false, "run LAN server only")
 	servePort := flag.Int("port", 8080, "server port")
 	servePass := flag.String("passphrase", "", "session passphrase")
+	worldFlag := flag.String("world", "", "world to load (skips selection screen)")
 	flag.Parse()
 
 	if *serveMode {
-		runServe(*servePort, *servePass)
+		runServe(*servePort, *servePass, *worldFlag)
 		return
 	}
 
-	runGame()
+	worldName := *worldFlag
+	if worldName == "" {
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			worldName = selectWorld()
+		} else {
+			worldName = "cyberspace"
+		}
+	}
+
+	runGame(worldName)
+}
+
+// selectWorld prints an interactive numbered world menu and returns the chosen world name.
+func selectWorld() string {
+	metas := world.ListAvailable()
+	if len(metas) == 0 {
+		return "cyberspace"
+	}
+	if len(metas) == 1 {
+		return metas[0].Name
+	}
+
+	fmt.Printf("\n  available worlds:\n\n")
+	for i, m := range metas {
+		tagline := m.Tagline
+		if tagline == "" {
+			tagline = "—"
+		}
+		fmt.Printf("  [%d] %-16s — %s\n", i+1, m.Name, tagline)
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print("\n  > ")
+		if !scanner.Scan() {
+			return metas[0].Name
+		}
+		input := strings.TrimSpace(scanner.Text())
+		if input == "" {
+			continue
+		}
+		if n, err := strconv.Atoi(input); err == nil {
+			if n >= 1 && n <= len(metas) {
+				return metas[n-1].Name
+			}
+		}
+		for _, m := range metas {
+			if strings.EqualFold(input, m.Name) {
+				return m.Name
+			}
+		}
+		fmt.Printf("  invalid selection %q — enter a number (1-%d) or world name\n", input, len(metas))
+	}
+}
+
+// loadAllWorlds loads every available world. When lockedWorld is non-empty, only that world is loaded.
+func loadAllWorlds(lockedWorld string) (map[string]*world.World, error) {
+	if lockedWorld != "" {
+		w, err := world.Load(lockedWorld)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]*world.World{lockedWorld: w}, nil
+	}
+	names := world.Available()
+	worlds := make(map[string]*world.World, len(names))
+	for _, name := range names {
+		w, err := world.Load(name)
+		if err != nil {
+			return nil, fmt.Errorf("load world %q: %w", name, err)
+		}
+		worlds[name] = w
+	}
+	return worlds, nil
 }
 
 // runServe starts the HTTP/WebSocket server and blocks until SIGINT/SIGTERM.
-func runServe(port int, passphrase string) {
+func runServe(port int, passphrase, lockedWorld string) {
 	sub, err := fs.Sub(webDist, "web/dist")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: embed:", err)
@@ -48,13 +122,13 @@ func runServe(port int, passphrase string) {
 	}
 	server.SetFS(sub)
 
-	w, err := world.Load("cyberspace")
+	worlds, err := loadAllWorlds(lockedWorld)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: world:", err)
 		os.Exit(1)
 	}
 
-	srv := server.New(w)
+	srv := server.New(worlds, lockedWorld)
 	if _, err := srv.Start(port, passphrase); err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: serve:", err)
 		os.Exit(1)
@@ -66,16 +140,16 @@ func runServe(port int, passphrase string) {
 	srv.Stop()
 }
 
-// runGame runs the interactive game loop.
-func runGame() {
-	database, err := db.OpenForWorld("cyberspace")
+// runGame runs the interactive game loop for the named world.
+func runGame(worldName string) {
+	database, err := db.OpenForWorld(worldName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: db:", err)
 		os.Exit(1)
 	}
 	defer database.Close()
 
-	w, err := world.Load("cyberspace")
+	w, err := world.Load(worldName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: world:", err)
 		os.Exit(1)
@@ -99,24 +173,21 @@ func runGame() {
 		"world":   s.World,
 	})
 
-	// Wire /lan command — it forks gl1tch-mud --serve as a detached process.
 	commands.SetBinary(executablePath())
 
-	lanSrv := server.New(w)
+	lanSrv := server.New(map[string]*world.World{w.Name: w}, w.Name)
 	commands.SetLANServer(lanSrv)
 
 	interactive := term.IsTerminal(int(os.Stdin.Fd()))
 
 	if interactive {
-		fmt.Println(`
-  ██████  ██      ██ ████████  ██████ ██   ██       ███    ███ ██    ██ ██████
- ██       ██      ██    ██    ██      ██   ██       ████  ████ ██    ██ ██   ██
- ██   ███ ██      ██    ██    ██      ███████ █████ ██ ████ ██ ██    ██ ██   ██
- ██    ██ ██      ██    ██    ██      ██   ██       ██  ██  ██ ██    ██ ██   ██
-  ██████  ███████ ██    ██     ██████ ██   ██       ██      ██  ██████  ██████
-
-  jack in. ghost the gibson. don't get traced.
-  type 'help' for commands. type '/lan' to start a multiplayer session.`)
+		if banner := w.UIBanner(); banner != "" {
+			fmt.Println(banner)
+		}
+		if tagline := w.UI.Tagline; tagline != "" {
+			fmt.Printf("  %s\n", tagline)
+		}
+		fmt.Println("  type 'help' for commands. type '/lan' to start a multiplayer session.")
 
 		res := commands.Look(database, s, w, nil)
 		fmt.Println(res.Output)
@@ -125,10 +196,11 @@ func runGame() {
 		}
 	}
 
+	prompt := w.UIPrompt() + " "
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		if interactive {
-			fmt.Print("> ")
+			fmt.Print(prompt)
 		}
 		if !scanner.Scan() {
 			break
@@ -143,7 +215,7 @@ func runGame() {
 				"room_id": s.RoomID,
 			})
 			if interactive {
-				fmt.Println("disconnecting from The Gibson.")
+				fmt.Println("disconnecting.")
 			}
 			break
 		}
@@ -175,11 +247,11 @@ func runGame() {
 				} else {
 					w = newWorld
 					lanSrv.Stop()
-					lanSrv = server.New(w)
+					lanSrv = server.New(map[string]*world.World{w.Name: w}, w.Name)
 					commands.SetLANServer(lanSrv)
+					prompt = w.UIPrompt() + " "
 					newState, _ := player.LoadForWorld(database, result.SwitchWorld, w.StartRoom)
 					*s = *newState
-					// If the player's room doesn't exist in the new world, reset to start room.
 					if w.Room(s.RoomID) == nil {
 						s.RoomID = w.StartRoom
 						s.World = result.SwitchWorld
