@@ -407,8 +407,59 @@ function hideTargetPicker(): void {
   document.getElementById('target-picker')?.classList.remove('open');
 }
 
-// stub — replaced in Task 11
-function openKidsQuestModal(): void {}
+function openKidsQuestModal(): void {
+  const modal = document.getElementById('quest-kids-modal');
+  const list  = document.getElementById('quest-kids-list');
+  if (!modal || !list) return;
+
+  while (list.firstChild) list.removeChild(list.firstChild);
+
+  const questData = _lastState?.quests ?? [];
+
+  if (questData.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:0.78rem;color:var(--comment);text-align:center;padding:1rem 0';
+    empty.textContent = 'No active quests yet.';
+    list.appendChild(empty);
+  } else {
+    for (const q of questData) {
+      const card = document.createElement('div');
+      card.className = 'quest-kids-card';
+
+      const title = document.createElement('div');
+      title.className = 'quest-kids-title';
+      title.textContent = q.title;
+
+      const barWrap = document.createElement('div');
+      barWrap.className = 'quest-progress-bar-wrap';
+
+      const barFill = document.createElement('div');
+      barFill.className = 'quest-progress-bar-fill';
+      const pct = q.obj_count > 0
+        ? Math.min(100, Math.round((q.obj_progress / q.obj_count) * 100))
+        : 0;
+      barFill.style.width = `${pct}%`;
+      barWrap.appendChild(barFill);
+
+      const progressLabel = document.createElement('div');
+      progressLabel.className = 'quest-progress-label';
+      if (q.obj_count > 1) {
+        progressLabel.textContent = `${q.obj_progress} of ${q.obj_count}`;
+      } else if (q.obj_progress > 0) {
+        progressLabel.textContent = 'Complete!';
+      } else {
+        progressLabel.textContent = 'In progress';
+      }
+
+      card.appendChild(title);
+      card.appendChild(barWrap);
+      card.appendChild(progressLabel);
+      list.appendChild(card);
+    }
+  }
+
+  modal.classList.add('open');
+}
 
 function handleKidsAction(action: string): void {
   if (!inputEnabled) return;
@@ -1199,5 +1250,15 @@ export function initMUD() {
   // Close item modal on overlay click
   document.getElementById('item-modal')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeItemModal();
+  });
+
+  document.getElementById('quest-kids-modal-close')?.addEventListener('click', () => {
+    document.getElementById('quest-kids-modal')?.classList.remove('open');
+  });
+
+  document.getElementById('quest-kids-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      (e.currentTarget as HTMLElement).classList.remove('open');
+    }
   });
 }
