@@ -40,6 +40,7 @@ checksum:
 
 brews:
   - name: gl1tch-mud
+    directory: Formula
     repository:
       owner: 8op-org
       name: homebrew-tap
