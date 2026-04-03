@@ -931,6 +931,48 @@ export function initMUD() {
     }
   }
 
+  // ── Kids onboarding hints ──────────────────────────────────────────────────
+  const HINTS_KEY = 'bh_hints_seen';
+
+  function getSeenHints(): Set<string> {
+    try {
+      const raw = localStorage.getItem(HINTS_KEY);
+      return new Set(raw ? JSON.parse(raw) as string[] : []);
+    } catch { return new Set(); }
+  }
+
+  function markHintSeen(key: string): void {
+    const seen = getSeenHints();
+    seen.add(key);
+    localStorage.setItem(HINTS_KEY, JSON.stringify([...seen]));
+  }
+
+  function showHint(key: string, message: string): void {
+    if (!_kidsMode) return;
+    if (getSeenHints().has(key)) return;
+    markHintSeen(key);
+
+    const banner = document.getElementById('hint-banner');
+    if (!banner) return;
+
+    while (banner.firstChild) banner.removeChild(banner.firstChild);
+
+    const text = document.createElement('span');
+    text.textContent = message;
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'hint-close';
+    close.textContent = '✕';
+    close.addEventListener('click', () => banner.classList.remove('visible'));
+
+    banner.appendChild(text);
+    banner.appendChild(close);
+    banner.classList.add('visible');
+
+    setTimeout(() => banner.classList.remove('visible'), 5000);
+  }
+
   function showHUD() {
     loginScreen.style.display = 'none';
     hudScreen.classList.add('active');
@@ -1087,48 +1129,6 @@ export function initMUD() {
   document.getElementById('craft-modal')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeCraftModal();
   });
-
-  // ── Kids onboarding hints ──────────────────────────────────────────────────
-  const HINTS_KEY = 'bh_hints_seen';
-
-  function getSeenHints(): Set<string> {
-    try {
-      const raw = localStorage.getItem(HINTS_KEY);
-      return new Set(raw ? JSON.parse(raw) as string[] : []);
-    } catch { return new Set(); }
-  }
-
-  function markHintSeen(key: string): void {
-    const seen = getSeenHints();
-    seen.add(key);
-    localStorage.setItem(HINTS_KEY, JSON.stringify([...seen]));
-  }
-
-  function showHint(key: string, message: string): void {
-    if (!_kidsMode) return;
-    if (getSeenHints().has(key)) return;
-    markHintSeen(key);
-
-    const banner = document.getElementById('hint-banner');
-    if (!banner) return;
-
-    while (banner.firstChild) banner.removeChild(banner.firstChild);
-
-    const text = document.createElement('span');
-    text.textContent = message;
-
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'hint-close';
-    close.textContent = '✕';
-    close.addEventListener('click', () => banner.classList.remove('visible'));
-
-    banner.appendChild(text);
-    banner.appendChild(close);
-    banner.classList.add('visible');
-
-    setTimeout(() => banner.classList.remove('visible'), 5000);
-  }
 
   // ── Kids input toggle ──────────────────────────────────────────────────────
   const kidsToggle    = document.getElementById('kids-input-toggle');
