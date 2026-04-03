@@ -69,7 +69,7 @@ func (s *ClientSession) Handle(ctx context.Context) {
 
 	// Command context — replaced on each command to support interrupt.
 	cmdCtx, cmdCancel := context.WithCancel(ctx)
-	defer cmdCancel()
+	defer func() { cmdCancel() }()
 
 	for {
 		_, data, err := s.conn.Read(ctx)

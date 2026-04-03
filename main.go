@@ -59,7 +59,7 @@ func selectWorld() string {
 		return metas[0].Name
 	}
 
-	fmt.Printf("\n  available worlds:\n\n")
+	fmt.Print("\n  available worlds:\n\n")
 	for i, m := range metas {
 		tagline := m.Tagline
 		if tagline == "" {
