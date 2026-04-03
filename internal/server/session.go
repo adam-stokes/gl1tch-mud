@@ -252,7 +252,79 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		Payload: OutputTokenPayload{Token: result.Output + "\r\n"},
 	})
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+
+	if result.SwitchWorld != "" {
+		if err := s.switchWorld(ctx, result.SwitchWorld); err != nil {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: fmt.Sprintf("world switch failed: %v\r\n", err)},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		}
+		return
+	}
+
 	s.sendStateUpdate(ctx)
+}
+
+// switchWorld performs a live world switch for the session: saves current state,
+// reopens the database for the new world, updates session fields, and notifies
+// the client with a world_meta message so the UI title updates immediately.
+func (s *ClientSession) switchWorld(ctx context.Context, targetName string) error {
+	if s.state != nil && s.database != nil {
+		_ = player.Save(s.database, s.state)
+		s.database.Close()
+	}
+
+	newDB, err := db.OpenForPlayer(s.playerID, targetName)
+	if err != nil {
+		return fmt.Errorf("open db: %w", err)
+	}
+
+	newWorld, err := world.Load(targetName)
+	if err != nil {
+		newDB.Close()
+		return fmt.Errorf("load world: %w", err)
+	}
+
+	newState, err := player.LoadForWorld(newDB, targetName, newWorld.StartRoom)
+	if err != nil {
+		newDB.Close()
+		return fmt.Errorf("load player: %w", err)
+	}
+	if newState.World != targetName || newWorld.Room(newState.RoomID) == nil {
+		newState.RoomID = newWorld.StartRoom
+		newState.World = targetName
+		_ = player.Save(newDB, newState)
+		world.SeedCrystalShards(newDB, targetName)  //nolint:errcheck
+		world.SeedStartingItems(newDB, targetName)  //nolint:errcheck
+	}
+
+	s.database = newDB
+	s.world = newWorld
+	s.worldName = targetName
+	s.state = newState
+
+	// Tell the client to update title, theme, and UI profile.
+	_ = writeMsg(ctx, s.conn, ServerMsg{
+		Type: "world_meta",
+		Payload: WorldMetaPayload{
+			Name:      newWorld.Name,
+			Tagline:   newWorld.UI.Tagline,
+			Theme:     newWorld.UI.Theme,
+			UIProfile: newWorld.UI.Profile,
+		},
+	})
+
+	// Send the first look in the new world.
+	res := commands.Look(newDB, newState, newWorld, nil)
+	_ = writeMsg(ctx, s.conn, ServerMsg{
+		Type:    "output.token",
+		Payload: OutputTokenPayload{Token: res.Output + "\r\n"},
+	})
+	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+	s.sendStateUpdate(ctx)
+	return nil
 }
 
 // sendStateUpdate builds and sends a state.update message with current player state.
