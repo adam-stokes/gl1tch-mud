@@ -100,10 +100,9 @@ func serverRunning() bool {
 
 func lanStart(passphrase string) Result {
 	if serverRunning() {
-		pid, _ := readPID()
-		url := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
-		out := fmt.Sprintf("LAN session already active: %s", url)
-		_ = pid
+		local := fmt.Sprintf("http://localhost:%d", lanPort)
+		network := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
+		out := fmt.Sprintf("LAN session already active:\n  You:     %s\n  Players: %s", local, network)
 		return Result{Output: out}
 	}
 
@@ -140,8 +139,9 @@ func lanStart(passphrase string) Result {
 	// Release so we don't wait on it.
 	cmd.Process.Release() //nolint:errcheck
 
-	url := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
-	out := fmt.Sprintf("LAN session started: %s\nShare this URL with your players.", url)
+	local := fmt.Sprintf("http://localhost:%d", lanPort)
+	network := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
+	out := fmt.Sprintf("LAN session started:\n  You:     %s\n  Players: %s\nShare the Players URL with your kids.", local, network)
 	if passphrase != "" {
 		out += fmt.Sprintf("\nPassphrase: %s", passphrase)
 	}
@@ -167,8 +167,9 @@ func lanStatus() Result {
 	if !serverRunning() {
 		return Result{Output: "no LAN session is active."}
 	}
-	url := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
-	return Result{Output: fmt.Sprintf("LAN session: %s", url)}
+	local := fmt.Sprintf("http://localhost:%d", lanPort)
+	network := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
+	return Result{Output: fmt.Sprintf("LAN session active:\n  You:     %s\n  Players: %s", local, network)}
 }
 
 func lanIP() string {
