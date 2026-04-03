@@ -34,8 +34,9 @@ type Event struct {
 
 // Result is returned by every command handler.
 type Result struct {
-	Output string
-	Event  *Event
+	Output      string
+	Event       *Event
+	SwitchWorld string // non-empty triggers a world switch in main.go
 }
 
 // HandlerFunc is a MUD command handler.

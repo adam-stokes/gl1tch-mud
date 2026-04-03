@@ -3,44 +3,49 @@ package commands
 import (
 	"database/sql"
 	"fmt"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
-// LANServer is an interface satisfied by *server.GameServer.
-// Using an interface here breaks the import cycle between commands ↔ server.
+const lanPort = 8080
+
+// binary is the path to the gl1tch-mud executable, set by main before the
+// game loop starts via SetBinary.
+var binary string
+
+// LANServer is the minimal interface that main.go's in-process server must satisfy.
+// Using an interface avoids an import cycle (server imports commands).
 type LANServer interface {
-	Start(port int, passphrase string) (string, error)
 	Stop()
-	IsRunning() bool
-	LanURL() string
-	ConnectedPlayers() []string
 }
 
-// lanServer is the package-level server instance, set by main before the game
-// loop starts. nil means the /lan command is unavailable.
+// lanServer is the optional in-process LAN server, set by main via SetLANServer.
 var lanServer LANServer
 
-// SetLANServer wires the embedded multiplayer server into the /lan command.
-// Call this from main after constructing the GameServer.
-func SetLANServer(s LANServer) {
-	lanServer = s
+// SetBinary sets the executable path used by /lan to fork the serve process.
+func SetBinary(path string) {
+	binary = path
 }
 
-const lanPort = 8080
+// SetLANServer registers the in-process LAN server so that world hot-swap
+// can stop/restart it when the player switches worlds.
+func SetLANServer(srv LANServer) {
+	lanServer = srv
+}
 
 func init() {
 	Registry["lan"] = Lan
 }
 
-// Lan handles the /lan [stop|status|<passphrase>] command.
+// Lan handles /lan [stop|status|<passphrase>].
 func Lan(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	if lanServer == nil {
-		return Result{Output: "lan: multiplayer server not available."}
-	}
-
 	sub := ""
 	if len(args) > 0 {
 		sub = strings.ToLower(args[0])
@@ -48,45 +53,146 @@ func Lan(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	switch sub {
 	case "stop":
-		if !lanServer.IsRunning() {
-			return Result{Output: "no LAN session is active."}
-		}
-		lanServer.Stop()
-		return Result{Output: "LAN session stopped."}
-
+		return lanStop()
 	case "status":
-		if !lanServer.IsRunning() {
-			return Result{Output: "no LAN session is active."}
+		return lanStatus()
+	case "restart":
+		passphrase := ""
+		if len(args) > 1 {
+			passphrase = args[1]
 		}
-		players := lanServer.ConnectedPlayers()
-		if len(players) == 0 {
-			return Result{Output: fmt.Sprintf("LAN session: %s (no players connected)", lanServer.LanURL())}
-		}
-		return Result{Output: fmt.Sprintf("LAN session: %s\nconnected players: %s",
-			lanServer.LanURL(), strings.Join(players, ", "))}
-
+		lanStop()
+		return lanStart(passphrase)
 	default:
-		// sub is either empty (no passphrase) or a passphrase string
 		passphrase := ""
 		if len(args) > 0 {
-			passphrase = args[0] // preserve original case
+			passphrase = args[0]
 		}
+		return lanStart(passphrase)
+	}
+}
 
-		if lanServer.IsRunning() {
-			players := lanServer.ConnectedPlayers()
-			return Result{Output: fmt.Sprintf("LAN session already active: %s (%d players connected)",
-				lanServer.LanURL(), len(players))}
-		}
+func pidFile() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "share", "gl1tch-mud", "server.pid")
+}
 
-		url, err := lanServer.Start(lanPort, passphrase)
-		if err != nil {
-			return Result{Output: fmt.Sprintf("lan: failed to start server: %v", err)}
-		}
+func readPID() (int, error) {
+	data, err := os.ReadFile(pidFile())
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(data)))
+}
 
-		out := fmt.Sprintf("LAN session started: %s\nShare this URL with your players.", url)
-		if passphrase != "" {
-			out += fmt.Sprintf("\nPassphrase: %s", passphrase)
-		}
+func serverRunning() bool {
+	pid, err := readPID()
+	if err != nil {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	// Signal 0 checks if the process exists without killing it.
+	return proc.Signal(nil) == nil
+}
+
+func lanStart(passphrase string) Result {
+	if serverRunning() {
+		pid, _ := readPID()
+		url := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
+		out := fmt.Sprintf("LAN session already active: %s", url)
+		_ = pid
 		return Result{Output: out}
 	}
+
+	bin := binary
+	if bin == "" {
+		var err error
+		bin, err = exec.LookPath("gl1tch-mud")
+		if err != nil {
+			return Result{Output: "lan: cannot find gl1tch-mud binary"}
+		}
+	}
+
+	args := []string{"--serve", fmt.Sprintf("--port=%d", lanPort)}
+	if passphrase != "" {
+		args = append(args, fmt.Sprintf("--passphrase=%s", passphrase))
+	}
+
+	cmd := exec.Command(bin, args...)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Stdin = nil
+	// Detach from the current process group so it survives parent exit.
+	cmd.SysProcAttr = sysProcDetach()
+
+	if err := cmd.Start(); err != nil {
+		return Result{Output: fmt.Sprintf("lan: failed to start server: %v", err)}
+	}
+
+	// Write PID file.
+	pidPath := pidFile()
+	os.MkdirAll(filepath.Dir(pidPath), 0o755) //nolint:errcheck
+	os.WriteFile(pidPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0o644) //nolint:errcheck
+
+	// Release so we don't wait on it.
+	cmd.Process.Release() //nolint:errcheck
+
+	url := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
+	out := fmt.Sprintf("LAN session started: %s\nShare this URL with your players.", url)
+	if passphrase != "" {
+		out += fmt.Sprintf("\nPassphrase: %s", passphrase)
+	}
+	return Result{Output: out}
+}
+
+func lanStop() Result {
+	pid, err := readPID()
+	if err != nil {
+		return Result{Output: "no LAN session is active."}
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil || proc.Signal(nil) != nil {
+		os.Remove(pidFile()) //nolint:errcheck
+		return Result{Output: "no LAN session is active."}
+	}
+	proc.Signal(os.Interrupt) //nolint:errcheck
+	os.Remove(pidFile())      //nolint:errcheck
+	return Result{Output: "LAN session stopped."}
+}
+
+func lanStatus() Result {
+	if !serverRunning() {
+		return Result{Output: "no LAN session is active."}
+	}
+	url := fmt.Sprintf("http://%s:%d", lanIP(), lanPort)
+	return Result{Output: fmt.Sprintf("LAN session: %s", url)}
+}
+
+func lanIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "localhost"
+	}
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+		if ip == nil || ip.IsLoopback() {
+			continue
+		}
+		if ip4 := ip.To4(); ip4 != nil {
+			s := ip4.String()
+			if !strings.HasPrefix(s, "169.254") {
+				return s
+			}
+		}
+	}
+	return "localhost"
 }

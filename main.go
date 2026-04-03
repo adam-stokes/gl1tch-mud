@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"embed"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"golang.org/x/term"
 
@@ -22,7 +25,50 @@ import (
 var webDist embed.FS
 
 func main() {
-	database, err := db.Open()
+	// --serve mode: run only the HTTP/WebSocket server (used by /lan).
+	serveMode := flag.Bool("serve", false, "run LAN server only")
+	servePort := flag.Int("port", 8080, "server port")
+	servePass := flag.String("passphrase", "", "session passphrase")
+	flag.Parse()
+
+	if *serveMode {
+		runServe(*servePort, *servePass)
+		return
+	}
+
+	runGame()
+}
+
+// runServe starts the HTTP/WebSocket server and blocks until SIGINT/SIGTERM.
+func runServe(port int, passphrase string) {
+	sub, err := fs.Sub(webDist, "web/dist")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "gl1tch-mud: embed:", err)
+		os.Exit(1)
+	}
+	server.SetFS(sub)
+
+	w, err := world.Load("cyberspace")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "gl1tch-mud: world:", err)
+		os.Exit(1)
+	}
+
+	srv := server.New(w)
+	if _, err := srv.Start(port, passphrase); err != nil {
+		fmt.Fprintln(os.Stderr, "gl1tch-mud: serve:", err)
+		os.Exit(1)
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+	srv.Stop()
+}
+
+// runGame runs the interactive game loop.
+func runGame() {
+	database, err := db.OpenForWorld("cyberspace")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: db:", err)
 		os.Exit(1)
@@ -50,13 +96,8 @@ func main() {
 		"world":   s.World,
 	})
 
-	// Wire the embedded frontend and the LAN server into the /lan command.
-	sub, err := fs.Sub(webDist, "web/dist")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "gl1tch-mud: embed:", err)
-		os.Exit(1)
-	}
-	server.SetFS(sub)
+	// Wire /lan command — it forks gl1tch-mud --serve as a detached process.
+	commands.SetBinary(executablePath())
 
 	lanSrv := server.New(w)
 	commands.SetLANServer(lanSrv)
@@ -74,7 +115,6 @@ func main() {
   jack in. ghost the gibson. don't get traced.
   type 'help' for commands. type '/lan' to start a multiplayer session.`)
 
-		// Show the starting room only in interactive mode.
 		res := commands.Look(database, s, w, nil)
 		fmt.Println(res.Output)
 		if res.Event != nil {
@@ -95,9 +135,6 @@ func main() {
 			continue
 		}
 		if line == "quit" || line == "exit" || line == "q" {
-			if lanSrv.IsRunning() {
-				lanSrv.Stop()
-			}
 			bus.Publish("mud.session.ended", map[string]any{
 				"player":  s.Name,
 				"room_id": s.RoomID,
@@ -108,7 +145,6 @@ func main() {
 			break
 		}
 
-		// Strip leading slash from commands like /lan → lan
 		line = strings.TrimPrefix(line, "/")
 
 		verb, args := commands.Parse(line)
@@ -123,5 +159,35 @@ func main() {
 		if result.Event != nil {
 			bus.Publish(result.Event.Topic, result.Event.Payload)
 		}
+		if result.SwitchWorld != "" {
+			newDB, swErr := db.OpenForWorld(result.SwitchWorld)
+			if swErr != nil {
+				fmt.Fprintf(os.Stderr, "world switch: %v\n", swErr)
+			} else {
+				database.Close()
+				database = newDB
+				newWorld, swErr := world.Load(result.SwitchWorld)
+				if swErr != nil {
+					fmt.Fprintf(os.Stderr, "world switch: %v\n", swErr)
+				} else {
+					w = newWorld
+					lanSrv.Stop()
+					lanSrv = server.New(w)
+					commands.SetLANServer(lanSrv)
+					newState, _ := player.Load(database)
+					*s = *newState
+					lookResult := commands.Look(database, s, w, nil)
+					fmt.Println(lookResult.Output)
+				}
+			}
+		}
 	}
+}
+
+func executablePath() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "gl1tch-mud"
+	}
+	return exe
 }
