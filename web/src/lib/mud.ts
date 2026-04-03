@@ -188,6 +188,13 @@ function updateCompass(exits: string[]) {
 // ── Player list ───────────────────────────────────────────────────────────────
 
 let _myPlayerID = '';
+let _worldName = 'cyberspace';
+
+/** Set the world name before calling initMUD. Called by game.astro. */
+export function setWorld(name: string): void {
+  _worldName = name;
+}
+
 let _teleportFn: ((targetID: string) => void) | null = null;
 
 function renderPlayerList(data: { hostOnline: boolean; players: Array<{ name: string; roomName?: string }> }) {
@@ -464,6 +471,14 @@ function closeCraftModal() {
 
 // ── Main init ─────────────────────────────────────────────────────────────────
 
+/**
+ * Builds the WebSocket URL for the given world.
+ * Exported for testing.
+ */
+export function buildWsUrl(protocol: string, host: string, worldName: string): string {
+  return `${protocol}//${host}/ws?world=${encodeURIComponent(worldName)}`;
+}
+
 export function initMUD() {
   const loginScreen = document.getElementById('login-screen')!;
   const hudScreen   = document.getElementById('hud-screen')!;
@@ -531,7 +546,7 @@ export function initMUD() {
     connectBtn.textContent = 'connecting...';
 
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${proto}//${location.host}/ws`);
+    ws = new WebSocket(buildWsUrl(proto, location.host, _worldName));
 
     ws.onopen = () => {
       ws!.send(JSON.stringify({ type: 'auth', payload: { playerID, passphrase } }));
@@ -558,6 +573,11 @@ export function initMUD() {
 
   function handleServerMsg(msg: ServerMsg) {
     switch (msg.type) {
+      case 'world_meta':
+        import('./theme').then(({ applyTheme }) => {
+          applyTheme(msg.payload as import('./theme').WorldMeta);
+        });
+        break;
       case 'auth.ok':
         _myPlayerID = nameInput.value.trim();
         _teleportFn = (targetID: string) => {
