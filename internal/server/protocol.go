@@ -73,6 +73,7 @@ type Recipe struct {
 	OutputID    string             `json:"outputId"`
 	OutputName  string             `json:"outputName"`
 	SkillReq    int                `json:"skillReq,omitempty"`
+	Workbench   string             `json:"workbench,omitempty"`
 }
 
 // InvItem is a carried item as sent to the client.

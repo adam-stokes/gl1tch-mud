@@ -1040,7 +1040,60 @@ function refreshKidsCraftGrid() {
     output.textContent = '?';
   }
 }
-function renderKidsRecipeList() { /* Task 6 */ }
+function renderKidsRecipeList() {
+  const list = document.getElementById('kids-recipe-list')!;
+  list.replaceChildren();
+
+  for (const recipe of _recipes) {
+    const card = document.createElement('div');
+    card.className = 'kids-recipe-card';
+    if (recipe.workbench) card.classList.add('needs-workbench');
+
+    const ingSlots: (string | null)[] = Array(9).fill(null);
+    let slotIdx = 0;
+    for (const ing of recipe.ingredients) {
+      for (let n = 0; n < ing.count && slotIdx < 9; n++, slotIdx++) {
+        ingSlots[slotIdx] = ing.id;
+      }
+    }
+
+    const ingGrid = document.createElement('div');
+    ingGrid.className = 'kids-recipe-ing-grid';
+    for (const id of ingSlots) {
+      const cell = document.createElement('span');
+      cell.className = 'kids-recipe-ing-cell';
+      cell.textContent = id ? kidsItemEmoji(id) : '';
+      ingGrid.appendChild(cell);
+    }
+
+    const arrow = document.createElement('span');
+    arrow.className = 'kids-recipe-arrow';
+    arrow.textContent = '\u2192';
+
+    const outputLabel = document.createElement('span');
+    outputLabel.className = 'kids-recipe-output-label';
+    outputLabel.textContent = kidsItemEmoji(recipe.outputId) + ' ' + recipe.name;
+
+    if (recipe.workbench) {
+      const badge = document.createElement('span');
+      badge.className = 'kids-workbench-badge';
+      badge.textContent = '\u{1F528} Needs Workbench';
+      card.appendChild(badge);
+    }
+
+    card.appendChild(ingGrid);
+    card.appendChild(arrow);
+    card.appendChild(outputLabel);
+
+    card.addEventListener('click', () => {
+      _kidscraft.slots = [...ingSlots];
+      closeKidsRecipeDrawer();
+      refreshKidsCraftGrid();
+    });
+
+    list.appendChild(card);
+  }
+}
 
 function openKidsCraftModal() {
   _kidscraft.armedItem = null;

@@ -349,6 +349,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 			OutputID:    r.Output.ID,
 			OutputName:  r.Output.Name,
 			SkillReq:    r.SkillReq,
+			Workbench:   r.Workbench,
 		})
 	}
 
