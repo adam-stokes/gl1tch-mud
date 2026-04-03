@@ -32,3 +32,44 @@ test.describe('kids craft modal -- open/close', () => {
     await expect(gamePage.locator('#kids-craft-modal')).not.toHaveClass(/open/);
   });
 });
+
+test.describe('kids craft modal -- inventory picker', () => {
+  test('shows item chips when player has inventory', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="craft"]');
+    await expect(gamePage.locator('#kids-craft-modal')).toHaveClass(/open/);
+    const chips = gamePage.locator('.kids-inv-chip');
+    const count = await chips.count();
+    if (count === 0) {
+      test.skip(true, 'No inventory items -- cannot test picker chips');
+      return;
+    }
+    await expect(chips.first()).toBeVisible();
+    await gamePage.screenshot({ path: ss('kids-craft-inv-picker') });
+  });
+
+  test('tapping a chip arms it (.armed class added)', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="craft"]');
+    const chips = gamePage.locator('.kids-inv-chip');
+    if (await chips.count() === 0) {
+      test.skip(true, 'No inventory items');
+      return;
+    }
+    await chips.first().click();
+    await expect(chips.first()).toHaveClass(/armed/);
+  });
+
+  test('tapping armed chip again switches to eraser mode', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="craft"]');
+    const chips = gamePage.locator('.kids-inv-chip');
+    if (await chips.count() === 0) {
+      test.skip(true, 'No inventory items');
+      return;
+    }
+    const chip = chips.first();
+    await chip.click();
+    await expect(chip).toHaveClass(/armed/);
+    await chip.click();
+    await expect(chip).toHaveClass(/eraser/);
+    await expect(chip).not.toHaveClass(/armed/);
+  });
+});

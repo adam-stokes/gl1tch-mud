@@ -923,7 +923,42 @@ function closeCraftModal() {
 
 // -- Kids Craft Modal ---------------------------------------------------------
 
-function renderKidsInvPicker() { /* Task 4 */ }
+function renderKidsInvPicker() {
+  const picker = document.getElementById('kids-inv-picker')!;
+  picker.replaceChildren();
+  const inventory = _lastState?.inventory ?? [];
+  const seen = new Set<string>();
+
+  for (const item of inventory) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+
+    const chip = document.createElement('button');
+    chip.className = 'kids-inv-chip';
+    chip.dataset.itemId = item.id;
+    chip.textContent = kidsItemEmoji(item.id) + ' ' + item.name;
+
+    chip.addEventListener('click', () => {
+      if (_kidscraft.armedItem?.id === item.id && !_kidscraft.eraser) {
+        _kidscraft.eraser = true;
+        _kidscraft.armedItem = null;
+        document.querySelectorAll<HTMLElement>('.kids-inv-chip').forEach(c => {
+          c.classList.remove('armed', 'eraser');
+        });
+        chip.classList.add('eraser');
+      } else {
+        _kidscraft.eraser = false;
+        _kidscraft.armedItem = item;
+        document.querySelectorAll<HTMLElement>('.kids-inv-chip').forEach(c => {
+          c.classList.remove('armed', 'eraser');
+        });
+        chip.classList.add('armed');
+      }
+    });
+
+    picker.appendChild(chip);
+  }
+}
 function wireKidsCraftCell(_cell: HTMLElement, _i: number) { /* Task 5 */ }
 function refreshKidsCraftGrid() { /* Task 5 */ }
 function renderKidsRecipeList() { /* Task 6 */ }
