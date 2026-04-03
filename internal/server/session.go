@@ -58,15 +58,12 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		return
 	}
 
-	// If the player was last in a different world, reset them to this world's start room.
-	if s.state.World != s.worldName {
-		newState, resetErr := player.LoadForWorld(s.database, s.worldName, s.world.StartRoom)
-		if resetErr == nil {
-			s.state = newState
-		} else {
-			s.state.RoomID = s.world.StartRoom
-			s.state.World = s.worldName
-		}
+	// If the player's saved world differs or their room no longer exists in this
+	// world, reset them to the start room.
+	if s.state.World != s.worldName || s.world.Room(s.state.RoomID) == nil {
+		s.state.RoomID = s.world.StartRoom
+		s.state.World = s.worldName
+		_ = player.Save(s.database, s.state)
 		world.SeedCrystalShards(s.database, s.worldName)  //nolint:errcheck
 		world.SeedStartingItems(s.database, s.worldName)  //nolint:errcheck
 	}
