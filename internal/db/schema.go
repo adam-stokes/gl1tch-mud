@@ -148,4 +148,76 @@ CREATE TABLE IF NOT EXISTS hideout_upgrades (
     upgrade_id   TEXT    PRIMARY KEY,
     installed_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS room_resources (
+    room_id             TEXT    NOT NULL,
+    resource_id         TEXT    NOT NULL,
+    depleted            INTEGER NOT NULL DEFAULT 0,
+    depleted_at_action  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (room_id, resource_id)
+);
+
+CREATE TABLE IF NOT EXISTS weather_state (
+    biome       TEXT    PRIMARY KEY,
+    condition   TEXT    NOT NULL DEFAULT 'clear',
+    expires_action INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS enchants (
+    item_id     TEXT    NOT NULL,
+    enchant_id  TEXT    NOT NULL,
+    level       INTEGER NOT NULL DEFAULT 1,
+    applied_at  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (item_id, enchant_id)
+);
+
+CREATE TABLE IF NOT EXISTS builds (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id     TEXT    NOT NULL,
+    build_id    TEXT    NOT NULL,
+    name        TEXT    NOT NULL,
+    desc        TEXT    NOT NULL DEFAULT '',
+    placed_at   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS crystal_shards (
+    shard_id        TEXT    PRIMARY KEY,
+    biome           TEXT    NOT NULL,
+    collected       INTEGER NOT NULL DEFAULT 0,
+    collected_at    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS death_pile (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id     TEXT    NOT NULL,
+    item_id     TEXT    NOT NULL,
+    item_name   TEXT    NOT NULL,
+    item_desc   TEXT    NOT NULL DEFAULT '',
+    died_at     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS enchanting_xp (
+    id      INTEGER PRIMARY KEY CHECK (id = 1),
+    xp      INTEGER NOT NULL DEFAULT 0,
+    level   INTEGER NOT NULL DEFAULT 1
+);
+INSERT OR IGNORE INTO enchanting_xp (id, xp, level) VALUES (1, 0, 1);
+
+CREATE TABLE IF NOT EXISTS crops (
+    room_id         TEXT    NOT NULL,
+    slot            INTEGER NOT NULL,
+    seed_id         TEXT    NOT NULL,
+    planted_at_action   INTEGER NOT NULL,
+    ready_at_action     INTEGER NOT NULL,
+    harvested       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (room_id, slot)
+);
+
+CREATE TABLE IF NOT EXISTS chests (
+    room_id     TEXT    NOT NULL,
+    item_id     TEXT    NOT NULL,
+    item_name   TEXT    NOT NULL,
+    item_desc   TEXT    NOT NULL DEFAULT '',
+    PRIMARY KEY (room_id, item_id)
+);
 `
