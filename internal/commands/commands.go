@@ -142,6 +142,13 @@ func Look(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	detection := checkStealthDetection(db, s, room)
 
 	output := room.Render(visited)
+
+	// Show death pile if player died in this room.
+	pile, _ := player.GetDeathPile(db, s.RoomID)
+	if len(pile) > 0 {
+		output += "\n[your death pile is here — use 'take death-pile' to recover your items]"
+	}
+
 	if detection != "" {
 		output += "\n" + detection
 	}
@@ -287,6 +294,21 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if room == nil {
 		return Result{Output: "nothing here."}
 	}
+
+	// Special: claim death pile.
+	if strings.Join(args, "-") == "death-pile" {
+		pile, _ := player.GetDeathPile(db, s.RoomID)
+		if len(pile) == 0 {
+			return Result{Output: "there is no death pile here."}
+		}
+		player.ClaimDeathPile(db, s.RoomID) //nolint:errcheck
+		names := make([]string, len(pile))
+		for i, it := range pile {
+			names[i] = it.Name
+		}
+		return Result{Output: fmt.Sprintf("you recover your items: %s.", strings.Join(names, ", "))}
+	}
+
 	for _, item := range room.Items {
 		if strings.Contains(strings.ToLower(item.Name), target) {
 			if err := player.AddItem(db, item.ID, item.Name, item.Desc); err != nil {
@@ -405,10 +427,25 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 
 		if s.HP <= 0 {
+			// Get action count for death pile timestamp.
+			var actionCnt int
+			db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&actionCnt) //nolint:errcheck
+
+			deathRoom := s.RoomID
+			player.DumpToDeathPile(db, deathRoom, actionCnt) //nolint:errcheck
+
 			s.HP = s.MaxHP
 			s.RoomID = w.StartRoom
 			player.Save(db, s) //nolint:errcheck
-			out.WriteString("\nyou died. jacking back in at the entry node.")
+
+			deathRoomName := deathRoom
+			if r := w.Room(deathRoom); r != nil {
+				deathRoomName = r.Name
+			}
+			out.WriteString(fmt.Sprintf(
+				"\nyou were defeated! your items lie at %s.\nyou wake up at %s.",
+				deathRoomName, w.Room(w.StartRoom).Name,
+			))
 			ev = &Event{
 				Topic: "mud.player.died",
 				Payload: map[string]any{
