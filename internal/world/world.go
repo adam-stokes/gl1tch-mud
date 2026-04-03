@@ -410,8 +410,9 @@ func SeedStartingItems(db *sql.DB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
+	// Check if starting items already seeded by probing for one specific item.
 	var cnt int
-	db.QueryRow(`SELECT COUNT(*) FROM inventory`).Scan(&cnt) //nolint:errcheck
+	db.QueryRow(`SELECT COUNT(*) FROM inventory WHERE item_id='wooden-pickaxe'`).Scan(&cnt) //nolint:errcheck
 	if cnt > 0 {
 		return nil
 	}
