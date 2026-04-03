@@ -7,6 +7,9 @@ import (
 	"math/rand"
 )
 
+// TickInterval is the number of player actions between possible weather changes.
+const TickInterval = 50
+
 // Current returns the current weather condition for biome.
 // Returns "clear" if no record exists.
 func Current(db *sql.DB, biome string) (string, error) {
@@ -23,6 +26,7 @@ func Current(db *sql.DB, biome string) (string, error) {
 
 // Tick checks whether weather should change for biome (if currentAction >= expires_action)
 // and if so rolls a new condition from possible. Returns the current (possibly new) condition.
+// When err is non-nil the returned condition string was not persisted and should be discarded.
 func Tick(db *sql.DB, biome string, currentAction int, possible []string) (string, error) {
 	var expires int
 	var cond string
@@ -36,7 +40,7 @@ func Tick(db *sql.DB, biome string, currentAction int, possible []string) (strin
 			possible = []string{"clear"}
 		}
 		cond = possible[rand.Intn(len(possible))]
-		newExpires := currentAction + 50
+		newExpires := currentAction + TickInterval
 		_, err = db.Exec(
 			`INSERT INTO weather_state (biome, condition, expires_action) VALUES (?,?,?)
 			 ON CONFLICT(biome) DO UPDATE SET condition=excluded.condition, expires_action=excluded.expires_action`,
@@ -58,7 +62,7 @@ func YieldBonus(condition string) float64 {
 }
 
 // Description returns a player-facing description of the weather condition.
-func Description(biome, condition string) string {
+func Description(condition string) string {
 	switch condition {
 	case "clear":
 		return "The sky is clear. Conditions are ideal."

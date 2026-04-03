@@ -60,6 +60,29 @@ func TestTickChangesWeather(t *testing.T) {
 	}
 }
 
+func TestTickNoChangeBeforeExpiry(t *testing.T) {
+	db := openMem(t)
+	defer db.Close()
+
+	possible := []string{"clear", "rainy", "stormy"}
+	// Prime the DB with condition "rainy" expiring at action 200.
+	_, err := db.Exec(
+		`INSERT INTO weather_state (biome, condition, expires_action) VALUES (?,?,?)`,
+		"meadow", "rainy", 200,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// currentAction=100 < expires_action=200, so weather should not change.
+	cond, err := weather.Tick(db, "meadow", 100, possible)
+	if err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+	if cond != "rainy" {
+		t.Errorf("expected 'rainy' (not yet expired), got %q", cond)
+	}
+}
+
 func TestYieldBonus(t *testing.T) {
 	if weather.YieldBonus("clear") != 1.1 {
 		t.Error("clear should give 1.1 bonus")
