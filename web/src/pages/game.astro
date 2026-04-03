@@ -863,6 +863,14 @@
           </div>
         </div>
 
+        <!-- Room Context (kids mode only) -->
+        <div class="panel" id="room-context">
+          <div class="panel-title">who's here</div>
+          <div id="room-npcs-list"></div>
+          <div class="panel-title" style="margin-top:0.5rem">exits</div>
+          <div id="kids-exits"></div>
+        </div>
+
         <!-- Network -->
         <div class="panel">
           <div class="panel-title">network</div>
@@ -892,6 +900,10 @@
         <!-- Actions -->
         <div class="panel">
           <div class="panel-title">actions</div>
+          <div id="target-picker">
+            <div class="picker-label" id="target-picker-label">choose a target</div>
+            <div id="target-picker-btns"></div>
+          </div>
           <div class="action-grid" id="action-grid">
             <!-- populated by JS based on world -->
           </div>
@@ -899,8 +911,12 @@
 
       </div>
 
+      <!-- Onboarding hint banner (kids mode only) -->
+      <div id="hint-banner"></div>
+
       <!-- Input bar -->
       <div id="input-bar">
+        <button id="kids-input-toggle" title="Show/hide keyboard input">⌨️</button>
         <span class="prompt">&gt;</span>
         <input id="cmd-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="type a command..." />
         <button id="send-btn">Send</button>
@@ -942,6 +958,15 @@
         </div>
         <p class="craft-hint" id="craft-hint">Drag items from your inventory into the grid.</p>
         <button id="craft-do-btn">🔧 Open Crafting Menu</button>
+      </div>
+    </div>
+
+    <!-- Kids quest modal -->
+    <div class="modal-overlay" id="quest-kids-modal">
+      <div class="modal-box" style="max-width:340px;width:90%">
+        <button class="modal-close" id="quest-kids-modal-close">✕</button>
+        <div class="modal-title">your quests</div>
+        <div id="quest-kids-list"></div>
       </div>
     </div>
 
