@@ -153,3 +153,17 @@ func TestRecordMemory(t *testing.T) {
 		t.Errorf("expected action=talked, got %q", action)
 	}
 }
+
+func TestHasAllShardsTrigger(t *testing.T) {
+	line := world.DialogueLine{Trigger: "has_all_shards", Text: "All shards collected!"}
+
+	ctxNo := PlayerContext{AllShardsCollected: false}
+	if EvalDialogue([]world.DialogueLine{line}, ctxNo) == "All shards collected!" {
+		t.Error("should not match when AllShardsCollected=false")
+	}
+
+	ctxYes := PlayerContext{AllShardsCollected: true}
+	if got := EvalDialogue([]world.DialogueLine{line}, ctxYes); got != "All shards collected!" {
+		t.Errorf("should match when AllShardsCollected=true, got %q", got)
+	}
+}

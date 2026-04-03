@@ -952,11 +952,16 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	rep := buildReputationMap(db)
 	sk := buildSkillMap(db)
 
+	var shardCount, totalShards int
+	db.QueryRow(`SELECT COUNT(*) FROM crystal_shards WHERE collected=1`).Scan(&shardCount)   //nolint:errcheck
+	db.QueryRow(`SELECT COUNT(*) FROM crystal_shards`).Scan(&totalShards)                    //nolint:errcheck
+
 	ctx := espionage.PlayerContext{
-		InventoryIDs: invIDs,
-		Reputation:   rep,
-		Skills:       sk,
-		Disguise:     st.Disguise,
+		InventoryIDs:       invIDs,
+		Reputation:         rep,
+		Skills:             sk,
+		Disguise:           st.Disguise,
+		AllShardsCollected: totalShards >= 5 && shardCount >= 5,
 	}
 
 	text := espionage.EvalDialogue(npc.Dialogue, ctx)

@@ -101,10 +101,11 @@ func Disguise(db *sql.DB, w *world.World, itemID string, inventoryIDs []string) 
 
 // PlayerContext holds the info needed to evaluate dialogue triggers.
 type PlayerContext struct {
-	InventoryIDs []string
-	Reputation   map[string]int // faction → rep value
-	Skills       map[string]int // skill → level
-	Disguise     string
+	InventoryIDs        []string
+	Reputation          map[string]int // faction → rep value
+	Skills              map[string]int // skill → level
+	Disguise            string
+	AllShardsCollected  bool // true when all crystal_shards rows have collected=1
 }
 
 // EvalDialogue evaluates NPC dialogue triggers in order and returns
@@ -157,6 +158,9 @@ func matchTrigger(trigger string, ctx PlayerContext) bool {
 	case strings.HasPrefix(trigger, "disguise:"):
 		want := strings.TrimPrefix(trigger, "disguise:")
 		return ctx.Disguise == want
+
+	case trigger == "has_all_shards":
+		return ctx.AllShardsCollected
 	}
 
 	return false
