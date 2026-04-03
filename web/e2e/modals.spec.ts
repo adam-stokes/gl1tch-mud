@@ -105,3 +105,29 @@ test.describe('quest modal', () => {
     await gamePage.screenshot({ path: ss('quest-closed-overlay') });
   });
 });
+
+// ── Skills modal (kids mode) ──────────────────────────────────────────────────
+
+test.describe('skills modal', () => {
+  test('opens when Skills button is clicked', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="skills"]');
+    await expect(gamePage.locator('#skills-kids-modal')).toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('skills-open') });
+  });
+
+  test('closes via close button', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="skills"]');
+    await expect(gamePage.locator('#skills-kids-modal')).toHaveClass(/open/);
+    await gamePage.click('#skills-kids-modal-close');
+    await expect(gamePage.locator('#skills-kids-modal')).not.toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('skills-closed-btn') });
+  });
+
+  test('closes via overlay click', async ({ gamePage }) => {
+    await gamePage.click('[data-kids-action="skills"]');
+    await expect(gamePage.locator('#skills-kids-modal')).toHaveClass(/open/);
+    await gamePage.locator('#skills-kids-modal').click({ position: { x: 5, y: 5 } });
+    await expect(gamePage.locator('#skills-kids-modal')).not.toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('skills-closed-overlay') });
+  });
+});

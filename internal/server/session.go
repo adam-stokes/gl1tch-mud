@@ -16,6 +16,7 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/quests"
+	"github.com/adam-stokes/gl1tch-mud/internal/skills"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -309,6 +310,14 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		})
 	}
 
+	// Skills for kids skills modal.
+	allSkills, _ := skills.All(s.database)
+	skillInfos := make([]SkillInfo, 0, len(allSkills))
+	for name, lv := range allSkills {
+		skillInfos = append(skillInfos, SkillInfo{Name: name, Level: lv[0], XP: lv[1]})
+	}
+	sort.Slice(skillInfos, func(i, j int) bool { return skillInfos[i].Name < skillInfos[j].Name })
+
 	// Inventory with signal tier.
 	invItems, _ := player.Inventory(s.database)
 	hudInv := make([]InvItem, 0, len(invItems))
@@ -354,6 +363,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		RoomItems:     roomItems,
 		RoomResources: roomResources,
 		Quests:        questInfos,
+		Skills:        skillInfos,
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
 

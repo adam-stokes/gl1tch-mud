@@ -1003,6 +1003,38 @@
         color: var(--comment);
       }
 
+      /* Skills kids modal */
+      #skills-kids-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 0.75rem;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      .skill-kids-card {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .skill-kids-name {
+        font-size: 0.8rem;
+        color: var(--fg);
+        flex: 1;
+      }
+
+      .skill-kids-stars {
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        color: var(--accent, #c9a84c);
+      }
+
       /* Section separator used inside #room-context */
       .kids-section-sep { margin-top: 0.5rem; }
     </style>
@@ -1169,6 +1201,15 @@
         <button class="modal-close" id="quest-kids-modal-close">✕</button>
         <div class="modal-title">your quests</div>
         <div id="quest-kids-list"></div>
+      </div>
+    </div>
+
+    <!-- Kids skills modal -->
+    <div class="modal-overlay" id="skills-kids-modal">
+      <div class="modal-box">
+        <button class="modal-close" id="skills-kids-modal-close">✕</button>
+        <div class="modal-title">your skills</div>
+        <div id="skills-kids-list"></div>
       </div>
     </div>
 

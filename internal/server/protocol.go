@@ -56,6 +56,7 @@ type StateUpdatePayload struct {
 	RoomItems     []RoomItemInfo     `json:"room_items,omitempty"`
 	RoomResources []RoomResourceInfo `json:"room_resources,omitempty"`
 	Quests        []QuestInfo        `json:"quests,omitempty"`
+	Skills        []SkillInfo        `json:"skills,omitempty"`
 }
 
 // RecipeIngredient is a single crafting ingredient as sent to the client.
@@ -103,6 +104,13 @@ type RoomResourceInfo struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Action string `json:"action"` // verb used to interact, e.g. "mine", "harvest", "gather"
+}
+
+// SkillInfo is a player skill entry sent in state.update.
+type SkillInfo struct {
+	Name  string `json:"name"`
+	Level int    `json:"level"`
+	XP    int    `json:"xp"`
 }
 
 // QuestInfo is a summary of an active quest sent in state.update.

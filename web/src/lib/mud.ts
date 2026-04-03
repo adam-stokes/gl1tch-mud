@@ -17,6 +17,7 @@ interface StateUpdate {
   room_items?: RoomItemInfo[];
   room_resources?: RoomResourceInfo[];
   quests?: QuestInfo[];
+  skills?: SkillInfo[];
 }
 
 interface InvItem {
@@ -65,6 +66,12 @@ interface QuestInfo {
   title: string;
   obj_count: number;
   obj_progress: number;
+}
+
+interface SkillInfo {
+  name: string;
+  level: number;
+  xp: number;
 }
 
 // ── ANSI → HTML ──────────────────────────────────────────────────────────────
@@ -481,6 +488,49 @@ function openKidsQuestModal(): void {
   modal.classList.add('open');
 }
 
+const SKILL_MAX_LEVEL = 5;
+
+function openKidsSkillsModal(): void {
+  const modal = document.getElementById('skills-kids-modal');
+  const list  = document.getElementById('skills-kids-list');
+  if (!modal || !list) return;
+
+  while (list.firstChild) list.removeChild(list.firstChild);
+
+  const skillData = _lastState?.skills ?? [];
+
+  const SKILL_EMOJI: Record<string, string> = {
+    hacking:     '⚡',
+    lockpicking: '🔓',
+  };
+
+  if (skillData.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:0.78rem;color:var(--comment);text-align:center;padding:1rem 0';
+    empty.textContent = "You haven't learned any skills yet. Try exploring the world!";
+    list.appendChild(empty);
+  } else {
+    for (const s of skillData) {
+      const card = document.createElement('div');
+      card.className = 'skill-kids-card';
+
+      const name = document.createElement('div');
+      name.className = 'skill-kids-name';
+      const emoji = SKILL_EMOJI[s.name] ?? '✨';
+      name.textContent = `${emoji} ${s.name.charAt(0).toUpperCase() + s.name.slice(1)}`;
+
+      const stars = document.createElement('div');
+      stars.className = 'skill-kids-stars';
+      stars.textContent = '★'.repeat(s.level) + '☆'.repeat(Math.max(0, SKILL_MAX_LEVEL - s.level));
+
+      card.appendChild(name);
+      card.appendChild(stars);
+      list.appendChild(card);
+    }
+  }
+
+  modal.classList.add('open');
+}
 
 // ── Player list ───────────────────────────────────────────────────────────────
 
@@ -1103,10 +1153,14 @@ export function initMUD() {
       openKidsQuestModal();
       return;
     }
+    if (action === 'skills') {
+      openKidsSkillsModal();
+      return;
+    }
     if (!inputEnabled) return;
     const state = _lastState;
 
-    if (action === 'look' || action === 'search' || action === 'skills') {
+    if (action === 'look' || action === 'search') {
       hideTargetPicker();
       sendCommand(action);
       return;
@@ -1278,6 +1332,16 @@ export function initMUD() {
   });
 
   document.getElementById('quest-kids-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      (e.currentTarget as HTMLElement).classList.remove('open');
+    }
+  });
+
+  document.getElementById('skills-kids-modal-close')?.addEventListener('click', () => {
+    document.getElementById('skills-kids-modal')?.classList.remove('open');
+  });
+
+  document.getElementById('skills-kids-modal')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) {
       (e.currentTarget as HTMLElement).classList.remove('open');
     }
