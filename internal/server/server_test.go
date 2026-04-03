@@ -1,10 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"nhooyr.io/websocket"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -134,5 +138,101 @@ func TestRegistryPlayersInWorld(t *testing.T) {
 	}
 	if players[0].Name != "player1" {
 		t.Errorf("player name: got %q want player1", players[0].Name)
+	}
+}
+
+func TestNewLockedWorldMode(t *testing.T) {
+	worlds := makeTestWorlds()
+	gs := New(worlds, "alpha")
+	if gs.lockedWorld != "alpha" {
+		t.Errorf("lockedWorld: got %q want alpha", gs.lockedWorld)
+	}
+	// With lockedWorld set, worldForRequest ignores any param.
+	w, err := gs.worldForRequest("beta")
+	if err != nil {
+		t.Fatalf("locked mode should not error: %v", err)
+	}
+	if w.Name != "alpha" {
+		t.Errorf("locked mode returned %q, want alpha", w.Name)
+	}
+}
+
+func TestWSConnectsToKnownWorldReturns200(t *testing.T) {
+	gs := &GameServer{worlds: makeTestWorlds(), registry: newSessionRegistry()}
+
+	srv := httptest.NewServer(http.HandlerFunc(gs.handleWS))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "?world=alpha"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Errorf("upgrade status: got %d want 101", resp.StatusCode)
+	}
+}
+
+func TestWSConnectsAndReceivesWorldMeta(t *testing.T) {
+	gs := &GameServer{worlds: makeTestWorlds(), registry: newSessionRegistry()}
+
+	srv := httptest.NewServer(http.HandlerFunc(gs.handleWS))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "?world=alpha"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+
+	// Send auth
+	authMsg, _ := json.Marshal(ClientMsg{
+		Type:    "auth",
+		Payload: json.RawMessage(`{"playerID":"testplayer","passphrase":""}`),
+	})
+	if err := conn.Write(ctx, websocket.MessageText, authMsg); err != nil {
+		t.Fatalf("write auth: %v", err)
+	}
+
+	// Read messages until we find world_meta (skip auth.ok and players.update)
+	gotWorldMeta := false
+	for i := 0; i < 5; i++ {
+		_, data, err := conn.Read(ctx)
+		if err != nil {
+			break
+		}
+		var msg ServerMsg
+		if err := json.Unmarshal(data, &msg); err != nil {
+			continue
+		}
+		if msg.Type == "world_meta" {
+			gotWorldMeta = true
+			// Re-marshal and unmarshal payload into WorldMetaPayload
+			var payload WorldMetaPayload
+			payloadBytes, _ := json.Marshal(msg.Payload)
+			if err := json.Unmarshal(payloadBytes, &payload); err == nil {
+				if payload.Name != "alpha" {
+					t.Errorf("world_meta name: got %q want alpha", payload.Name)
+				}
+				if payload.Tagline != "alpha tagline" {
+					t.Errorf("world_meta tagline: got %q want 'alpha tagline'", payload.Tagline)
+				}
+			}
+			break
+		}
+	}
+	if !gotWorldMeta {
+		t.Error("expected world_meta message on connect, didn't receive one")
 	}
 }
