@@ -18,10 +18,8 @@ export const test = base.extend<{ gamePage: Page }>({
     // Wait for HUD to be shown (auth.ok received → showHUD() called)
     await page.waitForSelector('#hud-screen.active', { timeout: 10_000 });
 
-    // Wait for first output.done — cmd-input becomes enabled
-    await page.waitForSelector('#cmd-input:not([disabled])', { timeout: 10_000 });
-
     // Wait for state.update — action-grid should have buttons
+    // (kids mode hides #cmd-input, so we use action-grid as the readiness signal)
     await page.waitForSelector('#action-grid .action-btn', { timeout: 10_000 });
 
     await use(page);
