@@ -30,3 +30,47 @@ test.describe('craft modal', () => {
     await gamePage.screenshot({ path: ss('craft-closed-overlay') });
   });
 });
+
+// ── Item modal ────────────────────────────────────────────────────────────────
+
+test.describe('item modal', () => {
+  test('opens when inventory item is clicked', async ({ gamePage }) => {
+    const slot = gamePage.locator('.inv-slot.occupied').first();
+    const hasItem = await slot.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (!hasItem) {
+      test.skip(true, 'No inventory items seeded — cannot test item modal');
+      return;
+    }
+    await slot.click();
+    await expect(gamePage.locator('#item-modal')).toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('item-open') });
+  });
+
+  test('closes via close button', async ({ gamePage }) => {
+    const slot = gamePage.locator('.inv-slot.occupied').first();
+    const hasItem = await slot.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (!hasItem) {
+      test.skip(true, 'No inventory items seeded — cannot test item modal');
+      return;
+    }
+    await slot.click();
+    await expect(gamePage.locator('#item-modal')).toHaveClass(/open/);
+    await gamePage.click('#item-modal-close');
+    await expect(gamePage.locator('#item-modal')).not.toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('item-closed-btn') });
+  });
+
+  test('closes via overlay click', async ({ gamePage }) => {
+    const slot = gamePage.locator('.inv-slot.occupied').first();
+    const hasItem = await slot.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (!hasItem) {
+      test.skip(true, 'No inventory items seeded — cannot test item modal');
+      return;
+    }
+    await slot.click();
+    await expect(gamePage.locator('#item-modal')).toHaveClass(/open/);
+    await gamePage.locator('#item-modal').click({ position: { x: 5, y: 5 } });
+    await expect(gamePage.locator('#item-modal')).not.toHaveClass(/open/);
+    await gamePage.screenshot({ path: ss('item-closed-overlay') });
+  });
+});
