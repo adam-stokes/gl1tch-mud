@@ -64,6 +64,7 @@ interface RoomResourceInfo {
 interface QuestInfo {
   id: string;
   title: string;
+  description?: string;
   obj_count: number;
   obj_progress: number;
 }
@@ -337,6 +338,36 @@ function rebuildRoomContext(state: StateUpdate): void {
     }
   }
 
+  const groundEl = document.getElementById('room-ground-list');
+  if (groundEl) {
+    while (groundEl.firstChild) groundEl.removeChild(groundEl.firstChild);
+    const items = state.room_items ?? [];
+    if (items.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:0.7rem;color:var(--comment)';
+      empty.textContent = 'Nothing here.';
+      groundEl.appendChild(empty);
+    } else {
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'room-ground-row';
+        const nameEl = document.createElement('span');
+        nameEl.textContent = item.name;
+        row.appendChild(nameEl);
+        if (item.takeable) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'kids-take-btn';
+          btn.textContent = 'Take';
+          const capturedId = item.id;
+          btn.addEventListener('click', () => _dispatchCmd?.(`take ${capturedId}`));
+          row.appendChild(btn);
+        }
+        groundEl.appendChild(row);
+      }
+    }
+  }
+
   const exitsEl = document.getElementById('kids-exits');
   if (exitsEl) {
     while (exitsEl.firstChild) exitsEl.removeChild(exitsEl.firstChild);
@@ -350,9 +381,7 @@ function rebuildRoomContext(state: StateUpdate): void {
       btn.className = 'kids-exit-btn';
       btn.textContent = DIR_ARROW[exit.toLowerCase()] ?? exit;
       const captured = exit;
-      btn.addEventListener('click', () => {
-        if (inputEnabled) sendCommand(captured);
-      });
+      btn.addEventListener('click', () => _dispatchCmd?.(captured));
       exitsEl.appendChild(btn);
     }
   }
@@ -457,6 +486,16 @@ function openKidsQuestModal(): void {
       title.className = 'quest-kids-title';
       title.textContent = q.title;
 
+      if (q.description) {
+        const desc = document.createElement('div');
+        desc.className = 'quest-kids-desc';
+        desc.textContent = q.description;
+        card.appendChild(title);
+        card.appendChild(desc);
+      } else {
+        card.appendChild(title);
+      }
+
       const barWrap = document.createElement('div');
       barWrap.className = 'quest-progress-bar-wrap';
 
@@ -478,7 +517,6 @@ function openKidsQuestModal(): void {
         progressLabel.textContent = 'In progress';
       }
 
-      card.appendChild(title);
       card.appendChild(barWrap);
       card.appendChild(progressLabel);
       list.appendChild(card);
@@ -545,6 +583,7 @@ export function setWorld(name: string): void {
 }
 
 let _teleportFn: ((targetID: string) => void) | null = null;
+let _dispatchCmd: ((cmd: string) => void) | null = null;
 
 function renderPlayerList(data: { hostOnline: boolean; players: Array<{ name: string; roomName?: string }> }) {
   const list = document.getElementById('player-list');
@@ -939,6 +978,7 @@ export function initMUD() {
           if (inputEnabled) sendCommand(`goto ${targetID}`);
           else { cmdInput.value = `goto ${targetID}`; cmdInput.focus(); }
         };
+        _dispatchCmd = (cmd: string) => { if (inputEnabled) sendCommand(cmd); };
         localStorage.setItem('glitch-mud-player', _myPlayerID);
         localStorage.setItem('glitch-mud-pass', passInput.value);
         showHUD();

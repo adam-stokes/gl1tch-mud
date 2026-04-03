@@ -117,6 +117,7 @@ type SkillInfo struct {
 type QuestInfo struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
 	ObjCount    int    `json:"obj_count"`
 	ObjProgress int    `json:"obj_progress"`
 }

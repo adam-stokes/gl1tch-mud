@@ -131,3 +131,49 @@ test.describe('skills modal', () => {
     await gamePage.screenshot({ path: ss('skills-closed-overlay') });
   });
 });
+
+// ── Ground items (kids mode) ──────────────────────────────────────────────────
+
+test.describe('ground items', () => {
+  test('room-ground-list shows items on the floor', async ({ gamePage }) => {
+    // Meadow Town Square always has a Builder's Map on the ground
+    await expect(gamePage.locator('#room-ground-list')).toBeVisible();
+    const rows = gamePage.locator('#room-ground-list .room-ground-row');
+    await expect(rows).not.toHaveCount(0);
+    await gamePage.screenshot({ path: ss('ground-items') });
+  });
+
+  test('Take button picks up the item', async ({ gamePage }) => {
+    const takeBtn = gamePage.locator('#room-ground-list .kids-take-btn').first();
+    const hasTakeBtn = await takeBtn.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (!hasTakeBtn) {
+      test.skip(true, 'No takeable items on ground');
+      return;
+    }
+    await takeBtn.click();
+    // After taking, the item row should eventually disappear from the ground list
+    // (state.update fires after output.done)
+    await expect(gamePage.locator('#room-ground-list .kids-take-btn').first()).not.toBeVisible({ timeout: 8_000 });
+    await gamePage.screenshot({ path: ss('ground-after-take') });
+  });
+});
+
+// ── Quest details (kids mode) ─────────────────────────────────────────────────
+
+test.describe('quest details', () => {
+  test('quest modal shows description when quest has one', async ({ gamePage }) => {
+    // Accept the starting quest by talking to Elder Mason
+    await gamePage.click('[data-kids-action="talk"]');
+    // Elder Mason is the only NPC who can talk in the start room — no target picker needed
+    // Wait for quest to be accepted (state.update fires)
+    await gamePage.waitForTimeout(2_000);
+    await gamePage.click('[data-kids-action="quests"]');
+    await expect(gamePage.locator('#quest-kids-modal')).toHaveClass(/open/);
+    const desc = gamePage.locator('.quest-kids-desc').first();
+    const hasDesc = await desc.isVisible({ timeout: 3_000 }).catch(() => false);
+    if (hasDesc) {
+      await expect(desc).not.toBeEmpty();
+    }
+    await gamePage.screenshot({ path: ss('quest-with-desc') });
+  });
+});

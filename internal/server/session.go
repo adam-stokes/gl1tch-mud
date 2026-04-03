@@ -305,6 +305,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		questInfos = append(questInfos, QuestInfo{
 			ID:          q.ID,
 			Title:       q.Title,
+			Description: q.Description,
 			ObjCount:    q.ObjCount,
 			ObjProgress: q.ObjProgress,
 		})

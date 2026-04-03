@@ -311,8 +311,9 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("you recover your items: %s.", strings.Join(names, ", "))}
 	}
 
+	itemID := strings.Join(args, "-")
 	for _, item := range room.Items {
-		if strings.Contains(strings.ToLower(item.Name), target) {
+		if strings.Contains(strings.ToLower(item.Name), target) || strings.EqualFold(item.ID, itemID) {
 			if err := player.AddItem(db, item.ID, item.Name, item.Desc); err != nil {
 				return Result{Output: fmt.Sprintf("can't take %s — already carrying it.", item.Name)}
 			}

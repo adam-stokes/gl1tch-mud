@@ -830,6 +830,39 @@
 
       [data-ui="kids"] .room-npc-badges { display: flex; gap: 3px; font-size: 0.8rem; }
 
+      /* Ground items */
+      [data-ui="kids"] #room-ground-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 4px;
+      }
+
+      [data-ui="kids"] .room-ground-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        color: var(--fg);
+      }
+
+      .kids-take-btn {
+        background: var(--bg-dark);
+        border: 1px solid var(--border);
+        color: var(--accent, #c9a84c);
+        font-family: inherit;
+        font-size: 0.68rem;
+        padding: 2px 7px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.1s, background 0.1s;
+      }
+
+      .kids-take-btn:hover {
+        border-color: var(--accent, #c9a84c);
+        background: color-mix(in srgb, var(--accent, #c9a84c) 12%, transparent);
+      }
+
       /* Exit buttons */
       [data-ui="kids"] #kids-exits {
         display: flex;
@@ -980,7 +1013,14 @@
       .quest-kids-title {
         font-size: 0.8rem;
         color: var(--fg);
-        margin-bottom: 5px;
+        margin-bottom: 4px;
+      }
+
+      .quest-kids-desc {
+        font-size: 0.72rem;
+        color: var(--comment);
+        margin-bottom: 6px;
+        line-height: 1.4;
       }
 
       .quest-progress-bar-wrap {
@@ -1101,6 +1141,8 @@
         <div class="panel" id="room-context">
           <div class="panel-title">who's here</div>
           <div id="room-npcs-list"></div>
+          <div class="panel-title kids-section-sep">on the ground</div>
+          <div id="room-ground-list"></div>
           <div class="panel-title kids-section-sep">exits</div>
           <div id="kids-exits"></div>
         </div>
