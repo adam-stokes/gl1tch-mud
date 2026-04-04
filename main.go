@@ -259,6 +259,12 @@ func runGame(worldName string) {
 					}
 					world.SeedCrystalShards(database, s.World)  //nolint:errcheck
 					world.SeedStartingItems(database, s.World)  //nolint:errcheck
+					if banner := w.UIBanner(); banner != "" {
+						fmt.Println(banner)
+					}
+					if tagline := w.UI.Tagline; tagline != "" {
+						fmt.Printf("  %s\n", tagline)
+					}
 					lookResult := commands.Look(database, s, w, nil)
 					fmt.Println(lookResult.Output)
 				}
