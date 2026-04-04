@@ -8,8 +8,9 @@
  * State injection: addInitScript captures the WS instance so tests can dispatch
  * synthetic state.update messages without modifying world data.
  *
- * Command capture: WebSocket.prototype.send is patched after page load
- * (same pattern as kids-craft-flow tests) — this avoids instance-shadow issues.
+ * Command verification: sendCommand() echoes "> <cmd>" to #output before
+ * sending over the wire, so we wait for that echo rather than intercepting
+ * the WebSocket (which avoids tricky native-method-shadowing issues).
  */
 import { test as base, expect, type Page } from '@playwright/test';
 
@@ -30,11 +31,9 @@ function makeStateUpdate(roomNpcs: object[]) {
 
 /**
  * Fixture: gamePage with addInitScript that captures the live WS as __mudWS.
- * Does NOT patch ws.send — prototype patching is done per-test instead.
  */
 const test = base.extend<{ gamePage: Page }>({
   gamePage: async ({ page }, use) => {
-    // Capture WS instance before page scripts run so injectState can use it.
     await page.addInitScript(() => {
       const Orig = window.WebSocket;
       window.WebSocket = function (url: string, proto?: string | string[]) {
@@ -42,7 +41,12 @@ const test = base.extend<{ gamePage: Page }>({
         (window as any).__mudWS = ws;
         return ws;
       } as typeof WebSocket;
-      (window as any).WebSocket.prototype = Orig.prototype;
+      // Copy static constants so ws.readyState !== WebSocket.OPEN keeps working.
+      (window as any).WebSocket.CONNECTING = Orig.CONNECTING;
+      (window as any).WebSocket.OPEN       = Orig.OPEN;
+      (window as any).WebSocket.CLOSING    = Orig.CLOSING;
+      (window as any).WebSocket.CLOSED     = Orig.CLOSED;
+      (window as any).WebSocket.prototype  = Orig.prototype;
     });
 
     await page.goto('/game?world=blockhaven');
@@ -64,35 +68,15 @@ async function injectState(page: Page, roomNpcs: object[]) {
 }
 
 /**
- * Patches WebSocket.prototype.send to collect input commands into
- * window.__capturedCmds, then clicks the given selector, then returns
- * the first captured command.  The prototype patch is restored after use.
+ * Waits for a specific command to appear in the #output element.
+ * sendCommand() echoes "> <cmd>" to the terminal before sending over the wire.
  */
-async function clickAndCapture(page: Page, selector: string): Promise<string> {
-  // Patch prototype BEFORE the click (same pattern as kids-craft-flow tests).
-  await page.evaluate(() => {
-    (window as any).__capturedCmds = [] as string[];
-    const orig = WebSocket.prototype.send;
-    WebSocket.prototype.send = function (data: unknown) {
-      WebSocket.prototype.send = orig; // restore after first intercept
-      try {
-        const msg = JSON.parse(data as string);
-        if (msg.type === 'input') {
-          (window as any).__capturedCmds.push(msg.payload.text as string);
-        }
-      } catch { /* not JSON */ }
-      return orig.call(this, data);
-    };
-  });
-
-  await page.click(selector);
-
-  // The send happens synchronously in the click handler, so the array is
-  // already populated by the time we evaluate.
-  const cmds: string[] = await page.evaluate(
-    () => (window as any).__capturedCmds ?? [],
+async function waitForCommandEcho(page: Page, cmd: string, timeout = 5_000) {
+  await page.waitForFunction(
+    (c: string) => (document.getElementById('output')?.textContent ?? '').includes('> ' + c),
+    cmd,
+    { timeout },
   );
-  return cmds[0] ?? '';
 }
 
 // ── tests ────────────────────────────────────────────────────────────────────
@@ -104,9 +88,10 @@ test.describe('kids NPC target picker', () => {
     ]);
     await gamePage.waitForSelector('[data-kids-action="talk"]', { timeout: 5_000 });
 
-    const cmd = await clickAndCapture(gamePage, '[data-kids-action="talk"]');
+    await gamePage.click('[data-kids-action="talk"]');
 
-    expect(cmd).toBe('talk elder-mason');
+    // sendCommand echoes "> talk elder-mason" to #output before sending.
+    await waitForCommandEcho(gamePage, 'talk elder-mason');
     await expect(gamePage.locator('#target-picker')).not.toHaveClass(/open/);
   });
 
@@ -135,9 +120,9 @@ test.describe('kids NPC target picker', () => {
     await gamePage.click('[data-kids-action="talk"]');
     await gamePage.waitForSelector('#target-picker.open', { timeout: 3_000 });
 
-    const cmd = await clickAndCapture(gamePage, '.target-btn:has-text("NPC Beta")');
+    await gamePage.locator('.target-btn', { hasText: 'NPC Beta' }).click();
 
-    expect(cmd).toBe('talk npc-b');
+    await waitForCommandEcho(gamePage, 'talk npc-b');
     await expect(gamePage.locator('#target-picker')).not.toHaveClass(/open/);
   });
 
@@ -147,9 +132,9 @@ test.describe('kids NPC target picker', () => {
     ]);
     await gamePage.waitForSelector('[data-kids-action="attack"]', { timeout: 5_000 });
 
-    const cmd = await clickAndCapture(gamePage, '[data-kids-action="attack"]');
+    await gamePage.click('[data-kids-action="attack"]');
 
-    expect(cmd).toBe('attack stoneling-chieftain');
+    await waitForCommandEcho(gamePage, 'attack stoneling-chieftain');
     await expect(gamePage.locator('#target-picker')).not.toHaveClass(/open/);
   });
 
