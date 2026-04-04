@@ -259,6 +259,7 @@ func runGame(worldName string) {
 					}
 					world.SeedCrystalShards(database, s.World)  //nolint:errcheck
 					world.SeedStartingItems(database, s.World)  //nolint:errcheck
+					bus.Publish("mud.world.switch", map[string]any{"world": w.Name})
 					if banner := w.UIBanner(); banner != "" {
 						fmt.Println(banner)
 					}
