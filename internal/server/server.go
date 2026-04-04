@@ -13,15 +13,17 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/achievements"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
 // SessionRegistry tracks active WebSocket sessions by playerID.
 type SessionRegistry struct {
-	mu       sync.RWMutex
-	sessions map[string]*ClientSession
-	busPub   func(topic string, payload any)
+	mu               sync.RWMutex
+	sessions         map[string]*ClientSession
+	busPub           func(topic string, payload any)
+	onPendingRequest func(requestID, playerID string)
 }
 
 func newSessionRegistry() *SessionRegistry {
@@ -144,6 +146,23 @@ func (r *SessionRegistry) BroadcastToWorld(worldName string, msg ServerMsg) {
 	}
 }
 
+// SendToPlayer sends msg to the session for playerID. No-op if not connected.
+func (r *SessionRegistry) SendToPlayer(playerID string, msg ServerMsg) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if s, ok := r.sessions[playerID]; ok {
+		ctx := context.Background()
+		_ = writeMsg(ctx, s.conn, msg)
+	}
+}
+
+// RegisterPendingRequest stores a request_id → playerID mapping via the callback.
+func (r *SessionRegistry) RegisterPendingRequest(requestID, playerID string) {
+	if r.onPendingRequest != nil {
+		r.onPendingRequest(requestID, playerID)
+	}
+}
+
 // closeAll sends a shutdown message to every session and removes them.
 func (r *SessionRegistry) closeAll(ctx context.Context) {
 	r.mu.Lock()
@@ -160,23 +179,32 @@ func (r *SessionRegistry) closeAll(ctx context.Context) {
 
 // GameServer is the embedded multiplayer HTTP/WebSocket server.
 type GameServer struct {
-	worlds      map[string]*world.World
-	lockedWorld string
-	registry    *SessionRegistry
-	passphrase  string
-	httpServer  *http.Server
-	lanURL      string
-	busClient   *busd.Client
+	worlds          map[string]*world.World
+	lockedWorld     string
+	registry        *SessionRegistry
+	passphrase      string
+	httpServer      *http.Server
+	lanURL          string
+	busClient       *busd.Client
+	pendingMu       sync.Mutex
+	pendingRequests map[string]string // requestID → playerID
 }
 
 // New creates a GameServer supporting multiple worlds.
 // If lockedWorld is non-empty, all connections are routed to that world regardless of query param.
 func New(worlds map[string]*world.World, lockedWorld string) *GameServer {
-	return &GameServer{
-		worlds:      worlds,
-		lockedWorld: lockedWorld,
-		registry:    newSessionRegistry(),
+	gs := &GameServer{
+		worlds:          worlds,
+		lockedWorld:     lockedWorld,
+		registry:        newSessionRegistry(),
+		pendingRequests: make(map[string]string),
 	}
+	gs.registry.onPendingRequest = func(rid, pid string) {
+		gs.pendingMu.Lock()
+		gs.pendingRequests[rid] = pid
+		gs.pendingMu.Unlock()
+	}
+	return gs
 }
 
 // Start launches the HTTP listener in a background goroutine.
@@ -187,34 +215,189 @@ func (gs *GameServer) Start(port int, passphrase string) (string, error) {
 	}
 	gs.passphrase = passphrase
 
-	// Connect to gl1tch event bus and subscribe to chat replies.
-	gs.busClient = busd.ConnectWithSubscriptions([]string{"mud.chat.reply"})
+	// Connect to gl1tch event bus and subscribe to chat replies and gamification events.
+	gs.busClient = busd.ConnectWithSubscriptions([]string{
+		"mud.chat.reply",
+		"game.achievement.unlocked",
+		"game.top.reply",
+		"game.achievements.reply",
+	})
 	gs.registry.busPub = gs.busClient.Publish
 	go gs.busClient.Listen(func(ev busd.Event) {
-		if ev.Topic != "mud.chat.reply" {
-			return
-		}
-		var p struct {
-			Text  string `json:"text"`
-			World string `json:"world"`
-		}
-		if err := json.Unmarshal(ev.Payload, &p); err != nil || p.Text == "" {
-			return
-		}
-		targetWorld := p.World
-		if targetWorld == "" {
-			// broadcast to all worlds if no world specified
-			gs.registry.Broadcast(ServerMsg{
+		switch ev.Topic {
+		case "mud.chat.reply":
+			var p struct {
+				Text  string `json:"text"`
+				World string `json:"world"`
+			}
+			if err := json.Unmarshal(ev.Payload, &p); err != nil || p.Text == "" {
+				return
+			}
+			targetWorld := p.World
+			if targetWorld == "" {
+				// broadcast to all worlds if no world specified
+				gs.registry.Broadcast(ServerMsg{
+					Type:    "chat.message",
+					Payload: ChatMessagePayload{From: "glitch", Text: p.Text},
+				})
+				return
+			}
+			gs.registry.BroadcastToWorld(targetWorld, ServerMsg{
 				Type:    "chat.message",
 				Payload: ChatMessagePayload{From: "glitch", Text: p.Text},
 			})
+
+		case "game.achievement.unlocked":
+			var p struct {
+				Player      string `json:"player"`
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				XP          int    `json:"xp"`
+			}
+			if err := json.Unmarshal(ev.Payload, &p); err != nil || p.Player == "" {
+				return
+			}
+			text := fmt.Sprintf("achievement unlocked: %s", p.Name)
+			if p.Description != "" {
+				text += fmt.Sprintf("\n%s", p.Description)
+			}
+			if p.XP > 0 {
+				text += fmt.Sprintf(" · +%dxp", p.XP)
+			}
+			gs.registry.SendToPlayer(p.Player, ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: "glitch", Text: text},
+			})
+
+		case "game.top.reply":
+			var p struct {
+				RequestID string `json:"request_id"`
+				Entries   []struct {
+					Rank         int    `json:"rank"`
+					Faction      string `json:"faction"`
+					FactionScore int    `json:"faction_score"`
+					Members      []struct {
+						Name    string `json:"name"`
+						Score   int    `json:"score"`
+						IsAgent bool   `json:"agent"`
+					} `json:"members"`
+				} `json:"entries"`
+			}
+			if err := json.Unmarshal(ev.Payload, &p); err != nil || p.RequestID == "" {
+				return
+			}
+			gs.pendingMu.Lock()
+			playerID := gs.pendingRequests[p.RequestID]
+			delete(gs.pendingRequests, p.RequestID)
+			gs.pendingMu.Unlock()
+			if playerID == "" {
+				return
+			}
+			text := "── game top ──────────────────\n"
+			text += fmt.Sprintf("  %-2s %-16s %6s  %s\n", "#", "FACTION", "SCORE", "MEMBERS")
+			for _, e := range p.Entries {
+				agents := 0
+				for _, m := range e.Members {
+					if m.IsAgent {
+						agents++
+					}
+				}
+				memberStr := fmt.Sprintf("%d", len(e.Members))
+				if agents > 0 {
+					memberStr += fmt.Sprintf(" (%d agent)", agents)
+				}
+				text += fmt.Sprintf("  %-2d %-16s %6d  %s\n", e.Rank, e.Faction, e.FactionScore, memberStr)
+				for _, m := range e.Members {
+					name := m.Name
+					if m.IsAgent {
+						name += " †"
+					}
+					text += fmt.Sprintf("    · %-16s %6d\n", name, m.Score)
+				}
+			}
+			text += "  † = agent"
+			gs.registry.SendToPlayer(playerID, ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: "glitch", Text: text},
+			})
+
+		case "game.achievements.reply":
+			var p struct {
+				RequestID  string `json:"request_id"`
+				Player     string `json:"player"`
+				Unlocked   []struct {
+					ID          string `json:"id"`
+					Name        string `json:"name"`
+					Description string `json:"description"`
+				} `json:"unlocked"`
+				InProgress []struct {
+					ID       string `json:"id"`
+					Name     string `json:"name"`
+					Progress int    `json:"progress"`
+					Total    int    `json:"total"`
+				} `json:"in_progress"`
+			}
+			if err := json.Unmarshal(ev.Payload, &p); err != nil || p.RequestID == "" {
+				return
+			}
+			gs.pendingMu.Lock()
+			playerID := gs.pendingRequests[p.RequestID]
+			delete(gs.pendingRequests, p.RequestID)
+			gs.pendingMu.Unlock()
+			if playerID == "" {
+				return
+			}
+			text := "── your achievements ─────────\n"
+			for _, u := range p.Unlocked {
+				text += fmt.Sprintf("  ✓ %-16s — %s\n", u.Name, u.Description)
+			}
+			for _, ip := range p.InProgress {
+				text += fmt.Sprintf("    %-16s — (%d/%d)\n", ip.Name, ip.Progress, ip.Total)
+			}
+			if len(p.Unlocked) == 0 && len(p.InProgress) == 0 {
+				text += "  no achievements yet"
+			}
+			gs.registry.SendToPlayer(playerID, ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: "glitch", Text: text},
+			})
+		}
+	})
+
+	// Register achievement catalog with gamification daemon (best-effort).
+	go func() {
+		cf, err := achievements.Load("achievements.yaml")
+		if err != nil {
+			// No catalog file — skip registration silently.
 			return
 		}
-		gs.registry.BroadcastToWorld(targetWorld, ServerMsg{
-			Type:    "chat.message",
-			Payload: ChatMessagePayload{From: "glitch", Text: p.Text},
+		type triggerPayload struct {
+			Action string `json:"action"`
+			Count  int    `json:"count"`
+		}
+		type achPayload struct {
+			ID          string         `json:"id"`
+			Name        string         `json:"name"`
+			Description string         `json:"description"`
+			Trigger     triggerPayload `json:"trigger"`
+			XP          int            `json:"xp"`
+		}
+		achs := make([]achPayload, len(cf.Achievements))
+		for i, a := range cf.Achievements {
+			achs[i] = achPayload{
+				ID:          a.ID,
+				Name:        a.Name,
+				Description: a.Description,
+				XP:          a.XP,
+				Trigger:     triggerPayload{Action: a.Trigger.Action, Count: a.Trigger.Count},
+			}
+		}
+		gs.busClient.Publish("game.catalog.register", map[string]any{
+			"source":       cf.Source,
+			"version":      cf.Version,
+			"achievements": achs,
 		})
-	})
+	}()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/worlds", gs.handleWorlds)
