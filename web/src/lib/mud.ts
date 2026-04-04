@@ -8,6 +8,7 @@ interface ServerMsg {
 interface StateUpdate {
   hp: number;
   maxHp: number;
+  room_id: string;
   roomName: string;
   exits: string[];
   inventory: InvItem[];
@@ -18,6 +19,7 @@ interface StateUpdate {
   room_resources?: RoomResourceInfo[];
   quests?: QuestInfo[];
   skills?: SkillInfo[];
+  online_players?: OnlinePlayerInfo[];
 }
 
 interface InvItem {
@@ -74,6 +76,19 @@ interface SkillInfo {
   name: string;
   level: number;
   xp: number;
+}
+
+interface MapRoomInfo {
+  id: string;
+  name: string;
+  biome: string;
+  x: number;
+  y: number;
+}
+
+interface OnlinePlayerInfo {
+  name: string;
+  room_id: string;
 }
 
 // ── ANSI → HTML ──────────────────────────────────────────────────────────────
@@ -598,6 +613,7 @@ let _myPlayerID = '';
 let _worldName = 'cyberspace';
 let _kidsMode = false;
 let _lastState: StateUpdate | null = null;
+let _mapRooms: MapRoomInfo[] = [];
 
 /** Set the world name before calling initMUD. Called by game.astro. */
 export function setWorld(name: string): void {
@@ -1251,6 +1267,9 @@ export function initMUD() {
         });
         if (meta.ui_profile === 'kids') {
           applyKidsMode();
+        }
+        if ((meta as any).map_rooms) {
+          _mapRooms = (meta as any).map_rooms as MapRoomInfo[];
         }
         rebuildActionButtons(meta.name);
         break;
