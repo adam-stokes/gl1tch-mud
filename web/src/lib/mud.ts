@@ -321,6 +321,22 @@ function applyKidsMode(): void {
     promptEl?.classList.remove('kids-visible');
     if (toggle) toggle.style.opacity = '0.45';
   }
+
+  // Map zoom buttons
+  const zoomBtns = document.querySelectorAll<HTMLButtonElement>('.kids-map-zoom-btn');
+  const mapGrid  = document.getElementById('kids-map-grid');
+  zoomBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const zoom = btn.dataset.zoom ?? 'world';
+      if (mapGrid) mapGrid.dataset.mapZoom = zoom;
+      zoomBtns.forEach(b => b.classList.toggle('active', b.dataset.zoom === zoom));
+      // Scroll current room back into view after zoom change
+      const currentCell = mapGrid?.querySelector<HTMLElement>('.current-room');
+      if (currentCell) currentCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  });
+  // Set initial active state on world zoom button
+  zoomBtns.forEach(b => b.classList.toggle('active', b.dataset.zoom === 'world'));
 }
 
 function formatResourceName(id: string): string {
@@ -465,6 +481,85 @@ function rebuildKidsActionButtons(state: StateUpdate): void {
     btn.appendChild(icon);
     btn.appendChild(document.createTextNode(' ' + a.label));
     grid.appendChild(btn);
+  }
+}
+
+const BIOME_ABBREV: Record<string, string> = {
+  meadow: 'Mdo', forest: 'Fst', desert: 'Drt',
+  snow: 'Snw', caves: 'Cav', ember: 'Emb',
+};
+
+function rebuildKidsMap(currentRoomID: string, onlinePlayers: OnlinePlayerInfo[]): void {
+  const grid = document.getElementById('kids-map-grid');
+  if (!grid || _mapRooms.length === 0) return;
+
+  // Compute bounding box
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const r of _mapRooms) {
+    if (r.x < minX) minX = r.x;
+    if (r.x > maxX) maxX = r.x;
+    if (r.y < minY) minY = r.y;
+    if (r.y > maxY) maxY = r.y;
+  }
+
+  const cols = maxX - minX + 1;
+  const rows = maxY - minY + 1;
+
+  // Remove old cells (preserves data-map-zoom attribute)
+  grid.replaceChildren();
+
+  // Apply grid template (JS-driven so it responds to --cell CSS var)
+  grid.style.gridTemplateColumns = `repeat(${cols}, var(--cell, 18px))`;
+  grid.style.gridTemplateRows    = `repeat(${rows}, var(--cell, 18px))`;
+
+  // Build player badge map: room_id → initials[]
+  const badgeMap: Record<string, string[]> = {};
+  for (const p of onlinePlayers) {
+    if (!badgeMap[p.room_id]) badgeMap[p.room_id] = [];
+    badgeMap[p.room_id].push(p.name.slice(0, 2).toUpperCase());
+  }
+
+  for (const r of _mapRooms) {
+    const col = r.x - minX + 1;
+    const row = r.y - minY + 1;
+
+    const cell = document.createElement('div');
+    cell.className = 'kids-map-cell';
+    cell.dataset.roomId = r.id;
+    cell.dataset.biome  = r.biome ?? '';
+    cell.style.gridColumn = String(col);
+    cell.style.gridRow    = String(row);
+    cell.title = r.name;
+
+    // Abbreviation label (textContent, overridden by appendChild below)
+    const abbr = BIOME_ABBREV[r.biome] ?? r.name.slice(0, 3);
+    cell.textContent = abbr;
+
+    // Current room star
+    if (r.id === currentRoomID) {
+      cell.classList.add('current-room');
+      const star = document.createElement('span');
+      star.className = 'kids-map-star';
+      star.textContent = '★';
+      cell.appendChild(star);
+    }
+
+    // Other player badges
+    const badges = badgeMap[r.id] ?? [];
+    if (badges.length > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'kids-map-badge';
+      badge.textContent = badges.join(' ');
+      cell.appendChild(badge);
+    }
+
+    grid.appendChild(cell);
+  }
+
+  // Scroll current room into view
+  const currentCell = grid.querySelector<HTMLElement>('.current-room');
+  if (currentCell) {
+    currentCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 }
 
@@ -1436,6 +1531,7 @@ export function initMUD() {
     if (_kidsMode) {
       rebuildRoomContext(state);
       rebuildKidsActionButtons(state);
+      rebuildKidsMap(state.room_id ?? '', state.online_players ?? []);
     } else {
       updateCompass(state.exits ?? []);
     }
