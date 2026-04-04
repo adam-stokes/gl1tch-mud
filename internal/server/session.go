@@ -11,9 +11,11 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
+	"github.com/adam-stokes/gl1tch-mud/internal/factions"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/quests"
 	"github.com/adam-stokes/gl1tch-mud/internal/skills"
@@ -60,6 +62,7 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		})
 		return
 	}
+	s.state.PlayerID = s.playerID
 
 	// If the player's saved world differs or their room no longer exists in this
 	// world, reset them to the start room.
@@ -253,6 +256,32 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	})
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
 
+	if result.Event != nil {
+		s.registry.PublishEvent(result.Event.Topic, result.Event.Payload)
+		// Also forward to gamification if this event maps to a game action.
+		if action, ok := busd.MapMudEvent(result.Event.Topic, result.Event.Payload); ok {
+			faction := "unaffiliated"
+			if pf, err := factions.Get(s.database); err == nil && pf != nil {
+				faction = pf.FactionID
+			}
+			s.registry.PublishEvent("game.action", map[string]any{
+				"source":  "gl1tch-mud",
+				"player":  s.playerID,
+				"faction": faction,
+				"agent":   false,
+				"action":  action,
+				"value":   1,
+				"meta": map[string]any{
+					"world": s.worldName,
+				},
+			})
+		}
+	}
+
+	if result.PendingRequestID != "" {
+		s.registry.RegisterPendingRequest(result.PendingRequestID, result.PendingPlayer)
+	}
+
 	if result.SwitchWorld != "" {
 		if err := s.switchWorld(ctx, result.SwitchWorld); err != nil {
 			_ = writeMsg(ctx, s.conn, ServerMsg{
@@ -304,6 +333,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	s.world = newWorld
 	s.worldName = targetName
 	s.state = newState
+	s.state.PlayerID = s.playerID
 
 	// Tell the client to update title, theme, UI profile, and room grid.
 	_ = writeMsg(ctx, s.conn, ServerMsg{
