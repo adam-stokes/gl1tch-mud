@@ -351,7 +351,7 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "attack what?"}
 	}
-	target := strings.Join(args, " ")
+	target := strings.ReplaceAll(strings.Join(args, " "), "-", " ")
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "nothing to attack."}
