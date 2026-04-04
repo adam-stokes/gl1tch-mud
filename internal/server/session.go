@@ -305,7 +305,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	s.worldName = targetName
 	s.state = newState
 
-	// Tell the client to update title, theme, and UI profile.
+	// Tell the client to update title, theme, UI profile, and room grid.
 	_ = writeMsg(ctx, s.conn, ServerMsg{
 		Type: "world_meta",
 		Payload: WorldMetaPayload{
@@ -313,6 +313,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 			Tagline:   newWorld.UI.Tagline,
 			Theme:     newWorld.UI.Theme,
 			UIProfile: newWorld.UI.Profile,
+			MapRooms:  buildMapRooms(newWorld),
 		},
 	})
 

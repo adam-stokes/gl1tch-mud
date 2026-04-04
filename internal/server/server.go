@@ -337,6 +337,27 @@ func (gs *GameServer) handleWorlds(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// buildMapRooms converts a world's rooms into MapRoomInfo slices for the
+// world_meta payload. Rooms with no BFS-assigned coordinates (both GridX and
+// GridY are zero and the room is not the start room) are excluded to avoid
+// sending misleading positions for rooms unreachable from the start.
+func buildMapRooms(w *world.World) []MapRoomInfo {
+	result := make([]MapRoomInfo, 0, len(w.Rooms))
+	for _, r := range w.Rooms {
+		if r.GridX == 0 && r.GridY == 0 && r.ID != w.StartRoom {
+			continue
+		}
+		result = append(result, MapRoomInfo{
+			ID:    r.ID,
+			Name:  r.Name,
+			Biome: r.Biome,
+			X:     r.GridX,
+			Y:     r.GridY,
+		})
+	}
+	return result
+}
+
 // handleWS upgrades an HTTP connection to WebSocket, performs the auth
 // handshake, then hands off to the session handler.
 func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -427,16 +448,7 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		Payload: AuthOKPayload{PlayerID: auth.PlayerID, Level: 1, Title: "Script Kiddie", XP: 0},
 	})
 
-	mapRooms := make([]MapRoomInfo, 0, len(selectedWorld.Rooms))
-	for _, r := range selectedWorld.Rooms {
-		mapRooms = append(mapRooms, MapRoomInfo{
-			ID:    r.ID,
-			Name:  r.Name,
-			Biome: r.Biome,
-			X:     r.GridX,
-			Y:     r.GridY,
-		})
-	}
+	mapRooms := buildMapRooms(selectedWorld)
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type: "world_meta",
 		Payload: WorldMetaPayload{
