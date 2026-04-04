@@ -1,0 +1,66 @@
+source: gl1tch-mud
+version: "1.0.0"
+achievements:
+  - id: first_blood
+    name: "First Blood"
+    description: "Win your first combat"
+    trigger:
+      action: combat.won
+      count: 1
+    xp: 50
+
+  - id: soldier
+    name: "Soldier"
+    description: "Win 10 combats"
+    trigger:
+      action: combat.won
+      count: 10
+    xp: 150
+
+  - id: ghost
+    name: "Ghost"
+    description: "Successfully hack 10 systems"
+    trigger:
+      action: hack.success
+      count: 10
+    xp: 200
+
+  - id: merchant
+    name: "Merchant"
+    description: "Complete 5 trades"
+    trigger:
+      action: trade.completed
+      count: 5
+    xp: 100
+
+  - id: maker
+    name: "Maker"
+    description: "Craft 5 items"
+    trigger:
+      action: craft.completed
+      count: 5
+    xp: 100
+
+  - id: locksmith
+    name: "Locksmith"
+    description: "Pick 3 locks"
+    trigger:
+      action: lock.picked
+      count: 3
+    xp: 75
+
+  - id: cartographer
+    name: "Cartographer"
+    description: "Discover 50 new rooms"
+    trigger:
+      action: room.explored
+      count: 50
+    xp: 300
+
+  - id: survivor
+    name: "Survivor"
+    description: "Die and come back 3 times"
+    trigger:
+      action: player.died
+      count: 3
+    xp: 25
