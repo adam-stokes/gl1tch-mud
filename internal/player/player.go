@@ -7,11 +7,12 @@ import (
 
 // State holds the player's current state.
 type State struct {
-	Name   string
-	RoomID string
-	HP     int
-	MaxHP  int
-	World  string
+	PlayerID string // authenticated player ID (set by session, not DB)
+	Name     string
+	RoomID   string
+	HP       int
+	MaxHP    int
+	World    string
 }
 
 // Load reads the player state from the database, seeding defaults on first run.
