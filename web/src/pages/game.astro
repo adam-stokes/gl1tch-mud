@@ -1276,6 +1276,99 @@
       [data-ui="kids"] #send-btn.kids-visible          { display: block; }
       [data-ui="kids"] .prompt.kids-visible            { display: block; }
 
+      /* ── Kids Map ──────────────────────────────────────────────── */
+      #kids-map-panel { display: none; }
+      [data-ui="kids"] #kids-map-panel { display: block; }
+
+      .kids-map-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .kids-map-zoom-btns { display: flex; gap: 0.2rem; }
+
+      .kids-map-zoom-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--comment);
+        font-size: 0.8rem;
+        cursor: pointer;
+        padding: 0 0.2rem;
+        border-radius: 2px;
+        line-height: 1.4;
+      }
+
+      .kids-map-zoom-btn.active {
+        border-color: var(--cyan);
+        color: var(--cyan);
+      }
+
+      #kids-map-viewport {
+        overflow: auto;
+        max-height: 180px;
+      }
+
+      #kids-map-grid {
+        display: grid;
+        gap: 2px;
+      }
+
+      #kids-map-grid[data-map-zoom="world"] { --cell: 18px; }
+      #kids-map-grid[data-map-zoom="area"]  { --cell: 28px; }
+      #kids-map-grid[data-map-zoom="room"]  { --cell: 48px; }
+
+      .kids-map-cell {
+        width: var(--cell);
+        height: var(--cell);
+        font-size: calc(var(--cell) * 0.28);
+        border-radius: 2px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        cursor: default;
+        color: rgba(0,0,0,0.7);
+        font-weight: bold;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .kids-map-cell.current-room {
+        outline: 2px solid var(--yellow);
+        z-index: 1;
+      }
+
+      /* Biome colors */
+      .kids-map-cell[data-biome="meadow"]  { background: #5a8c5a; }
+      .kids-map-cell[data-biome="forest"]  { background: #2d5a2d; color: #c8f0c8; }
+      .kids-map-cell[data-biome="desert"]  { background: #c8a86a; }
+      .kids-map-cell[data-biome="snow"]    { background: #d0e8f0; }
+      .kids-map-cell[data-biome="caves"]   { background: #5a5a6a; color: #c0c0d0; }
+      .kids-map-cell[data-biome="ember"]   { background: #8c3a2a; color: #f0c0a0; }
+      .kids-map-cell[data-biome=""]        { background: var(--bg-mid); color: var(--comment); }
+
+      .kids-map-star {
+        position: absolute;
+        top: 0; right: 0;
+        font-size: calc(var(--cell) * 0.45);
+        line-height: 1;
+      }
+
+      .kids-map-badge {
+        position: absolute;
+        bottom: 0; left: 0;
+        background: var(--purple);
+        color: white;
+        font-size: calc(var(--cell) * 0.3);
+        border-radius: 2px;
+        padding: 0 1px;
+        line-height: 1.3;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
       /* Quest kids modal */
       #quest-kids-list {
         display: flex;
@@ -1428,6 +1521,21 @@
           <div id="room-ground-list"></div>
           <div class="panel-title kids-section-sep">exits</div>
           <div id="kids-exits"></div>
+        </div>
+
+        <!-- Map (kids mode only) -->
+        <div class="panel" id="kids-map-panel">
+          <div class="panel-title kids-map-header">
+            map
+            <span class="kids-map-zoom-btns">
+              <button class="kids-map-zoom-btn" data-zoom="world" title="World view">⊞</button>
+              <button class="kids-map-zoom-btn" data-zoom="area"  title="Area view">⊡</button>
+              <button class="kids-map-zoom-btn" data-zoom="room"  title="Room view">⊠</button>
+            </span>
+          </div>
+          <div id="kids-map-viewport">
+            <div id="kids-map-grid" data-map-zoom="world"></div>
+          </div>
         </div>
 
         <!-- Network -->
