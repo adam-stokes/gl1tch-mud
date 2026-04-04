@@ -34,9 +34,11 @@ type Event struct {
 
 // Result is returned by every command handler.
 type Result struct {
-	Output      string
-	Event       *Event
-	SwitchWorld string // non-empty triggers a world switch in main.go
+	Output           string
+	Event            *Event
+	SwitchWorld      string // non-empty triggers a world switch in main.go
+	PendingRequestID string // non-empty: register this request_id → player in server
+	PendingPlayer    string
 }
 
 // HandlerFunc is a MUD command handler.
@@ -85,14 +87,16 @@ var Registry = map[string]HandlerFunc{
 	"mod":       Mod,
 	"blueprint": Blueprint,
 	// New systems
-	"quests":  Quests,
-	"quest":   Quests,
-	"events":  Events,
-	"faction": Faction,
-	"recruit": Recruit,
-	"hideout": Hideout,
-	"upgrade": Upgrade,
-	"credits": Credits,
+	"quests":       Quests,
+	"quest":        Quests,
+	"events":       Events,
+	"faction":      Faction,
+	"recruit":      Recruit,
+	"hideout":      Hideout,
+	"upgrade":      Upgrade,
+	"credits":      Credits,
+	"top":          handleTop,
+	"achievements": handleAchievements,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
