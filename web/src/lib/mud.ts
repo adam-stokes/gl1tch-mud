@@ -515,6 +515,9 @@ function rebuildKidsMap(currentRoomID: string, onlinePlayers: OnlinePlayerInfo[]
   // Build player badge map: room_id → initials[]
   const badgeMap: Record<string, string[]> = {};
   for (const p of onlinePlayers) {
+    if (!_mapRooms.some(r => r.id === p.room_id)) {
+      console.warn(`kids-map: online player "${p.name}" is in unknown room "${p.room_id}"`);
+    }
     if (!badgeMap[p.room_id]) badgeMap[p.room_id] = [];
     badgeMap[p.room_id].push(p.name.slice(0, 2).toUpperCase());
   }
@@ -531,9 +534,12 @@ function rebuildKidsMap(currentRoomID: string, onlinePlayers: OnlinePlayerInfo[]
     cell.style.gridRow    = String(row);
     cell.title = r.name;
 
-    // Abbreviation label (textContent, overridden by appendChild below)
+    // Abbreviation label — hidden for the current room (star takes over)
     const abbr = BIOME_ABBREV[r.biome] ?? r.name.slice(0, 3);
-    cell.textContent = abbr;
+    const abbrSpan = document.createElement('span');
+    abbrSpan.className = 'kids-map-abbr';
+    abbrSpan.textContent = abbr;
+    cell.appendChild(abbrSpan);
 
     // Current room star
     if (r.id === currentRoomID) {
