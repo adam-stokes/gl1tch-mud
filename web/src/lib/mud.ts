@@ -1268,8 +1268,8 @@ export function initMUD() {
         if (meta.ui_profile === 'kids') {
           applyKidsMode();
         }
-        if ((meta as any).map_rooms) {
-          _mapRooms = (meta as any).map_rooms as MapRoomInfo[];
+        if (meta.map_rooms) {
+          _mapRooms = meta.map_rooms as MapRoomInfo[];
         }
         rebuildActionButtons(meta.name);
         break;

@@ -13,6 +13,7 @@ export interface WorldMeta {
   tagline: string;
   theme: WorldTheme;
   ui_profile?: string;
+  map_rooms?: Array<{ id: string; name: string; biome: string; x: number; y: number }>;
 }
 
 /**
