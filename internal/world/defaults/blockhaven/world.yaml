@@ -454,6 +454,7 @@ rooms:
       east: forest-0
       south: desert-0
       west: snow-0
+      up: ruins-workshop-meadow
     npcs:
       - id: elder-mason
         name: "Elder Mason"
@@ -568,6 +569,7 @@ rooms:
     exits:
       west: meadow-0
       east: forest-1
+      north: ruins-workshop-forest
     npcs:
       - id: warden-sylara
         name: "Warden Sylara"
@@ -659,6 +661,7 @@ rooms:
     exits:
       north: meadow-0
       east: desert-1
+      south: ruins-workshop-desert
     npcs:
       - id: dunekeeper-scout
         name: "Dunekeeper Scout"
@@ -738,6 +741,7 @@ rooms:
     exits:
       east: meadow-0
       west: snow-1
+      south: ruins-workshop-snow
     locks:
       - id: cinder-passage-lock
         exit: north
@@ -822,6 +826,7 @@ rooms:
     exits:
       up: meadow-0
       down: caves-1
+      south: ruins-workshop-caves
     npcs:
       - id: deepborn-scout
         name: "Deepborn Scout"
@@ -928,3 +933,69 @@ rooms:
         name: "Dragon Scale Fragment"
         desc: "A copper-gold scale Cinder shed. Surprisingly warm to the touch."
         readable: false
+
+  - id: ruins-workshop-meadow
+    name: Ruins Workshop
+    biome: meadow
+    desc: >
+      Crumbling stone walls frame a surprisingly intact workshop. Ancient tools hang
+      from rusted pegs. A Scrap Forge glows faintly in the corner beside a battered
+      iron Anvil.
+    workbench_types: [scrap-forge, anvil]
+    exits:
+      down: meadow-0
+    npcs: []
+    items: []
+    resources: []
+
+  - id: ruins-workshop-forest
+    name: Ruins Workshop
+    biome: forest
+    desc: >
+      Vines have grown through the cracked windows but left the forge and anvil
+      untouched — as if the forest respects what is made here.
+    workbench_types: [scrap-forge, anvil]
+    exits:
+      south: forest-0
+    npcs: []
+    items: []
+    resources: []
+
+  - id: ruins-workshop-desert
+    name: Ruins Workshop
+    biome: desert
+    desc: >
+      Sand coats every surface but the forge is still hot — heated by a buried
+      crystal vein. The anvil is scarred but solid.
+    workbench_types: [scrap-forge, anvil]
+    exits:
+      north: desert-0
+    npcs: []
+    items: []
+    resources: []
+
+  - id: ruins-workshop-snow
+    name: Ruins Workshop
+    biome: snow
+    desc: >
+      Frost clings to the walls but the forge melts it away in a small circle
+      of warmth. The anvil rings clearly in the cold air.
+    workbench_types: [scrap-forge, anvil]
+    exits:
+      north: snow-0
+    npcs: []
+    items: []
+    resources: []
+
+  - id: ruins-workshop-caves
+    name: Ruins Workshop
+    biome: caves
+    desc: >
+      Deep in the cave network, this workshop was hidden from the surface world.
+      The forge burns with a blue-tinged flame. The anvil is carved from deepstone.
+    workbench_types: [scrap-forge, anvil]
+    exits:
+      north: caves-0
+    npcs: []
+    items: []
+    resources: []
