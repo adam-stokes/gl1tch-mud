@@ -167,3 +167,15 @@ func TestHasAllShardsTrigger(t *testing.T) {
 		t.Errorf("should match when AllShardsCollected=true, got %q", got)
 	}
 }
+
+func TestQuestActiveTrigger(t *testing.T) {
+	line := world.DialogueLine{Trigger: "quest_active:q-foo", Text: "On it!"}
+	ctxNo := PlayerContext{ActiveQuestIDs: map[string]bool{}}
+	ctxYes := PlayerContext{ActiveQuestIDs: map[string]bool{"q-foo": true}}
+	if EvalDialogue([]world.DialogueLine{line}, ctxNo) == "On it!" {
+		t.Error("should not match when quest not active")
+	}
+	if got := EvalDialogue([]world.DialogueLine{line}, ctxYes); got != "On it!" {
+		t.Errorf("expected 'On it!' when quest active, got %q", got)
+	}
+}
