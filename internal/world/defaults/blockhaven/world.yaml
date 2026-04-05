@@ -554,6 +554,50 @@ crafting_recipes:
       desc: "A basic sword. 5 attack."
     skill_req: 0
 
+  - id: wooden-axe
+    name: "Wooden Axe"
+    ingredients:
+      - {id: wood-log, count: 3}
+      - {id: stick, count: 2}
+    output:
+      id: wooden-axe
+      name: "Wooden Axe"
+      desc: "A basic axe. Can chop down trees for wood logs."
+    skill_req: 0
+
+  - id: stone-sword
+    name: "Stone Sword"
+    ingredients:
+      - {id: stone, count: 2}
+      - {id: stick, count: 1}
+    output:
+      id: stone-sword
+      name: "Stone Sword"
+      desc: "A stone sword. 8 attack."
+    skill_req: 0
+
+  - id: stone-axe
+    name: "Stone Axe"
+    ingredients:
+      - {id: stone, count: 3}
+      - {id: stick, count: 2}
+    output:
+      id: stone-axe
+      name: "Stone Axe"
+      desc: "A stone axe. Chops wood faster than a wooden axe."
+    skill_req: 0
+
+  - id: crude-iron-chest
+    name: "Crude Iron Chestplate"
+    ingredients:
+      - {id: iron-ingot, count: 4}
+    output:
+      id: crude-iron-chest
+      name: "Crude Iron Chestplate"
+      desc: "A rough iron chestplate. 3 defense. Better than nothing."
+    skill_req: 0
+    workbench: workbench
+
   - id: stone-pickaxe
     name: "Stone Pickaxe"
     ingredients:
@@ -1150,6 +1194,76 @@ crafting_recipes:
         count: 1
 
 quests:
+  - id: q-first-forge-1
+    title: "First Forge: Gather"
+    description: |
+      Apprentice Brix wants to see what you can do.
+      Gather 5 sticks from the meadow — type 'gather'. There's also an old tree stump
+      in the town square you can harvest logs from with 'harvest tree-stump'.
+    giver_npc_id: apprentice-brix
+    obj_type: gather
+    obj_target: stick
+    obj_count: 5
+    reward_credits: 0
+    reward_xp_skill: crafting
+    reward_xp_amount: 10
+    reward_item_id: wood-log
+    reward_item_name: "Wood Log"
+    reward_item_desc: "A rough log from the meadow stump."
+    next_quest_id: q-first-forge-2
+
+  - id: q-first-forge-2
+    title: "First Forge: Stone Sword"
+    description: |
+      Brix wants you to craft a stone sword. Mine some stone in the workshop
+      with your pickaxe ('mine stone-deposits'), then type 'craft stone-sword' (needs 2 stone + 1 stick).
+    giver_npc_id: apprentice-brix
+    obj_type: craft
+    obj_target: stone-sword
+    obj_count: 1
+    reward_credits: 0
+    reward_xp_skill: crafting
+    reward_xp_amount: 15
+    reward_item_id: iron-ore
+    reward_item_name: "Iron Ore"
+    reward_item_desc: "Raw iron ore. Smelt it into an ingot."
+    next_quest_id: q-first-forge-3
+
+  - id: q-first-forge-3
+    title: "First Forge: Smelt"
+    description: |
+      Use the furnace in the Builder's Workshop to smelt 1 iron ingot.
+      You need 1 iron-ore and 1 coal (or wood-log) as fuel. Type 'smelt iron-ore'.
+    giver_npc_id: apprentice-brix
+    obj_type: smelt
+    obj_target: iron-ingot
+    obj_count: 1
+    reward_credits: 0
+    reward_xp_skill: crafting
+    reward_xp_amount: 20
+    reward_item_id: crude-iron-chest
+    reward_item_name: "Crude Iron Chestplate"
+    reward_item_desc: "A rough iron chestplate. 3 defense."
+    next_quest_id: q-first-forge-4
+
+  - id: q-first-forge-4
+    title: "First Forge: Assembly"
+    description: |
+      Head up to the ruins workshop above Meadow Town Square (type 'up' from the square).
+      Pick up the pipe frame and copper tube on the table in meadow-1, then use the
+      scrap-forge: 'craft pipe-pistol frame=pipe-frame-crude barrel=copper-tube-crude'.
+    giver_npc_id: apprentice-brix
+    obj_type: assemble
+    obj_target: pipe-pistol
+    obj_count: 1
+    reward_credits: 100
+    reward_xp_skill: crafting
+    reward_xp_amount: 30
+    reward_item_id: ""
+    reward_item_name: ""
+    reward_item_desc: ""
+    next_quest_id: ""
+
   - id: q-meadow-shard
     title: "The Wilting Meadow"
     description: |
@@ -1312,7 +1426,18 @@ rooms:
 
           NEW COMMANDS: mine, harvest, gather, smelt, plant, build, enchant, weather, deathpile
           If you die: your items drop where you fell. Use 'deathpile' to find them.
-    resources: []
+    resources:
+      - id: tree-stump
+        type: harvest
+        yields:
+          - item_id: wood-log
+            name: "Wood Log"
+            desc: "A rough log pulled from an old stump."
+            probability: 1.0
+            count_min: 1
+            count_max: 2
+        tool_required: ""
+        respawn_actions: 20
 
   - id: meadow-1
     name: "The Builder's Workshop"
@@ -1337,14 +1462,31 @@ rooms:
             wants: [{id: iron-ingot, count: 2}]
             offers: [{id: iron-sword, name: "Iron Sword", desc: "A sharp iron sword. 12 attack.", count: 1}]
         dialogue:
-          - trigger: always
-            text: "The workbench is yours to use! Type 'craft' to see what you can make. You'll need a 'build workbench' first if you're out in the field."
+          - trigger: quest_active:q-first-forge-4
+            text: "Head up to the ruins workshop — type 'up' from the town square. Grab those parts on the table and try the scrap-forge."
+          - trigger: quest_active:q-first-forge-3
+            text: "Toss that iron-ore in the furnace with some coal. Type 'smelt iron-ore'. The coal-stack is right there."
+          - trigger: quest_active:q-first-forge-2
+            text: "Now craft a stone sword. You need 2 stone and 1 stick. Type 'craft stone-sword'. Mine the deposits here if you need more stone."
+          - trigger: quest_active:q-first-forge-1
+            text: "The meadow's full of sticks if you look. Type 'gather' and collect five. Oh — there's an old stump in the square too, try 'harvest tree-stump'."
           - trigger: skill_gte:mining:2
             text: "Nice pickaxe work. You're getting good at this. Ask me about iron gear when you have the ingots."
+          - trigger: always
+            text: "The workbench is yours to use! Type 'craft' to see what you can make. I've got a few tasks for you — good way to learn the ropes."
+            quest_id: q-first-forge-1
     items:
       - id: coal-stack
         name: "Coal Stack"
         desc: "A small pile of coal for the furnace."
+        signal_tier: noise
+      - id: pipe-frame-crude
+        name: "Pipe Frame"
+        desc: "A rough iron pipe frame left out for you by Brix. Component for gun assembly."
+        signal_tier: noise
+      - id: copper-tube-crude
+        name: "Copper Tube"
+        desc: "A salvaged copper pipe left out by Brix. Component for gun assembly."
         signal_tier: noise
     resources:
       - id: stone-deposits
@@ -1364,6 +1506,17 @@ rooms:
             count_max: 2
         tool_required: pickaxe
         respawn_actions: 15
+      - id: iron-vein
+        type: mine
+        yields:
+          - item_id: iron-ore
+            name: "Iron Ore"
+            desc: "Raw iron ore. Smelt it into an ingot."
+            probability: 0.7
+            count_min: 1
+            count_max: 2
+        tool_required: pickaxe
+        respawn_actions: 30
     systems:
       - id: furnace
         security_level: 0
