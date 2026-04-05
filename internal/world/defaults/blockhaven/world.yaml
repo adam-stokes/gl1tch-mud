@@ -703,7 +703,7 @@ crafting_recipes:
     name: Pipe Pistol
     type: assembly
     workbench: scrap-forge
-    skill_req: 1
+    skill_req: 0
     output:
       id: pipe-pistol
       name: Pipe Pistol
@@ -1250,8 +1250,8 @@ quests:
     title: "First Forge: Assembly"
     description: |
       Head up to the ruins workshop above Meadow Town Square (type 'up' from the square).
-      Pick up the pipe frame and copper tube on the table in meadow-1, then use the
-      scrap-forge: 'craft pipe-pistol frame=pipe-frame-crude barrel=copper-tube-crude'.
+      The scrap-forge there has parts ready to use — assemble a pipe-pistol:
+      'craft pipe-pistol frame=pipe-frame-crude barrel=copper-tube-crude'.
     giver_npc_id: apprentice-brix
     obj_type: assemble
     obj_target: pipe-pistol
@@ -1463,7 +1463,7 @@ rooms:
             offers: [{id: iron-sword, name: "Iron Sword", desc: "A sharp iron sword. 12 attack.", count: 1}]
         dialogue:
           - trigger: quest_active:q-first-forge-4
-            text: "Head up to the ruins workshop — type 'up' from the town square. Grab those parts on the table and try the scrap-forge."
+            text: "Head up to the ruins workshop — type 'up' from the town square. The scrap-forge there has parts ready. Give it a try."
           - trigger: quest_active:q-first-forge-3
             text: "Toss that iron-ore in the furnace with some coal. Type 'smelt iron-ore'. The coal-stack is right there."
           - trigger: quest_active:q-first-forge-2
@@ -1479,14 +1479,6 @@ rooms:
       - id: coal-stack
         name: "Coal Stack"
         desc: "A small pile of coal for the furnace."
-        signal_tier: noise
-      - id: pipe-frame-crude
-        name: "Pipe Frame"
-        desc: "A rough iron pipe frame left out for you by Brix. Component for gun assembly."
-        signal_tier: noise
-      - id: copper-tube-crude
-        name: "Copper Tube"
-        desc: "A salvaged copper pipe left out by Brix. Component for gun assembly."
         signal_tier: noise
     resources:
       - id: stone-deposits
