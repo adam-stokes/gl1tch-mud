@@ -8,6 +8,7 @@ import (
 
 	"github.com/adam-stokes/gl1tch-mud/internal/enchanting"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
+	"github.com/adam-stokes/gl1tch-mud/internal/quests"
 	"github.com/adam-stokes/gl1tch-mud/internal/weather"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -163,7 +164,12 @@ func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		player.AddItem(db, y.ItemID, y.Name, y.Desc) //nolint:errcheck
 		fmt.Fprintf(&b, "  + %dx %s\n", y.CountMin, y.Name)
 	}
-	return Result{Output: strings.TrimRight(b.String(), "\n")}
+	out := strings.TrimRight(b.String(), "\n")
+	readyQuests, _ := quests.CheckMine(db, res.ID)
+	for _, q := range readyQuests {
+		out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
+	}
+	return Result{Output: out}
 }
 
 // Harvest lists or harvests a resource in the current room.
@@ -316,6 +322,10 @@ func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	for _, y := range yields {
 		player.AddItem(db, y.ItemID, y.Name, y.Desc) //nolint:errcheck
 		fmt.Fprintf(&b, "  + %dx %s\n", y.CountMin, y.Name)
+		readyQuests, _ := quests.CheckGather(db, y.ItemID)
+		for _, q := range readyQuests {
+			fmt.Fprintf(&b, "\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
+		}
 	}
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
@@ -393,10 +403,12 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	player.AddItem(db, result[0], result[1], fmt.Sprintf("Smelted from %s.", itemID)) //nolint:errcheck
 	bumpActions(db)
 
-	return Result{Output: fmt.Sprintf(
-		"you feed the furnace with %s and smelt the %s.\nyou receive: 1x %s.",
-		fuel, itemID, result[1],
-	)}
+	out := fmt.Sprintf("you feed the furnace with %s and smelt the %s.\nyou receive: 1x %s.", fuel, itemID, result[1])
+	readyQuests, _ := quests.CheckSmelt(db, result[0])
+	for _, q := range readyQuests {
+		out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
+	}
+	return Result{Output: out}
 }
 
 // Plant plants a seed in the current room.
