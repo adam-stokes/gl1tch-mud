@@ -60,9 +60,12 @@ func Roll(w *world.World, npcID string, disguiseFaction string) []world.Item {
 					desc = fmt.Sprintf("dropped by %s", npcID)
 				}
 				dropped = append(dropped, world.Item{
-					ID:   entry.ItemID,
-					Name: name,
-					Desc: desc,
+					ID:       entry.ItemID,
+					Name:     name,
+					Desc:     desc,
+					Tags:     entry.Tags,
+					StatMods: entry.StatMods,
+					Quality:  entry.Quality,
 				})
 			}
 		}

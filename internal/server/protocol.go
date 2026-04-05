@@ -76,14 +76,28 @@ type Recipe struct {
 	OutputName  string             `json:"outputName"`
 	SkillReq    int                `json:"skillReq,omitempty"`
 	Workbench   string             `json:"workbench,omitempty"`
+	Type        string             `json:"type,omitempty"`
+	Slots       []RecipeSlot       `json:"slots,omitempty"`
+}
+
+// RecipeSlot is a named slot in an assembly recipe, sent to the client.
+type RecipeSlot struct {
+	ID         string         `json:"id"`
+	Name       string         `json:"name"`
+	Required   bool           `json:"required"`
+	AcceptsTag string         `json:"accepts_tag"`
+	StatMods   map[string]int `json:"stat_mods,omitempty"`
 }
 
 // InvItem is a carried item as sent to the client.
 type InvItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Desc string `json:"desc"`
-	Tier string `json:"tier"`
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	Desc     string         `json:"desc"`
+	Tier     string         `json:"tier"`
+	Tags     []string       `json:"tags,omitempty"`
+	StatMods map[string]int `json:"stat_mods,omitempty"`
+	Quality  string         `json:"quality,omitempty"`
 }
 
 // RoomNPCInfo describes an NPC present in the player's current room.

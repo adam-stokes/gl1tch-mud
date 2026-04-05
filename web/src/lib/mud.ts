@@ -1225,6 +1225,7 @@ function renderKidsRecipeList() {
       const selectedRecipe = (_lastState?.recipes ?? []).find(r => r.id === recipeId);
       if (selectedRecipe?.type === 'assembly') {
         closeKidsCraftModal();
+        document.getElementById('kids-recipe-drawer')?.classList.remove('open');
         openKidsAssemblyModal(selectedRecipe);
       } else {
         _kidscraft.slots = [...ingSlots];

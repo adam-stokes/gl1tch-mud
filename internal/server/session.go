@@ -428,14 +428,23 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	hudInv := make([]InvItem, 0, len(invItems))
 	for _, it := range invItems {
 		tier := ""
+		var tags []string
+		var statMods map[string]int
+		var quality string
 		if wi := s.world.FindItem(it.ID); wi != nil {
 			tier = wi.SignalTier
+			tags = wi.Tags
+			statMods = wi.StatMods
+			quality = wi.Quality
 		}
 		hudInv = append(hudInv, InvItem{
-			ID:   it.ID,
-			Name: it.Name,
-			Desc: it.Desc,
-			Tier: tier,
+			ID:       it.ID,
+			Name:     it.Name,
+			Desc:     it.Desc,
+			Tier:     tier,
+			Tags:     tags,
+			StatMods: statMods,
+			Quality:  quality,
 		})
 	}
 
@@ -464,6 +473,16 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		for i, ing := range r.Ingredients {
 			ings[i] = RecipeIngredient{ID: ing.ID, Count: ing.Count}
 		}
+		wireSlots := make([]RecipeSlot, 0, len(r.Slots))
+		for _, s := range r.Slots {
+			wireSlots = append(wireSlots, RecipeSlot{
+				ID:         s.ID,
+				Name:       s.Name,
+				Required:   s.Required,
+				AcceptsTag: s.AcceptsTag,
+				StatMods:   s.StatMods,
+			})
+		}
 		recipes = append(recipes, Recipe{
 			ID:          r.ID,
 			Name:        r.Name,
@@ -472,6 +491,8 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 			OutputName:  r.Output.Name,
 			SkillReq:    r.SkillReq,
 			Workbench:   r.Workbench,
+			Type:        string(r.Type),
+			Slots:       wireSlots,
 		})
 	}
 
