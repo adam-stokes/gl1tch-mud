@@ -1455,6 +1455,212 @@
 
       /* Section separator used inside #room-context */
       .kids-section-sep { margin-top: 0.5rem; }
+
+      [data-ui="kids"] #kids-assembly-modal { display: none; }
+      [data-ui="kids"] #kids-assembly-modal.open { display: flex; }
+
+      [data-ui="kids"] .kids-assembly-box {
+        width: min(92vw, 520px);
+        max-height: 90vh;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.2rem;
+      }
+
+      [data-ui="kids"] .kids-assembly-body {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 1rem;
+        align-items: start;
+      }
+
+      [data-ui="kids"] .kids-assembly-silhouette {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      [data-ui="kids"] .kids-assembly-svg {
+        width: 80px;
+        height: 80px;
+        opacity: 0.7;
+        color: #c9a84c;
+      }
+
+      [data-ui="kids"] .kids-assembly-slots {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      [data-ui="kids"] .kids-assembly-slot-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 6px;
+        border: 2px solid #444;
+        background: #1a1a2e;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+
+      [data-ui="kids"] .kids-assembly-slot-row.required-empty {
+        border-color: #e05252;
+        animation: slot-pulse 1s infinite alternate;
+      }
+
+      [data-ui="kids"] .kids-assembly-slot-row.filled {
+        border-color: #c9a84c;
+      }
+
+      @keyframes slot-pulse {
+        from { border-color: #e05252; }
+        to   { border-color: #ff8888; }
+      }
+
+      [data-ui="kids"] .kids-assembly-slot-label {
+        font-size: 0.75rem;
+        color: #888;
+        min-width: 60px;
+        flex-shrink: 0;
+      }
+
+      [data-ui="kids"] .kids-assembly-slot-value {
+        flex: 1;
+        font-size: 0.8rem;
+        color: #ccc;
+      }
+
+      [data-ui="kids"] .kids-assembly-slot-chips {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+      }
+
+      [data-ui="kids"] .kids-stat-chip {
+        font-size: 0.65rem;
+        padding: 1px 5px;
+        background: #2a2a4a;
+        border-radius: 4px;
+        color: #c9a84c;
+      }
+
+      [data-ui="kids"] .kids-assembly-footer {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      [data-ui="kids"] .kids-assembly-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+
+      [data-ui="kids"] .kids-stat-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+      }
+
+      [data-ui="kids"] .kids-stat-bar-label {
+        min-width: 50px;
+        color: #888;
+        text-transform: capitalize;
+      }
+
+      [data-ui="kids"] .kids-stat-bar-track {
+        flex: 1;
+        height: 8px;
+        background: #2a2a4a;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      [data-ui="kids"] .kids-stat-bar-fill {
+        height: 100%;
+        background: #c9a84c;
+        border-radius: 4px;
+        transition: width 0.2s ease;
+      }
+
+      [data-ui="kids"] .kids-assembly-forge-btn {
+        padding: 0.7rem 1.5rem;
+        background: #c9a84c;
+        color: #1a1a2e;
+        font-weight: bold;
+        font-size: 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        letter-spacing: 0.08em;
+        align-self: stretch;
+        transition: opacity 0.15s;
+      }
+
+      [data-ui="kids"] .kids-assembly-forge-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      [data-ui="kids"] .kids-assembly-forge-btn:not(:disabled):hover {
+        opacity: 0.85;
+      }
+
+      [data-ui="kids"] .kids-assembly-inv-picker {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #13131f;
+        border-top: 2px solid #333;
+        padding: 0.75rem;
+        z-index: 1100;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+
+      [data-ui="kids"] .kids-assembly-inv-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        color: #c9a84c;
+      }
+
+      [data-ui="kids"] .kids-assembly-inv-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      [data-ui="kids"] .kids-assembly-inv-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        background: #1a1a2e;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+
+      [data-ui="kids"] .kids-assembly-inv-item:hover { background: #24243e; }
+
+      [data-ui="kids"] .kids-quality-badge {
+        font-size: 0.65rem;
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: #fff;
+      }
+      [data-ui="kids"] .kids-quality-badge.crude    { background: #555; }
+      [data-ui="kids"] .kids-quality-badge.standard { background: #3a6a3a; }
+      [data-ui="kids"] .kids-quality-badge.refined  { background: #6a3a6a; }
     </style>
   </head>
   <body>
@@ -1671,6 +1877,37 @@
 
         <div class="kids-workbench-msg" id="kids-workbench-msg" hidden></div>
       </div>
+    </div>
+
+    <!-- Kids Assembly Modal -->
+    <div id="kids-assembly-modal" class="kids-modal-overlay" aria-modal="true" role="dialog">
+      <div class="kids-modal-box kids-assembly-box">
+        <button id="kids-assembly-close" class="kids-modal-close" aria-label="Close">&#x2715;</button>
+        <h2 id="kids-assembly-title" class="kids-modal-title">Forge</h2>
+
+        <div class="kids-assembly-body">
+          <div class="kids-assembly-silhouette" id="kids-assembly-silhouette">
+            <svg viewBox="0 0 80 80" class="kids-assembly-svg" id="kids-assembly-svg"></svg>
+          </div>
+          <div class="kids-assembly-slots" id="kids-assembly-slots"></div>
+        </div>
+
+        <div class="kids-assembly-footer">
+          <div class="kids-assembly-stats" id="kids-assembly-stats"></div>
+          <button id="kids-assembly-forge-btn" class="kids-assembly-forge-btn" disabled>
+            FORGE IT
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assembly inventory picker -->
+    <div id="kids-assembly-inv-picker" class="kids-assembly-inv-picker" hidden>
+      <div class="kids-assembly-inv-header">
+        <span id="kids-assembly-inv-label">Pick component</span>
+        <button id="kids-assembly-inv-close" class="kids-modal-close">&#x2715;</button>
+      </div>
+      <div id="kids-assembly-inv-list" class="kids-assembly-inv-list"></div>
     </div>
 
     <!-- Kids skills modal -->

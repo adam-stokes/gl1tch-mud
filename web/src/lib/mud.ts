@@ -27,11 +27,22 @@ interface InvItem {
   name: string;
   desc: string;
   tier: string;
+  tags?: string[];
+  stat_mods?: Record<string, number>;
+  quality?: string;
 }
 
 interface RecipeIngredient {
   id: string;
   count: number;
+}
+
+interface CraftingSlot {
+  id: string;
+  name: string;
+  required: boolean;
+  accepts_tag: string;
+  stat_mods?: Record<string, number>;
 }
 
 interface Recipe {
@@ -42,6 +53,8 @@ interface Recipe {
   outputName: string;
   skillReq?: number;
   workbench?: string;   // crafting station type required, e.g. "workbench", "furnace", "build"
+  type?: 'ingredient' | 'assembly';
+  slots?: CraftingSlot[];
 }
 
 interface RoomNPCInfo {
