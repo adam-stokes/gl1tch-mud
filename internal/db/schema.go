@@ -104,7 +104,8 @@ CREATE TABLE IF NOT EXISTS quests (
     reward_item_name TEXT,
     reward_item_desc TEXT,
     giver_npc_id     TEXT,
-    accepted_at      INTEGER NOT NULL
+    accepted_at      INTEGER NOT NULL,
+    next_quest_id    TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS world_events (
