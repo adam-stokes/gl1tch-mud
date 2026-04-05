@@ -248,6 +248,7 @@ type WorldQuest struct {
 	RewardItemID   string `yaml:"reward_item_id,omitempty"`
 	RewardItemName string `yaml:"reward_item_name,omitempty"`
 	RewardItemDesc string `yaml:"reward_item_desc,omitempty"`
+	NextQuestID    string `yaml:"next_quest_id,omitempty"`
 }
 
 // World holds all rooms for a loaded world.
