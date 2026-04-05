@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed defaults/cyberspace/world.yaml defaults/blockhaven/world.yaml
+//go:embed defaults/cyberspace/world.yaml defaults/blockhaven/world.yaml defaults/mudout/world.yaml
 var defaultWorldFS embed.FS
 
 // System is a hackable terminal or node inside a room.

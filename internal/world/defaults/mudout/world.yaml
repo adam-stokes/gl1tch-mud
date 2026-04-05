@@ -1,0 +1,706 @@
+name: mudout
+ui:
+  banner: |
+    ███╗   ███╗██╗   ██╗██████╗  ██████╗ ██╗   ██╗████████╗
+    ████╗ ████║██║   ██║██╔══██╗██╔═══██╗██║   ██║╚══██╔══╝
+    ██╔████╔██║██║   ██║██║  ██║██║   ██║██║   ██║   ██║
+    ██║╚██╔╝██║██║   ██║██║  ██║██║   ██║██║   ██║   ██║
+    ██║ ╚═╝ ██║╚██████╔╝██████╔╝╚██████╔╝╚██████╔╝   ██║
+  prompt: ">"
+  profile: wasteland
+  tagline: "the dust never settles."
+  theme:
+    bg:      "#0d0d00"
+    fg:      "#d4a017"
+    accent:  "#ff6600"
+    dim:     "#5a4a00"
+    border:  "#3a3000"
+    error:   "#cc2200"
+    success: "#7ab648"
+start_room: dusthaven-0
+narrator_model: claude-haiku-4-5-20251001
+
+weather_table:
+  - biome: settlement
+    possible: [clear, overcast, ashfall]
+  - biome: wasteland
+    possible: [clear, ashstorm, radiation-fog, scorching]
+  - biome: ruins
+    possible: [clear, dead-calm, radiation-fog, tremor]
+
+factions:
+  - id: settlers
+    name: "The Settlers"
+    desc: |
+      Survivors who pooled resources to build Dusthaven. They want walls,
+      clean water, and to be left alone.
+    agenda: "Fortify the settlement, push raiders out of the Barrens."
+    territory: [dusthaven-0, dusthaven-1, dusthaven-2, dusthaven-3]
+    allies: [ironclad]
+    enemies: [ash-raiders]
+
+  - id: ash-raiders
+    name: "The Ash Raiders"
+    desc: |
+      Nomadic scavengers who claim the Barrens by force.
+      They don't build — they take.
+    agenda: "Raid Dusthaven, control the Crater, burn the Vault."
+    territory: [barrens-0, barrens-1]
+    allies: []
+    enemies: [settlers, ironclad]
+
+  - id: ironclad
+    name: "The Ironclad"
+    desc: |
+      Ex-military remnant, obsessed with reclaiming pre-war tech from the Vault.
+      Rigid, disciplined, ruthless.
+    agenda: "Open the Vault, recover the pre-war weapons cache, establish martial law."
+    territory: [barrens-2, ruins-0, ruins-1, ruins-2]
+    allies: [settlers]
+    enemies: [ash-raiders, ghoul-collective]
+
+  - id: ghoul-collective
+    name: "The Ghoul Collective"
+    desc: |
+      Irradiated survivors living in the deep ruins. Misunderstood, ancient,
+      and sitting on secrets. ruins-1 and ruins-2 are contested with the Ironclad.
+    agenda: "Keep outsiders out of the Vault — it's not a weapons cache, it's their home."
+    territory: [ruins-1, ruins-2]
+    allies: []
+    enemies: [ironclad]
+
+loot_tables:
+  - id: settlement-loot
+    entries:
+      - item_id: canned-food
+        name: "Canned Food"
+        desc: "Pre-war canned goods. Still edible."
+        probability: 0.7
+        count_min: 1
+        count_max: 2
+      - item_id: scrap-metal
+        name: "Scrap Metal"
+        desc: "Twisted metal salvaged from ruins."
+        probability: 0.8
+        count_min: 1
+        count_max: 3
+      - item_id: cloth-strip
+        name: "Cloth Strip"
+        desc: "Torn fabric. Useful for armor lining."
+        probability: 0.6
+        count_min: 1
+        count_max: 2
+      - item_id: pipe-part
+        name: "Pipe Part"
+        desc: "A bent iron pipe. Gun frames are made of these."
+        tags: [component, gun-frame]
+        quality: crude
+        stat_mods: {}
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+
+  - id: wasteland-loot
+    entries:
+      - item_id: copper-wire
+        name: "Copper Wire"
+        desc: "Salvaged wire. Used in receivers."
+        tags: [component, gun-receiver]
+        quality: crude
+        stat_mods: {damage: 1}
+        probability: 0.5
+        count_min: 1
+        count_max: 2
+      - item_id: ammo-casing
+        name: "Ammo Casing"
+        desc: "Spent brass. Reload it at a workbench."
+        probability: 0.6
+        count_min: 2
+        count_max: 5
+      - item_id: radaway
+        name: "RadAway"
+        desc: "Flushes radiation from your system."
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: steel-barrel-crude
+        name: "Steel Barrel"
+        desc: "A rough steel pipe, bored for a barrel."
+        tags: [component, gun-barrel]
+        quality: crude
+        stat_mods: {damage: 2, range: 1}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: steel-barrel-standard
+        name: "Steel Barrel"
+        desc: "A machined steel barrel. Good range."
+        tags: [component, gun-barrel]
+        quality: standard
+        stat_mods: {damage: 3, range: 3}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: wrapped-grip
+        name: "Wrapped Grip"
+        desc: "Leather-wrapped wood. Steady aim."
+        tags: [component, gun-grip]
+        quality: crude
+        stat_mods: {accuracy: 1}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: iron-stock-crude
+        name: "Iron Stock"
+        desc: "A crude iron shoulder stock."
+        tags: [component, gun-stock]
+        quality: crude
+        stat_mods: {range: 1}
+        probability: 0.3
+        count_min: 1
+        count_max: 1
+
+  - id: ruins-loot
+    entries:
+      - item_id: pre-war-circuitry
+        name: "Pre-War Circuitry"
+        desc: "Complex circuits from before the bombs. Rare."
+        tags: [component, gun-receiver]
+        quality: refined
+        stat_mods: {damage: 4, accuracy: 2}
+        probability: 0.15
+        count_min: 1
+        count_max: 1
+      - item_id: armor-plate-crude
+        name: "Armor Plate"
+        desc: "A bent metal plate. Beats nothing."
+        tags: [component, armor-plating]
+        quality: crude
+        stat_mods: {damage_resist: 2}
+        probability: 0.4
+        count_min: 1
+        count_max: 2
+      - item_id: armor-plate-standard
+        name: "Armor Plate"
+        desc: "A pressed steel plate. Solid protection."
+        tags: [component, armor-plating]
+        quality: standard
+        stat_mods: {damage_resist: 4}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: polymer-sheet
+        name: "Polymer Sheet"
+        desc: "A stiff pre-war polymer. Light armor base."
+        tags: [component, armor-base]
+        quality: standard
+        stat_mods: {damage_resist: 3}
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+      - item_id: vault-key-fragment
+        name: "Vault Key Fragment"
+        desc: "A shard of the Vault's magnetic keycard. Collect all three."
+        probability: 0.05
+        count_min: 1
+        count_max: 1
+
+  - id: raider-loot
+    entries:
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "Currency of the wastes."
+        probability: 0.9
+        count_min: 5
+        count_max: 20
+      - item_id: canned-food
+        name: "Canned Food"
+        desc: "Pre-war canned goods."
+        probability: 0.5
+        count_min: 1
+        count_max: 2
+      - item_id: pipe-part
+        name: "Pipe Part"
+        desc: "A bent iron pipe."
+        tags: [component, gun-frame]
+        quality: crude
+        stat_mods: {}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+
+crafting_recipes:
+  - id: pipe-pistol
+    name: "Pipe Pistol"
+    type: assembly
+    workbench: weapons
+    skill_req: 0
+    slots:
+      - id: frame
+        name: "Frame"
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: "Barrel"
+        required: true
+        accepts_tag: gun-barrel
+      - id: receiver
+        name: "Receiver"
+        required: true
+        accepts_tag: gun-receiver
+      - id: stock
+        name: "Stock"
+        required: false
+        accepts_tag: gun-stock
+      - id: grip
+        name: "Grip"
+        required: false
+        accepts_tag: gun-grip
+      - id: scope
+        name: "Scope"
+        required: false
+        accepts_tag: gun-scope
+      - id: muzzle
+        name: "Muzzle"
+        required: false
+        accepts_tag: gun-muzzle
+    output:
+      id: pipe-pistol
+      name: "Pipe Pistol"
+      desc: "A crude but functional handgun cobbled from scrap."
+      signal_tier: noise
+      tags: [weapon, gun]
+
+  - id: leather-armor
+    name: "Leather Armor"
+    type: assembly
+    workbench: armor
+    skill_req: 0
+    slots:
+      - id: base
+        name: "Base"
+        required: true
+        accepts_tag: armor-base
+      - id: lining
+        name: "Lining"
+        required: false
+        accepts_tag: armor-lining
+      - id: plating
+        name: "Plating"
+        required: false
+        accepts_tag: armor-plating
+      - id: pockets
+        name: "Pockets"
+        required: false
+        accepts_tag: armor-pockets
+    output:
+      id: leather-armor
+      name: "Leather Armor"
+      desc: "Stitched leather panels. Light and flexible."
+      signal_tier: noise
+      tags: [armor, wearable]
+
+rooms:
+  - id: dusthaven-0
+    name: "The Gate"
+    desc: |
+      A rusted iron gate marks the entrance to Dusthaven. Makeshift watchtowers
+      flank both sides, staffed by wary settlers clutching pipe rifles. Beyond
+      the gate the settlement sprawls — corrugated iron, tarp roofs, cook-fire
+      smoke. Faction recruiters work the crowd near the gate posts.
+    biome: settlement
+    exits:
+      north: dusthaven-1
+      east: dusthaven-3
+      south: barrens-0
+    npcs:
+      - id: settler-recruiter
+        name: "Marta (Settlers)"
+        hp: 50
+        attack: 8
+        desc: "A tough-looking woman with a Settlers armband. She sizes you up."
+        dialogue:
+          - trigger: always
+            text: "You look like you can handle yourself. The Settlers could use another hand."
+          - trigger: always
+            text: "Raiders hit the south fence last night. We need fighters."
+    items:
+      - id: wasteland-notice
+        name: "Crumpled Notice"
+        desc: "DUSTHAVEN RULES: No shooting inside the gate. No stealing. Violators get the wall."
+        readable: true
+        content: "DUSTHAVEN RULES\n1. No shooting inside the gate.\n2. No stealing from settlers.\n3. Violators get thrown over the wall.\n\n— The Settlers Council"
+
+  - id: dusthaven-1
+    name: "The Scrapyard"
+    desc: |
+      Mountains of twisted metal and salvage fill the scrapyard. Workers sort
+      through debris with practiced hands, pulling anything usable. A jury-rigged
+      weapons bench stands near the south wall, scarred from years of use.
+    biome: settlement
+    workbench_types: [weapons]
+    exits:
+      south: dusthaven-0
+      east: dusthaven-2
+    npcs:
+      - id: scrapper-npc
+        name: "Dex the Scrapper"
+        hp: 40
+        attack: 5
+        desc: "A wiry man with grease-stained hands and a squint."
+        dialogue:
+          - trigger: always
+            text: "Everything useful is buried somewhere in here. You just gotta dig."
+        trades:
+          - id: dex-trade-1
+            wants: [{id: scrap-metal, count: 3}]
+            offers: [{id: pipe-part, name: "Pipe Part", desc: "A bent iron pipe.", count: 2}]
+    items: []
+    resources:
+      - id: scrapyard-pile
+        type: mine
+        tool_required: pickaxe
+        respawn_actions: 6
+        yields:
+          - item_id: scrap-metal
+            name: "Scrap Metal"
+            desc: "Twisted salvage."
+            probability: 0.9
+            count_min: 1
+            count_max: 3
+          - item_id: pipe-part
+            name: "Pipe Part"
+            desc: "A bent iron pipe."
+            tags: [component, gun-frame]
+            quality: crude
+            stat_mods: {}
+            probability: 0.4
+            count_min: 1
+            count_max: 1
+
+  - id: dusthaven-2
+    name: "The Workshop"
+    desc: |
+      The workshop smells of solder and leather. Salvaged tools line every wall.
+      Two benches dominate the center — one for armor work, one for structures.
+      A hand-painted sign reads: BRING YOUR OWN MATERIALS.
+    biome: settlement
+    workbench_types: [armor, structures]
+    exits:
+      west: dusthaven-1
+      north: dusthaven-4
+    npcs:
+      - id: gunsmith-npc
+        name: "Roz the Gunsmith"
+        hp: 40
+        attack: 5
+        desc: "A methodical woman who talks more to her tools than to people."
+        dialogue:
+          - trigger: always
+            text: "Bring me the parts and I'll show you how it's done. Or figure it out yourself."
+          - trigger: always
+            text: "Armor's just as important as a gun. Remember that."
+    items: []
+
+  - id: dusthaven-3
+    name: "The Saloon"
+    desc: |
+      The Rusty Nail does a roaring trade in flat beer and hot gossip. Faded
+      pre-war posters compete with hand-drawn maps on the walls. A bartender
+      who's seen everything keeps the peace with a sawn-off under the bar.
+    biome: settlement
+    exits:
+      west: dusthaven-0
+    npcs:
+      - id: bartender-npc
+        name: "Hank the Bartender"
+        hp: 60
+        attack: 10
+        desc: "Broad-shouldered, quiet. He hears everything."
+        dialogue:
+          - trigger: always
+            text: "Ironclad's been pushing into the Crater. Raiders are pissed. Good for business."
+          - trigger: always
+            text: "Ghouls been seen near the Vault Door again. Ironclad won't like that."
+        trades:
+          - id: hank-trade-1
+            wants: [{id: caps, count: 10}]
+            offers: [{id: canned-food, name: "Canned Food", desc: "Pre-war canned goods.", count: 2}]
+    items: []
+
+  - id: dusthaven-4
+    name: "The Base Plots"
+    desc: |
+      A cleared zone at the north edge of the settlement. Survey stakes mark
+      out plots in the cracked earth. A faded sign reads: REGISTERED SETTLERS
+      MAY CLAIM ONE PLOT. The area is quiet — potential waiting to be built on.
+    biome: settlement
+    exits:
+      south: dusthaven-2
+    npcs: []
+    items:
+      - id: plot-claim-form
+        name: "Plot Claim Form"
+        desc: "A bureaucratic relic. Base building coming in a future update."
+        readable: true
+        content: "This plot is available for settlement. Speak to the Settlers Council to register your claim."
+
+  - id: barrens-0
+    name: "The Ashfield"
+    desc: |
+      Flat, grey, dead. The ashfield stretches to the horizon in every direction,
+      broken only by the skeletal remains of pre-war infrastructure. Dust devils
+      spiral between rusted chassis. Raider scouts watch from a distance, deciding
+      if you're worth the trouble.
+    biome: wasteland
+    exits:
+      north: dusthaven-0
+      east: barrens-1
+      west: barrens-2
+    npcs:
+      - id: raider-scout
+        name: "Raider Scout"
+        hp: 35
+        attack: 9
+        desc: "Lean and dangerous. The Ash Raiders brand is burned into their forearm."
+        loot_table_id: raider-loot
+    items: []
+    resources:
+      - id: ashfield-scavenge
+        type: harvest
+        respawn_actions: 4
+        yields:
+          - item_id: scrap-metal
+            name: "Scrap Metal"
+            desc: "Salvage from the ash."
+            probability: 0.7
+            count_min: 1
+            count_max: 2
+          - item_id: ammo-casing
+            name: "Ammo Casing"
+            desc: "Spent brass."
+            probability: 0.5
+            count_min: 1
+            count_max: 3
+
+  - id: barrens-1
+    name: "Burnt Overpass"
+    desc: |
+      A collapsed highway overpass creates a natural chokepoint. The underpass
+      is dark and smells of char. Someone has arranged old vehicle husks as cover.
+      High-value scavengers come here — so do the people who prey on them.
+    biome: wasteland
+    exits:
+      west: barrens-0
+      east: ruins-0
+      south: barrens-3
+    npcs:
+      - id: raider-heavy
+        name: "Ash Raider"
+        hp: 55
+        attack: 12
+        desc: "Bigger than the scouts. Armored in scavenged plates."
+        loot_table_id: wasteland-loot
+    items: []
+    resources:
+      - id: overpass-salvage
+        type: harvest
+        respawn_actions: 5
+        yields:
+          - item_id: steel-barrel-crude
+            name: "Steel Barrel"
+            desc: "A rough steel pipe."
+            tags: [component, gun-barrel]
+            quality: crude
+            stat_mods: {damage: 2, range: 1}
+            probability: 0.4
+            count_min: 1
+            count_max: 1
+          - item_id: copper-wire
+            name: "Copper Wire"
+            desc: "Salvaged wire."
+            tags: [component, gun-receiver]
+            quality: crude
+            stat_mods: {damage: 1}
+            probability: 0.5
+            count_min: 1
+            count_max: 1
+
+  - id: barrens-2
+    name: "The Crater"
+    desc: |
+      A bomb crater the size of a city block, ringed by radiation warning signs
+      that nobody reads anymore. The walls of the crater are rich with exposed
+      ore. Ironclad sentinels control the rim — they tax anyone who mines here.
+    biome: wasteland
+    exits:
+      east: barrens-0
+    npcs:
+      - id: ironclad-sentry
+        name: "Ironclad Sentry"
+        hp: 65
+        attack: 14
+        desc: "Power armor patched with pre-war insignia. Eyes behind a visor."
+        loot_table_id: wasteland-loot
+        dialogue:
+          - trigger: always
+            text: "The Crater belongs to the Ironclad. You mine, you pay a ten percent tax. That's the deal."
+    items: []
+    resources:
+      - id: crater-ore
+        type: mine
+        tool_required: pickaxe
+        respawn_actions: 8
+        yields:
+          - item_id: scrap-iron
+            name: "Scrap Iron"
+            desc: "Raw iron ore from the crater walls."
+            probability: 0.8
+            count_min: 1
+            count_max: 3
+          - item_id: copper-wire
+            name: "Copper Wire"
+            desc: "Copper veins exposed by the blast."
+            tags: [component, gun-receiver]
+            quality: crude
+            stat_mods: {damage: 1}
+            probability: 0.5
+            count_min: 1
+            count_max: 2
+          - item_id: radiation-crystal
+            name: "Radiation Crystal"
+            desc: "A glowing mineral from the blast zone. Rare. Valuable."
+            probability: 0.08
+            count_min: 1
+            count_max: 1
+
+  - id: barrens-3
+    name: "Combat Zone Entrance"
+    desc: |
+      A weathered sign above a reinforced door reads: COMBAT ZONE — ENTER AT
+      OWN RISK. The sounds of distant gunfire echo from somewhere inside.
+      Spectators and gamblers cluster near the entrance, exchanging caps.
+      Arena matches coming in a future update.
+    biome: wasteland
+    exits:
+      north: barrens-1
+    npcs: []
+    items:
+      - id: combat-zone-flyer
+        name: "Combat Zone Flyer"
+        desc: "COMBAT ZONE: Team deathmatch, capture the flag. Caps paid to survivors. Opening soon."
+        readable: true
+        content: "COMBAT ZONE — COMING SOON\nTeam deathmatch. Capture the flag. Hide and seek.\nCaps paid to survivors. Raiders and mercs welcome."
+
+  - id: ruins-0
+    name: "Collapsed Mall"
+    desc: |
+      The skeleton of a pre-war shopping mall. Glass skylights long since fallen.
+      Boutique signs hang at odd angles, brands no one remembers. The floors above
+      have pancaked into each other, creating a labyrinth of debris chambers.
+      Heavy enemies hunt in the dark. The loot is worth the risk.
+    biome: ruins
+    exits:
+      west: barrens-1
+      north: ruins-1
+    npcs:
+      - id: feral-ghoul
+        name: "Feral Ghoul"
+        hp: 45
+        attack: 11
+        desc: "A radiation-warped former human. Barely aware. Very hostile."
+        loot_table_id: ruins-loot
+      - id: ironclad-patrol
+        name: "Ironclad Patrol"
+        hp: 70
+        attack: 15
+        desc: "Two soldiers moving in formation. Ironclad patches on their armor."
+        loot_table_id: ruins-loot
+    items: []
+    resources:
+      - id: mall-salvage
+        type: harvest
+        respawn_actions: 8
+        yields:
+          - item_id: polymer-sheet
+            name: "Polymer Sheet"
+            desc: "Pre-war polymer panel."
+            tags: [component, armor-base]
+            quality: standard
+            stat_mods: {damage_resist: 3}
+            probability: 0.3
+            count_min: 1
+            count_max: 1
+          - item_id: pre-war-circuitry
+            name: "Pre-War Circuitry"
+            desc: "Complex pre-war circuits."
+            tags: [component, gun-receiver]
+            quality: refined
+            stat_mods: {damage: 4, accuracy: 2}
+            probability: 0.15
+            count_min: 1
+            count_max: 1
+
+  - id: ruins-1
+    name: "The Vault Door"
+    desc: |
+      A massive vault door, pre-war manufacture, set into the bedrock beneath
+      the mall. The Ironclad have set up camp outside it. The Ghoul Collective
+      watches from the shadows of collapsed storefronts. Neither side has gotten
+      the door open yet. Three key fragments are required.
+    biome: ruins
+    exits:
+      south: ruins-0
+      north: ruins-2
+    locks:
+      - id: vault-lock
+        exit: north
+        difficulty: 0
+        keys: [vault-key-fragment]
+    npcs:
+      - id: ironclad-commander
+        name: "Ironclad Commander"
+        hp: 90
+        attack: 18
+        desc: "Combat-scarred and impatient. Three chevrons on their sleeve."
+        dialogue:
+          - trigger: always
+            text: "The Vault belongs to the Ironclad. Bring the key fragments or get out of my sight."
+      - id: ghoul-elder
+        name: "Elder Maren (Ghoul Collective)"
+        hp: 60
+        attack: 8
+        desc: "Ancient, grey-skinned, calm. She radiates a quiet authority."
+        dialogue:
+          - trigger: always
+            text: "The Vault is our home. Whatever the Ironclad thinks it holds — they are wrong."
+          - trigger: always
+            text: "If you want to help us, find the key fragments before they do."
+    items: []
+
+  - id: ruins-2
+    name: "Vault Interior"
+    desc: |
+      The Vault opens onto a long corridor lit by failing fluorescent tubes.
+      Pre-war murals line the walls — families, sunshine, promises never kept.
+      Deep in the Vault, the Ghoul Collective has built a home. Whatever
+      resolution comes here will echo across the wastes.
+    biome: ruins
+    exits:
+      south: ruins-1
+    npcs:
+      - id: vault-dweller
+        name: "Vault Dweller"
+        hp: 40
+        attack: 6
+        desc: "A young ghoul-kin, born here. They've never seen the surface."
+        dialogue:
+          - trigger: always
+            text: "Please. This is all we have. Don't let them take it."
+    items:
+      - id: pre-war-cache
+        name: "Pre-War Cache"
+        desc: "A locked container holding pre-war weapons and gear."
+        is_container: true
+        capacity: 5
+

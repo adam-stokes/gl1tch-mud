@@ -450,3 +450,37 @@ ui:
 		t.Errorf("Profile: got %q want %q", w.UI.Profile, "kids")
 	}
 }
+
+func TestMudoutWorldLoads(t *testing.T) {
+	w, err := Load("mudout")
+	if err != nil {
+		t.Fatalf("Load(mudout): %v", err)
+	}
+	if w.Name != "mudout" {
+		t.Errorf("name: got %q want %q", w.Name, "mudout")
+	}
+	if w.StartRoom != "dusthaven-0" {
+		t.Errorf("start_room: got %q want %q", w.StartRoom, "dusthaven-0")
+	}
+	if len(w.Rooms) != 12 {
+		t.Errorf("rooms: got %d want 12", len(w.Rooms))
+	}
+	if len(w.Factions) != 4 {
+		t.Errorf("factions: got %d want 4", len(w.Factions))
+	}
+	if w.UI.Profile != "wasteland" {
+		t.Errorf("ui.profile: got %q want %q", w.UI.Profile, "wasteland")
+	}
+	if w.UI.Theme.BG != "#0d0d00" {
+		t.Errorf("theme.bg: got %q want %q", w.UI.Theme.BG, "#0d0d00")
+	}
+	if r := w.Room("dusthaven-0"); r == nil {
+		t.Error("start room dusthaven-0 not found in index")
+	}
+	if len(w.CraftingRecipes) < 2 {
+		t.Errorf("crafting_recipes: got %d want >=2", len(w.CraftingRecipes))
+	}
+	if len(w.LootTables) < 3 {
+		t.Errorf("loot_tables: got %d want >=3", len(w.LootTables))
+	}
+}
