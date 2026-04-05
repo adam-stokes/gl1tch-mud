@@ -856,6 +856,11 @@ const _kidscraft: KidsCraftState = {
   painting: false,
 };
 
+const _kidsassembly = {
+  recipe: null as Recipe | null,
+  filled: {} as Record<string, { itemId: string; itemName: string; statMods: Record<string, number>; quality: string }>,
+};
+
 /** Count item IDs in the craft grid and match against known recipes. */
 function matchRecipe(): Recipe | null {
   const counts: Record<string, number> = {};
@@ -1216,9 +1221,16 @@ function renderKidsRecipeList() {
     card.appendChild(outputLabel);
 
     card.addEventListener('click', () => {
-      _kidscraft.slots = [...ingSlots];
-      closeKidsRecipeDrawer();
-      refreshKidsCraftGrid();
+      const recipeId = recipe.id;
+      const selectedRecipe = (_lastState?.recipes ?? []).find(r => r.id === recipeId);
+      if (selectedRecipe?.type === 'assembly') {
+        closeKidsCraftModal();
+        openKidsAssemblyModal(selectedRecipe);
+      } else {
+        _kidscraft.slots = [...ingSlots];
+        closeKidsRecipeDrawer();
+        refreshKidsCraftGrid();
+      }
     });
 
     list.appendChild(card);
@@ -1268,6 +1280,214 @@ function showKidsWorkbenchMsg(text: string) {
   const el = document.getElementById('kids-workbench-msg')!;
   el.textContent = text + ' (tap to dismiss)';
   el.hidden = false;
+}
+
+// ── Assembly modal ────────────────────────────────────────────────────────────
+
+const ASSEMBLY_SILHOUETTES: Record<string, string> = {
+  gun:     '<path d="M10 45 L30 35 L30 30 L60 30 L70 35 L70 40 L60 42 L30 42 L30 45 Z M30 42 L28 55 L35 55 L35 42" fill="currentColor"/>',
+  armor:   '<path d="M25 15 Q40 8 55 15 L60 35 Q40 45 20 35 Z M20 35 L15 60 L30 60 L35 45 Q40 50 45 45 L50 60 L65 60 L60 35" fill="currentColor"/>',
+  default: '<circle cx="40" cy="40" r="25" fill="none" stroke="currentColor" stroke-width="3"/>',
+};
+
+function silhouetteForRecipe(recipe: Recipe): string {
+  const n = recipe.name.toLowerCase();
+  if (/pistol|rifle|cannon|launcher|sniper|repeater|barrel/.test(n)) return ASSEMBLY_SILHOUETTES.gun;
+  if (/vest|coat|parka|suit|leathers|shell|wrap|exosuit/.test(n))     return ASSEMBLY_SILHOUETTES.armor;
+  return ASSEMBLY_SILHOUETTES.default;
+}
+
+// appendSilhouette sets SVG content from a known-safe static string constant.
+function appendSilhouette(svgEl: SVGSVGElement, pathStr: string): void {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(
+    `<svg xmlns="http://www.w3.org/2000/svg">${pathStr}</svg>`,
+    'image/svg+xml'
+  );
+  const node = doc.documentElement.firstChild;
+  if (node) svgEl.appendChild(svgEl.ownerDocument.importNode(node, true));
+}
+
+function openKidsAssemblyModal(recipe: Recipe): void {
+  _kidsassembly.recipe = recipe;
+  _kidsassembly.filled = {};
+
+  const titleEl = document.getElementById('kids-assembly-title')!;
+  const svgEl   = document.getElementById('kids-assembly-svg') as SVGSVGElement;
+  const slotsEl = document.getElementById('kids-assembly-slots')!;
+
+  titleEl.textContent = 'Forge: ' + recipe.name;
+
+  svgEl.replaceChildren();
+  appendSilhouette(svgEl, silhouetteForRecipe(recipe));
+
+  slotsEl.replaceChildren();
+  for (const slot of (recipe.slots ?? [])) {
+    const row = document.createElement('div');
+    row.className = 'kids-assembly-slot-row' + (slot.required ? ' required-empty' : '');
+    row.dataset.slotId = slot.id;
+
+    const label = document.createElement('span');
+    label.className = 'kids-assembly-slot-label';
+    label.textContent = slot.name + (slot.required ? ' *' : '');
+
+    const value = document.createElement('span');
+    value.className = 'kids-assembly-slot-value';
+    value.textContent = 'tap to fill';
+
+    const chips = document.createElement('span');
+    chips.className = 'kids-assembly-slot-chips';
+
+    row.append(label, value, chips);
+    row.addEventListener('click', () => openAssemblyInvPicker(slot.id, slot.accepts_tag));
+    slotsEl.appendChild(row);
+  }
+
+  refreshAssemblyStats();
+  refreshForgeButton();
+  document.getElementById('kids-assembly-modal')!.classList.add('open');
+}
+
+function closeKidsAssemblyModal(): void {
+  document.getElementById('kids-assembly-modal')!.classList.remove('open');
+  document.getElementById('kids-assembly-inv-picker')!.hidden = true;
+}
+
+function openAssemblyInvPicker(slotId: string, acceptsTag: string): void {
+  const picker  = document.getElementById('kids-assembly-inv-picker')!;
+  const list    = document.getElementById('kids-assembly-inv-list')!;
+  const labelEl = document.getElementById('kids-assembly-inv-label')!;
+
+  labelEl.textContent = 'Pick: ' + acceptsTag.replace(/-/g, ' ');
+  list.replaceChildren();
+
+  const matching = (_lastState?.inventory ?? []).filter(item =>
+    (item.tags ?? []).includes(acceptsTag)
+  );
+
+  if (matching.length === 0) {
+    const empty = document.createElement('div');
+    empty.textContent = 'No matching components in inventory.';
+    empty.style.cssText = 'color:#666;font-size:0.8rem';
+    list.appendChild(empty);
+  } else {
+    for (const item of matching) {
+      const el = document.createElement('div');
+      el.className = 'kids-assembly-inv-item';
+
+      if (item.quality) {
+        const badge = document.createElement('span');
+        badge.className = 'kids-quality-badge ' + item.quality;
+        badge.textContent = item.quality;
+        el.appendChild(badge);
+      }
+
+      const nameSpan = document.createElement('span');
+      nameSpan.style.flex = '1';
+      nameSpan.textContent = item.name;
+      el.appendChild(nameSpan);
+
+      for (const [stat, val] of Object.entries(item.stat_mods ?? {})) {
+        const chip = document.createElement('span');
+        chip.className = 'kids-stat-chip';
+        chip.textContent = '+' + val + ' ' + stat.toUpperCase();
+        el.appendChild(chip);
+      }
+
+      el.addEventListener('click', () => fillAssemblySlot(slotId, item));
+      list.appendChild(el);
+    }
+  }
+
+  picker.hidden = false;
+}
+
+function fillAssemblySlot(slotId: string, item: InvItem): void {
+  _kidsassembly.filled[slotId] = {
+    itemId:   item.id,
+    itemName: item.name,
+    statMods: item.stat_mods ?? {},
+    quality:  item.quality ?? '',
+  };
+
+  const row = document.querySelector<HTMLElement>(`.kids-assembly-slot-row[data-slot-id="${slotId}"]`);
+  if (row) {
+    row.classList.remove('required-empty');
+    row.classList.add('filled');
+    const valueEl = row.querySelector<HTMLElement>('.kids-assembly-slot-value');
+    if (valueEl) valueEl.textContent = item.name;
+    const chipsEl = row.querySelector<HTMLElement>('.kids-assembly-slot-chips');
+    if (chipsEl) {
+      chipsEl.replaceChildren();
+      for (const [stat, val] of Object.entries(item.stat_mods ?? {})) {
+        const chip = document.createElement('span');
+        chip.className = 'kids-stat-chip';
+        chip.textContent = '+' + val + ' ' + stat.toUpperCase();
+        chipsEl.appendChild(chip);
+      }
+    }
+  }
+
+  document.getElementById('kids-assembly-inv-picker')!.hidden = true;
+  refreshAssemblyStats();
+  refreshForgeButton();
+}
+
+function refreshAssemblyStats(): void {
+  const statsEl = document.getElementById('kids-assembly-stats')!;
+  statsEl.replaceChildren();
+
+  const totals: Record<string, number> = {};
+  for (const data of Object.values(_kidsassembly.filled)) {
+    for (const [stat, val] of Object.entries(data.statMods)) {
+      totals[stat] = (totals[stat] ?? 0) + val;
+    }
+  }
+
+  if (Object.keys(totals).length === 0) {
+    const hint = document.createElement('span');
+    hint.textContent = 'Fill slots to see stats';
+    hint.style.cssText = 'color:#555;font-size:0.75rem';
+    statsEl.appendChild(hint);
+    return;
+  }
+
+  const MAX_STAT = 10;
+  for (const [stat, val] of Object.entries(totals)) {
+    const row = document.createElement('div');
+    row.className = 'kids-stat-bar-row';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'kids-stat-bar-label';
+    lbl.textContent = stat;
+
+    const track = document.createElement('div');
+    track.className = 'kids-stat-bar-track';
+
+    const fill = document.createElement('div');
+    fill.className = 'kids-stat-bar-fill';
+    fill.style.width = Math.min(100, (val / MAX_STAT) * 100) + '%';
+    track.appendChild(fill);
+
+    const num = document.createElement('span');
+    num.style.cssText = 'font-size:0.75rem;color:#c9a84c;min-width:20px';
+    num.textContent = String(val);
+
+    row.append(lbl, track, num);
+    statsEl.appendChild(row);
+  }
+}
+
+function refreshForgeButton(): void {
+  const recipe = _kidsassembly.recipe;
+  const btn = document.getElementById('kids-assembly-forge-btn') as HTMLButtonElement | null;
+  if (!recipe || !btn) return;
+
+  const allRequiredFilled = (recipe.slots ?? [])
+    .filter(s => s.required)
+    .every(s => Boolean(_kidsassembly.filled[s.id]));
+
+  btn.disabled = !allRequiredFilled;
 }
 
 // ── Main init ─────────────────────────────────────────────────────────────────
@@ -1766,6 +1986,30 @@ export function initMUD() {
   // Stop painting globally when mouse/touch is released
   document.addEventListener('mouseup', () => { _kidscraft.painting = false; });
   document.addEventListener('touchend', () => { _kidscraft.painting = false; });
+
+  // -- Assembly modal event handlers ------------------------------------------
+
+  document.getElementById('kids-assembly-forge-btn')?.addEventListener('click', () => {
+    const recipe = _kidsassembly.recipe;
+    if (!recipe) return;
+
+    const slotArgs = Object.entries(_kidsassembly.filled)
+      .map(([slotId, data]) => slotId + '=' + data.itemId)
+      .join(' ');
+
+    sendCommand('craft ' + recipe.id + ' ' + slotArgs);
+    closeKidsAssemblyModal();
+  });
+
+  document.getElementById('kids-assembly-close')?.addEventListener('click', closeKidsAssemblyModal);
+
+  document.getElementById('kids-assembly-modal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeKidsAssemblyModal();
+  });
+
+  document.getElementById('kids-assembly-inv-close')?.addEventListener('click', () => {
+    document.getElementById('kids-assembly-inv-picker')!.hidden = true;
+  });
 
   // ── Kids input toggle ──────────────────────────────────────────────────────
   const kidsToggle    = document.getElementById('kids-input-toggle');
