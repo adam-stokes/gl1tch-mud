@@ -94,13 +94,17 @@ type CraftingRecipe struct {
 
 // LootEntry is a single item in a loot table.
 type LootEntry struct {
-	ItemID      string  `yaml:"item_id"`
-	Name        string  `yaml:"name,omitempty"`
-	Desc        string  `yaml:"desc,omitempty"`
-	Probability float64 `yaml:"probability"`
-	CountMin    int     `yaml:"count_min"`
-	CountMax    int     `yaml:"count_max"`
-	Faction     string  `yaml:"faction,omitempty"`
+	ItemID      string         `yaml:"item_id"`
+	Name        string         `yaml:"name,omitempty"`
+	Desc        string         `yaml:"desc,omitempty"`
+	Probability float64        `yaml:"probability"`
+	CountMin    int            `yaml:"count_min"`
+	CountMax    int            `yaml:"count_max"`
+	Faction     string         `yaml:"faction,omitempty"`
+	Tags        []string       `yaml:"tags,omitempty"`
+	StatMods    map[string]int `yaml:"stat_mods,omitempty"`
+	Quality     string         `yaml:"quality,omitempty"`
+	Weight      int            `yaml:"weight,omitempty"`
 }
 
 // Resource is a mineable or harvestable node inside a room.

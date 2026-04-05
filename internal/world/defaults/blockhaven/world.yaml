@@ -119,6 +119,321 @@ loot_tables:
         probability: 0.7
         count_min: 1
         count_max: 2
+      - item_id: pipe-frame-crude
+        name: Pipe Frame
+        desc: A rough iron pipe frame.
+        tags: [component, gun-frame]
+        quality: crude
+        stat_mods: {}
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+      - item_id: pipe-frame-standard
+        name: Pipe Frame
+        desc: A well-bent iron pipe frame.
+        tags: [component, gun-frame]
+        quality: standard
+        stat_mods: {}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: copper-tube-crude
+        name: Copper Tube
+        desc: A salvaged copper pipe for gun barrels.
+        tags: [component, gun-barrel]
+        quality: crude
+        stat_mods: {damage: 1, range: 1}
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+      - item_id: copper-tube-standard
+        name: Copper Tube
+        desc: A clean copper pipe, well-suited for a barrel.
+        tags: [component, gun-barrel]
+        quality: standard
+        stat_mods: {damage: 2, range: 2}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: copper-tube-refined
+        name: Copper Tube
+        desc: A precision-worked copper pipe.
+        tags: [component, gun-barrel]
+        quality: refined
+        stat_mods: {damage: 3, range: 3}
+        probability: 0.08
+        count_min: 1
+        count_max: 1
+      - item_id: wrapped-grip-crude
+        name: Wrapped Grip
+        desc: Leather-wrapped wood grip.
+        tags: [component, gun-stock]
+        quality: crude
+        stat_mods: {range: 1}
+        probability: 0.6
+        count_min: 1
+        count_max: 1
+      - item_id: carved-handle-standard
+        name: Carved Handle
+        desc: A smooth carved wooden handle.
+        tags: [component, gun-stock]
+        quality: standard
+        stat_mods: {range: 2}
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+      - item_id: iron-sights-crude
+        name: Iron Sights
+        desc: Simple metal sights, bent from iron wire.
+        tags: [component, gun-sight]
+        quality: crude
+        stat_mods: {accuracy: 1}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: iron-sights-standard
+        name: Iron Sights
+        desc: Well-formed metal sights.
+        tags: [component, gun-sight]
+        quality: standard
+        stat_mods: {accuracy: 2}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: crystal-lens-refined
+        name: Crystal Lens
+        desc: A clear crystal ground into a lens. Excellent for sighting.
+        tags: [component, gun-sight]
+        quality: refined
+        stat_mods: {accuracy: 4, range: 2}
+        probability: 0.08
+        count_min: 1
+        count_max: 1
+      - item_id: coal-igniter-standard
+        name: Coal Igniter
+        desc: A coal-and-flint ignition mechanism.
+        tags: [component, gun-igniter]
+        quality: standard
+        stat_mods: {damage: 2}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: drum-cylinder-standard
+        name: Drum Cylinder
+        desc: A rotating drum cylinder for rapid fire.
+        tags: [component, gun-drum]
+        quality: standard
+        stat_mods: {fire_rate: 2}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: drum-cylinder-refined
+        name: Drum Cylinder
+        desc: A precision-balanced drum cylinder.
+        tags: [component, gun-drum]
+        quality: refined
+        stat_mods: {fire_rate: 4, damage: 1}
+        probability: 0.08
+        count_min: 1
+        count_max: 1
+      - item_id: bone-stabilizer-refined
+        name: Bone Stabilizer
+        desc: A carved bone stabilizer rod. Rare drop.
+        tags: [component, gun-stabilizer]
+        quality: refined
+        stat_mods: {accuracy: 3, range: 3}
+        probability: 0.05
+        count_min: 1
+        count_max: 1
+      - item_id: iron-receiver-standard
+        name: Iron Receiver
+        desc: A machined iron receiver block.
+        tags: [component, gun-frame]
+        quality: standard
+        stat_mods: {durability: 2}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: iron-receiver-refined
+        name: Iron Receiver
+        desc: A precision-machined iron receiver.
+        tags: [component, gun-frame]
+        quality: refined
+        stat_mods: {durability: 4, damage: 1}
+        probability: 0.08
+        count_min: 1
+        count_max: 1
+      - item_id: rifled-pipe-standard
+        name: Rifled Pipe
+        desc: A pipe with internal spiral grooves.
+        tags: [component, gun-barrel]
+        quality: standard
+        stat_mods: {damage: 2, accuracy: 1, range: 1}
+        probability: 0.15
+        count_min: 1
+        count_max: 1
+      - item_id: reinforced-barrel-refined
+        name: Reinforced Barrel
+        desc: A thick-walled reinforced barrel. Boss-quality.
+        tags: [component, gun-barrel]
+        quality: refined
+        stat_mods: {damage: 4, range: 3}
+        probability: 0.05
+        count_min: 1
+        count_max: 1
+      - item_id: leather-plate-crude
+        name: Leather Plate
+        desc: A piece of cured leather for chest armor.
+        tags: [component, armor-chest]
+        quality: crude
+        stat_mods: {defense: 1}
+        probability: 0.7
+        count_min: 1
+        count_max: 1
+      - item_id: leather-plate-standard
+        name: Leather Plate
+        desc: Well-tanned leather plate.
+        tags: [component, armor-chest]
+        quality: standard
+        stat_mods: {defense: 2}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: iron-sheet-standard
+        name: Iron Sheet
+        desc: A flat iron plate, hammered smooth.
+        tags: [component, armor-chest]
+        quality: standard
+        stat_mods: {defense: 3, weight: 1}
+        probability: 0.3
+        count_min: 1
+        count_max: 1
+      - item_id: deepstone-slab-refined
+        name: Deepstone Slab
+        desc: A dense slab of cave stone. Exceptional protection.
+        tags: [component, armor-chest]
+        quality: refined
+        stat_mods: {defense: 5, weight: 2}
+        probability: 0.08
+        count_min: 1
+        count_max: 1
+      - item_id: hide-pad-crude
+        name: Hide Pad
+        desc: A pad of cured hide for shoulder protection.
+        tags: [component, armor-shoulder]
+        quality: crude
+        stat_mods: {defense: 1}
+        probability: 0.6
+        count_min: 1
+        count_max: 1
+      - item_id: chain-links-standard
+        name: Chain Links
+        desc: Interlocked iron rings.
+        tags: [component, armor-shoulder]
+        quality: standard
+        stat_mods: {defense: 2}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: carved-pauldron-refined
+        name: Carved Pauldron
+        desc: An ornate carved stone pauldron.
+        tags: [component, armor-shoulder]
+        quality: refined
+        stat_mods: {defense: 4, intimidation: 1}
+        probability: 0.1
+        count_min: 1
+        count_max: 1
+      - item_id: woven-moss-crude
+        name: Woven Moss
+        desc: Dense cave moss woven into a soft lining.
+        tags: [component, armor-lining]
+        quality: crude
+        stat_mods: {comfort: 1}
+        probability: 0.7
+        count_min: 1
+        count_max: 1
+      - item_id: spider-silk-standard
+        name: Spider Silk
+        desc: Lightweight but surprisingly strong silk lining.
+        tags: [component, armor-lining]
+        quality: standard
+        stat_mods: {comfort: 2, stealth: 1}
+        probability: 0.3
+        count_min: 1
+        count_max: 1
+      - item_id: ember-cloth-refined
+        name: Ember Cloth
+        desc: Heat-treated cloth. Warm and fire-resistant.
+        tags: [component, armor-lining]
+        quality: refined
+        stat_mods: {comfort: 3, fire_resist: 2}
+        probability: 0.12
+        count_min: 1
+        count_max: 1
+      - item_id: bone-helm-standard
+        name: Bone Helm
+        desc: A helm carved from large animal bone.
+        tags: [component, armor-helm]
+        quality: standard
+        stat_mods: {defense: 2}
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+      - item_id: fur-boots-crude
+        name: Fur Boots
+        desc: Simple fur-lined boots.
+        tags: [component, armor-boots]
+        quality: crude
+        stat_mods: {cold_resist: 1}
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+      - item_id: fur-boots-standard
+        name: Fur Boots
+        desc: Well-made fur-lined boots.
+        tags: [component, armor-boots]
+        quality: standard
+        stat_mods: {cold_resist: 2, defense: 1}
+        probability: 0.25
+        count_min: 1
+        count_max: 1
+      - item_id: iron-gauntlets-standard
+        name: Iron Gauntlets
+        desc: Solid iron hand guards.
+        tags: [component, armor-gauntlets]
+        quality: standard
+        stat_mods: {defense: 1, strength: 1}
+        probability: 0.3
+        count_min: 1
+        count_max: 1
+      - item_id: iron-gauntlets-refined
+        name: Iron Gauntlets
+        desc: Expertly-forged iron gauntlets.
+        tags: [component, armor-gauntlets]
+        quality: refined
+        stat_mods: {defense: 2, strength: 2}
+        probability: 0.12
+        count_min: 1
+        count_max: 1
+      - item_id: desert-veil-standard
+        name: Desert Veil
+        desc: A light veil that keeps sand out.
+        tags: [component, armor-veil]
+        quality: standard
+        stat_mods: {heat_resist: 2}
+        probability: 0.2
+        count_min: 1
+        count_max: 1
+      - item_id: shadow-hood-refined
+        name: Shadow Hood
+        desc: A dark hood treated with thornwalker oil. Rare.
+        tags: [component, armor-hood]
+        quality: refined
+        stat_mods: {stealth: 3, defense: 1}
+        probability: 0.08
+        count_min: 1
+        count_max: 1
 
   - id: thornsprite-loot
     entries:
@@ -338,6 +653,501 @@ crafting_recipes:
       name: "Garden Plot"
       desc: "A small plot of fertile soil for growing crops."
     workbench: build
+
+
+  - id: pipe-pistol
+    name: Pipe Pistol
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 1
+    output:
+      id: pipe-pistol
+      name: Pipe Pistol
+      desc: A crude but functional scavenged pistol.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: grip
+        name: Grip
+        required: false
+        accepts_tag: gun-stock
+
+  - id: bolt-rifle
+    name: Bolt Rifle
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 3
+    output:
+      id: bolt-rifle
+      name: Bolt Rifle
+      desc: A mid-range rifle with a manual bolt action.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: stock
+        name: Stock
+        required: true
+        accepts_tag: gun-stock
+      - id: sight
+        name: Sight
+        required: false
+        accepts_tag: gun-sight
+
+  - id: scatter-cannon
+    name: Scatter Cannon
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 3
+    output:
+      id: scatter-cannon
+      name: Scatter Cannon
+      desc: Wide spread, short range. Great for crowds.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: choke
+        name: Choke
+        required: false
+        accepts_tag: gun-barrel
+      - id: brace
+        name: Brace
+        required: false
+        accepts_tag: gun-stock
+
+  - id: flare-launcher
+    name: Flare Launcher
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 4
+    output:
+      id: flare-launcher
+      name: Flare Launcher
+      desc: Lights up caves and sets things on fire.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: igniter
+        name: Igniter
+        required: true
+        accepts_tag: gun-igniter
+
+  - id: twin-barrel
+    name: Twin Barrel
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 4
+    output:
+      id: twin-barrel
+      name: Twin Barrel
+      desc: Two barrels side by side. Double the trouble.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel-left
+        name: Left Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: barrel-right
+        name: Right Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: grip
+        name: Grip
+        required: false
+        accepts_tag: gun-stock
+      - id: trigger
+        name: Trigger
+        required: false
+        accepts_tag: gun-stock
+
+  - id: bone-sniper
+    name: Bone Sniper
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 5
+    output:
+      id: bone-sniper
+      name: Bone Sniper
+      desc: A long-range precision rifle carved from deepbone and salvaged steel.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: stock
+        name: Stock
+        required: true
+        accepts_tag: gun-stock
+      - id: sight
+        name: Sight
+        required: true
+        accepts_tag: gun-sight
+      - id: stabilizer
+        name: Stabilizer
+        required: false
+        accepts_tag: gun-stabilizer
+
+  - id: vault-repeater
+    name: Vault Repeater
+    type: assembly
+    workbench: scrap-forge
+    skill_req: 7
+    output:
+      id: vault-repeater
+      name: Vault Repeater
+      desc: An ancient rapid-fire design. Whoever built this knew what they were doing.
+    slots:
+      - id: frame
+        name: Frame
+        required: true
+        accepts_tag: gun-frame
+      - id: barrel
+        name: Barrel
+        required: true
+        accepts_tag: gun-barrel
+      - id: drum
+        name: Drum
+        required: true
+        accepts_tag: gun-drum
+      - id: stock
+        name: Stock
+        required: true
+        accepts_tag: gun-stock
+      - id: sight
+        name: Sight
+        required: false
+        accepts_tag: gun-sight
+
+  - id: scrap-vest
+    name: Scrap Vest
+    type: assembly
+    workbench: anvil
+    skill_req: 1
+    output:
+      id: scrap-vest
+      name: Scrap Vest
+      desc: Bits of metal and leather stitched together. Better than nothing.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: shoulder
+        name: Shoulder Pad
+        required: false
+        accepts_tag: armor-shoulder
+      - id: lining
+        name: Lining
+        required: false
+        accepts_tag: armor-lining
+
+  - id: plate-coat
+    name: Plate Coat
+    type: assembly
+    workbench: anvil
+    skill_req: 2
+    output:
+      id: plate-coat
+      name: Plate Coat
+      desc: A layered coat of iron plates. Heavier, but reliable.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: shoulder
+        name: Shoulder Pad
+        required: true
+        accepts_tag: armor-shoulder
+      - id: gauntlets
+        name: Gauntlets
+        required: false
+        accepts_tag: armor-gauntlets
+      - id: boots
+        name: Boots
+        required: false
+        accepts_tag: armor-boots
+
+  - id: thornwalker-leathers
+    name: Thornwalker Leathers
+    type: assembly
+    workbench: anvil
+    skill_req: 3
+    output:
+      id: thornwalker-leathers
+      name: Thornwalker Leathers
+      desc: Supple forest leather treated with thorn-oil. Light and quiet.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: lining
+        name: Lining
+        required: true
+        accepts_tag: armor-lining
+      - id: shoulder
+        name: Shoulder Pad
+        required: false
+        accepts_tag: armor-shoulder
+      - id: hood
+        name: Hood
+        required: false
+        accepts_tag: armor-hood
+
+  - id: stoneguard-shell
+    name: Stoneguard Shell
+    type: assembly
+    workbench: anvil
+    skill_req: 4
+    output:
+      id: stoneguard-shell
+      name: Stoneguard Shell
+      desc: Full plate in the Stoneguard tradition. Heavy, loud, impenetrable.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: shoulder
+        name: Shoulder Pad
+        required: true
+        accepts_tag: armor-shoulder
+      - id: gauntlets
+        name: Gauntlets
+        required: true
+        accepts_tag: armor-gauntlets
+      - id: boots
+        name: Boots
+        required: true
+        accepts_tag: armor-boots
+
+  - id: dunekeepers-wrap
+    name: Dunekeepers Wrap
+    type: assembly
+    workbench: anvil
+    skill_req: 3
+    output:
+      id: dunekeepers-wrap
+      name: Dunekeepers Wrap
+      desc: Layered cloth and treated hide. Keeps the heat and sand out.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: lining
+        name: Lining
+        required: true
+        accepts_tag: armor-lining
+      - id: veil
+        name: Veil
+        required: false
+        accepts_tag: armor-veil
+
+  - id: frostborn-parka
+    name: Frostborn Parka
+    type: assembly
+    workbench: anvil
+    skill_req: 4
+    output:
+      id: frostborn-parka
+      name: Frostborn Parka
+      desc: Thick fur and layered hide, lined with ember cloth for warmth.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: shoulder
+        name: Shoulder Pad
+        required: true
+        accepts_tag: armor-shoulder
+      - id: lining
+        name: Lining
+        required: true
+        accepts_tag: armor-lining
+      - id: boots
+        name: Boots
+        required: false
+        accepts_tag: armor-boots
+
+  - id: deepborn-suit
+    name: Deepborn Suit
+    type: assembly
+    workbench: anvil
+    skill_req: 5
+    output:
+      id: deepborn-suit
+      name: Deepborn Suit
+      desc: Dark armour from the deep. Absorbs light and sound.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: shoulder
+        name: Shoulder Pad
+        required: true
+        accepts_tag: armor-shoulder
+      - id: lining
+        name: Lining
+        required: true
+        accepts_tag: armor-lining
+      - id: helm
+        name: Helm
+        required: false
+        accepts_tag: armor-helm
+
+  - id: ruin-exosuit
+    name: Ruin Exosuit
+    type: assembly
+    workbench: anvil
+    skill_req: 8
+    output:
+      id: ruin-exosuit
+      name: Ruin Exosuit
+      desc: A legendary pre-collapse powered suit. Needs the right parts to finish it.
+    slots:
+      - id: chest
+        name: Chest Plate
+        required: true
+        accepts_tag: armor-chest
+      - id: shoulder
+        name: Shoulder Pad
+        required: true
+        accepts_tag: armor-shoulder
+      - id: gauntlets
+        name: Gauntlets
+        required: true
+        accepts_tag: armor-gauntlets
+      - id: boots
+        name: Boots
+        required: true
+        accepts_tag: armor-boots
+      - id: helm
+        name: Helm
+        required: true
+        accepts_tag: armor-helm
+
+  - id: medkit
+    name: Medkit
+    type: ingredient
+    output:
+      id: medkit
+      name: Medkit
+      desc: A field kit of bandages and cave herbs. Restores health.
+    ingredients:
+      - id: spider-silk
+        count: 1
+      - id: ember-cloth
+        count: 1
+      - id: cave-moss
+        count: 1
+
+  - id: smoke-bomb
+    name: Smoke Bomb
+    type: ingredient
+    output:
+      id: smoke-bomb
+      name: Smoke Bomb
+      desc: Throw it to create a blinding cloud. Good for escaping fights.
+    ingredients:
+      - id: coal-dust
+        count: 1
+      - id: woven-moss
+        count: 1
+      - id: copper-tube-crude
+        count: 1
+
+  - id: lockpick-set
+    name: Lockpick Set
+    type: ingredient
+    output:
+      id: lockpick-set
+      name: Lockpick Set
+      desc: A set of thin metal picks. Opens most simple locks.
+    ingredients:
+      - id: wire
+        count: 2
+      - id: bone-shard
+        count: 1
+
+  - id: grapple-hook
+    name: Grapple Hook
+    type: ingredient
+    output:
+      id: grapple-hook
+      name: Grapple Hook
+      desc: A clawed hook on a rope. Reach high places, escape pits.
+    ingredients:
+      - id: iron-chain
+        count: 1
+      - id: carved-handle-standard
+        count: 1
+      - id: rope
+        count: 1
+
+  - id: faction-token
+    name: Faction Token
+    type: ingredient
+    output:
+      id: faction-token
+      name: Faction Token
+      desc: A crafted symbol of faction loyalty. Trade it for reputation or supplies.
+    ingredients:
+      - id: faction-ore
+        count: 3
+      - id: deepstone-shard
+        count: 1
+
+  - id: ancient-battery
+    name: Ancient Battery
+    type: ingredient
+    output:
+      id: ancient-battery
+      name: Ancient Battery
+      desc: >
+        A reconstructed power cell from the old world. It hums with energy.
+        Something clicks in your mind — you now understand how ancient guns were built.
+      unlocks_flag: gun_recipes_unlocked
+    ingredients:
+      - id: copper
+        count: 2
+      - id: iron
+        count: 1
+      - id: iron-sights-crude
+        count: 1
 
 quests:
   - id: q-meadow-shard
@@ -945,7 +1755,43 @@ rooms:
     exits:
       down: meadow-0
     npcs: []
-    items: []
+    items:
+      - id: pipe-frame-crude
+        name: Pipe Frame
+        desc: A rough length of iron pipe bent into a gun frame shape.
+        tags: [component, gun-frame]
+        quality: crude
+        stat_mods: {}
+      - id: copper-tube-crude
+        name: Copper Tube
+        desc: A salvaged copper pipe. Could serve as a gun barrel.
+        tags: [component, gun-barrel]
+        quality: crude
+        stat_mods: {damage: 1, range: 1}
+      - id: wrapped-grip-crude
+        name: Wrapped Grip
+        desc: Leather strips wound around a piece of wood.
+        tags: [component, gun-stock]
+        quality: crude
+        stat_mods: {range: 1}
+      - id: leather-plate-crude
+        name: Leather Plate
+        desc: A piece of cured leather for chest armor.
+        tags: [component, armor-chest]
+        quality: crude
+        stat_mods: {defense: 1}
+      - id: hide-pad-crude
+        name: Hide Pad
+        desc: A pad of cured animal hide for shoulder protection.
+        tags: [component, armor-shoulder]
+        quality: crude
+        stat_mods: {defense: 1}
+      - id: woven-moss-crude
+        name: Woven Moss
+        desc: Dense cave moss woven into a soft lining.
+        tags: [component, armor-lining]
+        quality: crude
+        stat_mods: {comfort: 1}
     resources: []
 
   - id: ruins-workshop-forest
