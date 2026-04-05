@@ -105,7 +105,8 @@ type PlayerContext struct {
 	Reputation          map[string]int // faction → rep value
 	Skills              map[string]int // skill → level
 	Disguise            string
-	AllShardsCollected  bool // true when all crystal_shards rows have collected=1
+	AllShardsCollected  bool            // true when all crystal_shards rows have collected=1
+	ActiveQuestIDs      map[string]bool // set of quest IDs currently active for the player
 }
 
 // EvalDialogue evaluates NPC dialogue triggers in order and returns
@@ -161,6 +162,10 @@ func matchTrigger(trigger string, ctx PlayerContext) bool {
 
 	case trigger == "has_all_shards":
 		return ctx.AllShardsCollected
+
+	case strings.HasPrefix(trigger, "quest_active:"):
+		questID := strings.TrimPrefix(trigger, "quest_active:")
+		return ctx.ActiveQuestIDs[questID]
 	}
 
 	return false
