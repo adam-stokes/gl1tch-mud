@@ -462,8 +462,8 @@ func TestMudoutWorldLoads(t *testing.T) {
 	if w.StartRoom != "dusthaven-0" {
 		t.Errorf("start_room: got %q want %q", w.StartRoom, "dusthaven-0")
 	}
-	if len(w.Rooms) != 12 {
-		t.Errorf("rooms: got %d want 12", len(w.Rooms))
+	if len(w.Rooms) != 13 {
+		t.Errorf("rooms: got %d want 13", len(w.Rooms))
 	}
 	if len(w.Factions) != 4 {
 		t.Errorf("factions: got %d want 4", len(w.Factions))

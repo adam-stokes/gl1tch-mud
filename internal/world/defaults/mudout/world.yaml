@@ -603,6 +603,7 @@ rooms:
     exits:
       west: barrens-1
       north: ruins-1
+      east: ruins-3
     npcs:
       - id: feral-ghoul
         name: "Feral Ghoul"
@@ -703,4 +704,22 @@ rooms:
         desc: "A locked container holding pre-war weapons and gear."
         is_container: true
         capacity: 5
+
+  - id: ruins-3
+    name: "Tower Defense Grid"
+    desc: |
+      A cleared zone in the ruins, marked with painted grid lines and numbered
+      positions. Old terminal screens along the walls display tactical readouts
+      that haven't updated in years. A staging area waits for players.
+      Arena matches coming in a future update.
+    biome: ruins
+    exits:
+      west: ruins-0
+    npcs: []
+    items:
+      - id: tower-defense-manual
+        name: "Tower Defense Manual"
+        desc: "Place your defenses. Survive the waves. Split the loot."
+        readable: true
+        content: "TOWER DEFENSE — COMING SOON\nPlace turrets and defenses. Survive waves of raiders.\nSurvivor payouts in caps and rare components."
 
