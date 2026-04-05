@@ -26,6 +26,7 @@ type Quest struct {
 	RewardItemDesc string
 	GiverNPCID     string
 	AcceptedAt     int64
+	NextQuestID    string
 }
 
 // Accept inserts a new quest into the database.
@@ -37,14 +38,15 @@ func Accept(db *sql.DB, q Quest) error {
 		`INSERT OR IGNORE INTO quests
 		 (id, title, description, status, obj_type, obj_target, obj_room,
 		  obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		  reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		  reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
+		  next_quest_id)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		q.ID, q.Title, q.Description, "active",
 		q.ObjType, q.ObjTarget, q.ObjRoom,
 		q.ObjCount, 0,
 		q.RewardCredits, q.RewardXPSkill, q.RewardXPAmount,
 		q.RewardItemID, q.RewardItemName, q.RewardItemDesc,
-		q.GiverNPCID, q.AcceptedAt,
+		q.GiverNPCID, q.AcceptedAt, q.NextQuestID,
 	)
 	return err
 }
@@ -54,7 +56,8 @@ func Active(db *sql.DB) ([]Quest, error) {
 	rows, err := db.Query(
 		`SELECT id, title, description, status, obj_type, obj_target, obj_room,
 		        obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at
+		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
+		        next_quest_id
 		 FROM quests WHERE status='active'`,
 	)
 	if err != nil {
@@ -87,7 +90,8 @@ func Get(db *sql.DB, id string) (*Quest, error) {
 	row := db.QueryRow(
 		`SELECT id, title, description, status, obj_type, obj_target, obj_room,
 		        obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at
+		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
+		        next_quest_id
 		 FROM quests WHERE id=?`, id,
 	)
 	q, err := scanQuest(row)
@@ -115,12 +119,61 @@ func CheckRetrieve(db *sql.DB, itemID string) ([]Quest, error) {
 	return checkProgress(db, "retrieve", itemID)
 }
 
+// CheckCraft finds active craft quests matching itemID, increments progress,
+// and returns quests that just reached obj_count.
+func CheckCraft(db *sql.DB, itemID string) ([]Quest, error) {
+	return checkProgress(db, "craft", itemID)
+}
+
+// CheckGather finds active gather quests matching itemID, increments progress,
+// and returns quests that just reached obj_count.
+func CheckGather(db *sql.DB, itemID string) ([]Quest, error) {
+	return checkProgress(db, "gather", itemID)
+}
+
+// CheckSmelt finds active smelt quests matching itemID, increments progress,
+// and returns quests that just reached obj_count.
+func CheckSmelt(db *sql.DB, itemID string) ([]Quest, error) {
+	return checkProgress(db, "smelt", itemID)
+}
+
+// CheckAssemble finds active assemble quests matching itemID, increments progress,
+// and returns quests that just reached obj_count.
+func CheckAssemble(db *sql.DB, itemID string) ([]Quest, error) {
+	return checkProgress(db, "assemble", itemID)
+}
+
+// CheckMine finds active mine quests matching resourceID, increments progress,
+// and returns quests that just reached obj_count.
+func CheckMine(db *sql.DB, resourceID string) ([]Quest, error) {
+	return checkProgress(db, "mine", resourceID)
+}
+
+// ActiveIDs returns a set of all active quest IDs.
+func ActiveIDs(db *sql.DB) (map[string]bool, error) {
+	rows, err := db.Query(`SELECT id FROM quests WHERE status='active'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
+}
+
 // checkProgress is the shared implementation for Check* functions.
 func checkProgress(db *sql.DB, objType, target string) ([]Quest, error) {
 	rows, err := db.Query(
 		`SELECT id, title, description, status, obj_type, obj_target, obj_room,
 		        obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at
+		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
+		        next_quest_id
 		 FROM quests WHERE status='active' AND obj_type=? AND obj_target=?`,
 		objType, target,
 	)
@@ -171,7 +224,7 @@ func scanQuest(row *sql.Row) (*Quest, error) {
 		&q.ObjCount, &q.ObjProgress,
 		&q.RewardCredits, &q.RewardXPSkill, &q.RewardXPAmount,
 		&q.RewardItemID, &q.RewardItemName, &q.RewardItemDesc,
-		&q.GiverNPCID, &q.AcceptedAt,
+		&q.GiverNPCID, &q.AcceptedAt, &q.NextQuestID,
 	)
 	if err != nil {
 		return nil, err
@@ -187,7 +240,7 @@ func scanQuestRow(row rowScanner) (*Quest, error) {
 		&q.ObjCount, &q.ObjProgress,
 		&q.RewardCredits, &q.RewardXPSkill, &q.RewardXPAmount,
 		&q.RewardItemID, &q.RewardItemName, &q.RewardItemDesc,
-		&q.GiverNPCID, &q.AcceptedAt,
+		&q.GiverNPCID, &q.AcceptedAt, &q.NextQuestID,
 	)
 	if err != nil {
 		return nil, err
