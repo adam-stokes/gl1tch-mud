@@ -61,6 +61,23 @@ type CraftingIngredient struct {
 	Count int    `yaml:"count"`
 }
 
+// CraftingRecipeType controls which crafting path is used.
+type CraftingRecipeType string
+
+const (
+	RecipeTypeIngredient CraftingRecipeType = "ingredient"
+	RecipeTypeAssembly   CraftingRecipeType = "assembly"
+)
+
+// CraftingSlot is a named slot in an assembly recipe.
+type CraftingSlot struct {
+	ID         string         `yaml:"id"`
+	Name       string         `yaml:"name"`
+	Required   bool           `yaml:"required"`
+	AcceptsTag string         `yaml:"accepts_tag"`
+	StatMods   map[string]int `yaml:"stat_mods,omitempty"`
+}
+
 // CraftingRecipe defines how to craft an item.
 type CraftingRecipe struct {
 	ID             string               `yaml:"id"`
@@ -71,6 +88,8 @@ type CraftingRecipe struct {
 	Workbench      string               `yaml:"workbench,omitempty"`
 	TierThresholds []int                `yaml:"tier_thresholds,omitempty"`
 	TierNames      []string             `yaml:"tier_names,omitempty"`
+	Type           CraftingRecipeType   `yaml:"type,omitempty"`
+	Slots          []CraftingSlot       `yaml:"slots,omitempty"`
 }
 
 // LootEntry is a single item in a loot table.
@@ -181,8 +200,13 @@ type Item struct {
 	IsAugment     bool   `yaml:"is_augment,omitempty"`
 	AugmentSkill  string `yaml:"augment_skill,omitempty"`
 	AugmentBonus  int    `yaml:"augment_bonus,omitempty"`
-	ModSlots      int    `yaml:"mod_slots,omitempty"`
-	IsMod         bool   `yaml:"is_mod,omitempty"`
+	ModSlots      int            `yaml:"mod_slots,omitempty"`
+	IsMod         bool           `yaml:"is_mod,omitempty"`
+	Tags          []string       `yaml:"tags,omitempty"`
+	Stats         map[string]int `yaml:"stats,omitempty"`
+	StatMods      map[string]int `yaml:"stat_mods,omitempty"`
+	Quality       string         `yaml:"quality,omitempty"`
+	UnlocksFlag   string         `yaml:"unlocks_flag,omitempty"`
 }
 
 // Room is a single location in the world.
@@ -196,7 +220,8 @@ type Room struct {
 	Systems   []System   `yaml:"systems,omitempty"`
 	Locks     []Lock     `yaml:"locks,omitempty"`
 	Biome     string     `yaml:"biome,omitempty"`
-	Resources []Resource `yaml:"resources,omitempty"`
+	Resources      []Resource `yaml:"resources,omitempty"`
+	WorkbenchTypes []string   `yaml:"workbench_types,omitempty"`
 	// GridX and GridY are computed at load time via BFS from StartRoom.
 	// They are not stored in YAML.
 	GridX int `yaml:"-"`
