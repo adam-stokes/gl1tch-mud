@@ -869,14 +869,31 @@ func Trade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 // Craft attempts to craft an item using a recipe.
 func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
-		return Result{Output: "craft <recipe-id> — craft an item from ingredients"}
+		return Result{Output: "craft <recipe-id> [slotID=itemID ...] — craft or assemble an item"}
 	}
 	recipeID := args[0]
 	hackSkill := skills.Level(db, "hacking")
 	invIDs := inventoryIDs(db)
 	room := w.Room(s.RoomID)
 
-	res := crafting.Craft(db, w, room, recipeID, invIDs, hackSkill)
+	// Parse optional slot assignments from args[1:]: "barrel=item-uuid-abc grip=item-uuid-def"
+	var slots map[string]string
+	for _, arg := range args[1:] {
+		parts := strings.SplitN(arg, "=", 2)
+		if len(parts) == 2 {
+			if slots == nil {
+				slots = make(map[string]string)
+			}
+			slots[parts[0]] = parts[1]
+		}
+	}
+
+	res := crafting.Craft(db, w, room, recipeID, invIDs, hackSkill, slots)
+
+	// Persist any player flag unlocked by the output item
+	if res.UnlocksFlag != "" {
+		crafting.SetPlayerFlag(db, res.UnlocksFlag) //nolint:errcheck
+	}
 
 	var ev *Event
 	if res.OK {
