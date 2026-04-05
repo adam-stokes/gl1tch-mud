@@ -480,7 +480,7 @@ func TestMudoutWorldLoads(t *testing.T) {
 	if len(w.CraftingRecipes) < 2 {
 		t.Errorf("crafting_recipes: got %d want >=2", len(w.CraftingRecipes))
 	}
-	if len(w.LootTables) < 3 {
-		t.Errorf("loot_tables: got %d want >=3", len(w.LootTables))
+	if len(w.LootTables) != 4 {
+		t.Errorf("loot_tables: got %d want 4", len(w.LootTables))
 	}
 }
