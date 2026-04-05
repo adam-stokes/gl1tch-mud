@@ -195,3 +195,30 @@ If nothing equipped: `DEF: 0`.
 - Structure slots (foundation/walls/roof/upgrade) → sub-project 3
 - Multiple armor slots (helmet, legs, arms) → future enhancement
 - Weapon equip (active weapon affecting attack damage) → not in this sub-project
+
+---
+
+## Spec Fix: Item Lookup for Assembled Items
+
+`world.FindItem` only searches room items — assembled items (e.g. `leather-armor`) are not in any room's item list. The `wear` command needs to verify the `armor` tag on inventory items that were produced by crafting.
+
+**Fix:** Add `FindItemAnywhere(id string) *Item` to `world.World`:
+
+```go
+// FindItemAnywhere searches room items AND crafting recipe outputs for an item with the given ID.
+func (w *World) FindItemAnywhere(id string) *Item {
+    // Check room items first
+    if item := w.FindItem(id); item != nil {
+        return item
+    }
+    // Check recipe outputs
+    for i := range w.CraftingRecipes {
+        if w.CraftingRecipes[i].Output.ID == id {
+            return &w.CraftingRecipes[i].Output
+        }
+    }
+    return nil
+}
+```
+
+The `wear` command uses `FindItemAnywhere` instead of `FindItem` to check the `armor` tag.
