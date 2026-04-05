@@ -214,9 +214,24 @@ const WORLD_ACTIONS: Record<string, ActionDef[]> = {
     { icon: '📋',  label: 'Quests',  cmd: 'quests' },
     { icon: '🔧',  label: 'Craft',   special: 'craft', cls: 'craft-btn' },
   ],
+  mudout: [
+    { icon: '👁',  label: 'Look',     cmd: 'look' },
+    { icon: '⚔️', label: 'Attack',   cmd: 'attack' },
+    { icon: '🔍',  label: 'Scavenge', cmd: 'search' },
+    { icon: '⛏️', label: 'Mine',     cmd: 'mine' },
+    { icon: '🗺',  label: 'Explore',  cmd: 'explore' },
+    { icon: '⚡',  label: 'Skills',   cmd: 'skills' },
+    { icon: '📋',  label: 'Quests',   cmd: 'quests' },
+    { icon: '🔧',  label: 'Craft',    special: 'craft', cls: 'craft-btn' },
+  ],
 };
 
 const DEFAULT_ACTIONS: ActionDef[] = WORLD_ACTIONS['cyberspace'];
+
+/** Returns the action button definitions for a given world name. Exported for testing. */
+export function getWorldActions(worldName: string): ActionDef[] {
+  return WORLD_ACTIONS[worldName] ?? DEFAULT_ACTIONS;
+}
 
 // ── HP hearts ────────────────────────────────────────────────────────────────
 
@@ -234,6 +249,19 @@ function renderHearts(hp: number, maxHP: number): string {
     html += `<span style="color:${c}">&#9829;</span>`;
   }
   return html;
+}
+
+// ── Pip-Boy HP bar (wasteland mode) ──────────────────────────────────────────
+
+function renderPipBoyBar(hp: number, maxHP: number): string {
+  const total  = 10;
+  const pct    = maxHP > 0 ? hp / maxHP : 0;
+  const filled = Math.round(pct * total);
+  let color = '#7ab648';
+  if (pct <= 0.5)  color = '#d4a017';
+  if (pct <= 0.25) color = '#cc2200';
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(total - filled);
+  return `<span style="color:${color}">[${bar}]</span>`;
 }
 
 // ── Inventory grid ───────────────────────────────────────────────────────────
@@ -350,6 +378,13 @@ function applyKidsMode(): void {
   });
   // Set initial active state on world zoom button
   zoomBtns.forEach(b => b.classList.toggle('active', b.dataset.zoom === 'world'));
+}
+
+// ── Wasteland mode ────────────────────────────────────────────────────────────
+
+function applyWastelandMode(): void {
+  _wastelandMode = true;
+  document.body.dataset.ui = 'wasteland';
 }
 
 function formatResourceName(id: string): string {
@@ -726,6 +761,7 @@ function openKidsSkillsModal(): void {
 let _myPlayerID = '';
 let _worldName = 'cyberspace';
 let _kidsMode = false;
+let _wastelandMode = false;
 let _lastState: StateUpdate | null = null;
 let _mapRooms: MapRoomInfo[] = [];
 
@@ -1602,6 +1638,8 @@ export function initMUD() {
         });
         if (meta.ui_profile === 'kids') {
           applyKidsMode();
+        } else if (meta.ui_profile === 'wasteland') {
+          applyWastelandMode();
         }
         if (meta.map_rooms) {
           _mapRooms = meta.map_rooms as MapRoomInfo[];
@@ -1763,7 +1801,9 @@ export function initMUD() {
       }
     }
     roomEl.textContent    = state.roomName || '—';
-    hpHearts.innerHTML    = renderHearts(state.hp, state.maxHp);
+    hpHearts.innerHTML = _wastelandMode
+      ? renderPipBoyBar(state.hp, state.maxHp)
+      : renderHearts(state.hp, state.maxHp);
     hpText.textContent    = `${state.hp}/${state.maxHp}`;
     creditsEl.textContent = `¢ ${state.credits}`;
     if (state.recipes) _recipes = state.recipes;
