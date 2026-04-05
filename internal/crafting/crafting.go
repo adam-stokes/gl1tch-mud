@@ -3,6 +3,7 @@ package crafting
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,22 +11,29 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
+// Sentinel errors for assembly crafting.
+var (
+	ErrMissingSlot    = errors.New("required slot not filled")
+	ErrWrongComponent = errors.New("item does not fit this slot")
+)
+
 // Result is the outcome of a crafting attempt.
 type Result struct {
-	OK          bool
-	OutputItem  world.Item
+	OK           bool
+	OutputItem   world.Item
 	MissingItems []string
-	Message     string
+	Message      string
+	UnlocksFlag  string // non-empty if OutputItem.UnlocksFlag is set
 }
 
 // Craft attempts to craft the recipe with the given ID.
-// hackingSkill is the player's current hacking skill level (used for skill gate and tier selection).
+// hackingSkill is the player's current hacking skill level.
 // inventoryIDs is a list of item IDs the player currently carries.
 // room is the player's current room (used for workbench check).
-func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, inventoryIDs []string, hackingSkill int) Result {
+// slots maps slotID → itemID for assembly recipes; nil for ingredient recipes.
+func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
 	recipe := w.FindRecipe(recipeID)
 	if recipe == nil {
-		// List available recipes
 		var names []string
 		for _, r := range w.CraftingRecipes {
 			names = append(names, r.ID)
@@ -38,7 +46,17 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 		}
 	}
 
-	// Blueprint/unlock check: if recipe has TierThresholds, a blueprint must have been decoded.
+	switch recipe.Type {
+	case world.RecipeTypeAssembly:
+		return craftAssemble(db, w, room, recipe, inventoryIDs, hackingSkill, slots)
+	default:
+		return craftIngredient(db, w, room, recipe, inventoryIDs, hackingSkill)
+	}
+}
+
+// craftIngredient is the existing ingredient-list crafting path, unchanged in behaviour.
+func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int) Result {
+	// Blueprint/unlock check
 	if len(recipe.TierThresholds) > 0 {
 		var count int
 		_ = db.QueryRow(`SELECT COUNT(*) FROM unlocked_recipes WHERE recipe_id = ?`, recipe.ID).Scan(&count)
@@ -47,7 +65,7 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 		}
 	}
 
-	// Skill gate check
+	// Skill gate
 	if recipe.SkillReq > 0 && hackingSkill < recipe.SkillReq {
 		return Result{
 			Message: fmt.Sprintf(
@@ -57,13 +75,18 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 		}
 	}
 
+	// Workbench check
+	if recipe.Workbench != "" && !roomHasWorkbench(room, recipe.Workbench) {
+		return Result{Message: fmt.Sprintf("This recipe requires a %s.", recipe.Workbench)}
+	}
+
 	// Build inventory count map
 	invCount := make(map[string]int)
 	for _, id := range inventoryIDs {
 		invCount[id]++
 	}
 
-	// Check all ingredients
+	// Check ingredients
 	var missing []string
 	for _, ing := range recipe.Ingredients {
 		if invCount[ing.ID] < ing.Count {
@@ -77,11 +100,6 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 		}
 	}
 
-	// Workbench check
-	if recipe.Workbench != "" && (room == nil || room.ID != recipe.Workbench) {
-		return Result{Message: fmt.Sprintf("This recipe requires a workbench in %s.", recipe.Workbench)}
-	}
-
 	// Consume ingredients
 	for _, ing := range recipe.Ingredients {
 		for i := 0; i < ing.Count; i++ {
@@ -89,7 +107,7 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 		}
 	}
 
-	// Add output item, applying tier if configured
+	// Apply tier
 	out := recipe.Output
 	tier := ""
 	if len(recipe.TierThresholds) > 0 && len(recipe.TierNames) == len(recipe.TierThresholds) {
@@ -111,10 +129,121 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 	)
 
 	return Result{
-		OK:         true,
-		OutputItem: out,
-		Message:    fmt.Sprintf("you craft %s.", out.Name),
+		OK:          true,
+		OutputItem:  out,
+		UnlocksFlag: out.UnlocksFlag,
+		Message:     fmt.Sprintf("you craft %s.", out.Name),
 	}
+}
+
+// craftAssemble is the slot-based assembly path.
+func craftAssemble(db *sql.DB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
+	// Skill gate
+	if recipe.SkillReq > 0 && hackingSkill < recipe.SkillReq {
+		return Result{
+			Message: fmt.Sprintf(
+				"skill too low: %s requires hacking level %d (you have %d).",
+				recipe.Name, recipe.SkillReq, hackingSkill,
+			),
+		}
+	}
+
+	// Workbench check
+	if recipe.Workbench != "" && !roomHasWorkbench(room, recipe.Workbench) {
+		return Result{Message: fmt.Sprintf("This recipe requires a %s.", recipe.Workbench)}
+	}
+
+	// Build inventory set for fast lookup
+	invSet := make(map[string]bool)
+	for _, id := range inventoryIDs {
+		invSet[id] = true
+	}
+
+	// Validate all required slots are filled
+	for _, slot := range recipe.Slots {
+		if slot.Required {
+			if _, ok := slots[slot.ID]; !ok {
+				return Result{Message: fmt.Sprintf("%s: required slot '%s' not filled.", ErrMissingSlot, slot.Name)}
+			}
+		}
+	}
+
+	// Validate each filled slot — item must be in inventory and have the right tag
+	for _, slot := range recipe.Slots {
+		itemID, filled := slots[slot.ID]
+		if !filled {
+			continue
+		}
+		if !invSet[itemID] {
+			return Result{Message: fmt.Sprintf("you don't have %s in your inventory.", itemID)}
+		}
+		item := w.FindItem(itemID)
+		if item == nil {
+			return Result{Message: fmt.Sprintf("unknown item: %s.", itemID)}
+		}
+		if !hasTag(item.Tags, slot.AcceptsTag) {
+			return Result{Message: fmt.Sprintf("%s: %s doesn't fit the %s slot.", ErrWrongComponent, item.Name, slot.Name)}
+		}
+	}
+
+	// Consume all slot items from inventory
+	for _, itemID := range slots {
+		db.Exec(`DELETE FROM inventory WHERE item_id=? LIMIT 1`, itemID) //nolint:errcheck
+	}
+
+	// Build output: start from base output, accumulate stats from slot item StatMods
+	out := recipe.Output
+	if out.Stats == nil {
+		out.Stats = make(map[string]int)
+	}
+	for _, slot := range recipe.Slots {
+		itemID, filled := slots[slot.ID]
+		if !filled {
+			continue
+		}
+		item := w.FindItem(itemID)
+		if item == nil {
+			continue
+		}
+		for stat, val := range item.StatMods {
+			out.Stats[stat] += val
+		}
+	}
+
+	db.Exec( //nolint:errcheck
+		`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
+		out.ID, out.Name, out.Desc,
+	)
+
+	return Result{
+		OK:          true,
+		OutputItem:  out,
+		UnlocksFlag: out.UnlocksFlag,
+		Message:     fmt.Sprintf("you forge %s.", out.Name),
+	}
+}
+
+// roomHasWorkbench returns true if the room has the given workbench type in its WorkbenchTypes list.
+func roomHasWorkbench(room *world.Room, workbench string) bool {
+	if room == nil {
+		return false
+	}
+	for _, wt := range room.WorkbenchTypes {
+		if wt == workbench {
+			return true
+		}
+	}
+	return false
+}
+
+// hasTag returns true if the tag slice contains the target tag.
+func hasTag(tags []string, target string) bool {
+	for _, t := range tags {
+		if t == target {
+			return true
+		}
+	}
+	return false
 }
 
 // UnlockRecipe records that the given recipe has been unlocked via a blueprint.
@@ -129,4 +258,17 @@ func IsUnlocked(db *sql.DB, recipeID string) (bool, error) {
 	var count int
 	err := db.QueryRow(`SELECT COUNT(*) FROM unlocked_recipes WHERE recipe_id = ?`, recipeID).Scan(&count)
 	return count > 0, err
+}
+
+// SetPlayerFlag sets a boolean flag in the player_flags table.
+func SetPlayerFlag(db *sql.DB, flag string) error {
+	_, err := db.Exec(`INSERT OR IGNORE INTO player_flags (flag) VALUES (?)`, flag)
+	return err
+}
+
+// IsPlayerFlagSet returns true if the flag exists in player_flags.
+func IsPlayerFlagSet(db *sql.DB, flag string) bool {
+	var count int
+	_ = db.QueryRow(`SELECT COUNT(*) FROM player_flags WHERE flag = ?`, flag).Scan(&count)
+	return count > 0
 }
