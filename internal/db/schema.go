@@ -221,4 +221,8 @@ CREATE TABLE IF NOT EXISTS chests (
     item_desc   TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (room_id, item_id)
 );
+
+CREATE TABLE IF NOT EXISTS player_flags (
+    flag TEXT PRIMARY KEY
+);
 `
