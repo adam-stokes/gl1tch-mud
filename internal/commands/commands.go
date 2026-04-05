@@ -904,6 +904,17 @@ func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 				"output_item": res.OutputItem.ID,
 			},
 		}
+		// Quest checks for craft/assemble
+		recipe := w.FindRecipe(recipeID)
+		var craftReadyQuests []quests.Quest
+		if recipe != nil && recipe.Type == world.RecipeTypeAssembly {
+			craftReadyQuests, _ = quests.CheckAssemble(db, res.OutputItem.ID)
+		} else {
+			craftReadyQuests, _ = quests.CheckCraft(db, res.OutputItem.ID)
+		}
+		for _, rq := range craftReadyQuests {
+			res.Message += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", rq.Title, rq.ID)
+		}
 	} else if len(res.MissingItems) > 0 {
 		ev = &Event{
 			Topic: "mud.craft.failed",
@@ -987,12 +998,14 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	db.QueryRow(`SELECT COUNT(*) FROM crystal_shards WHERE collected=1`).Scan(&shardCount)   //nolint:errcheck
 	db.QueryRow(`SELECT COUNT(*) FROM crystal_shards`).Scan(&totalShards)                    //nolint:errcheck
 
+	activeQuestIDs, _ := quests.ActiveIDs(db)
 	ctx := espionage.PlayerContext{
 		InventoryIDs:       invIDs,
 		Reputation:         rep,
 		Skills:             sk,
 		Disguise:           st.Disguise,
 		AllShardsCollected: totalShards >= 5 && shardCount >= 5,
+		ActiveQuestIDs:     activeQuestIDs,
 	}
 
 	text := espionage.EvalDialogue(npc.Dialogue, ctx)
@@ -1282,7 +1295,7 @@ func Credits(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 // Quests lists active quests or completes one.
 func Quests(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if len(args) >= 2 && args[0] == "complete" {
-		return questComplete(db, args[1])
+		return questComplete(db, w, args[1])
 	}
 
 	active, err := quests.Active(db)
@@ -1307,7 +1320,7 @@ func Quests(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-func questComplete(db *sql.DB, id string) Result {
+func questComplete(db *sql.DB, w *world.World, id string) Result {
 	q, err := quests.Get(db, id)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("no quest %q found.", id)}
@@ -1364,6 +1377,33 @@ func questComplete(db *sql.DB, id string) Result {
 		}
 		if shardIDs[q.RewardItemID] {
 			player.MarkShardCollected(db, q.RewardItemID) //nolint:errcheck
+		}
+	}
+
+	// Auto-chain: accept next quest in chain
+	if q.NextQuestID != "" {
+		wq := w.FindQuest(q.NextQuestID)
+		if wq != nil {
+			nextQ := quests.Quest{
+				ID:             wq.ID,
+				Title:          wq.Title,
+				Description:    wq.Description,
+				ObjType:        wq.ObjType,
+				ObjTarget:      wq.ObjTarget,
+				ObjRoom:        wq.ObjRoom,
+				ObjCount:       wq.ObjCount,
+				RewardCredits:  wq.RewardCredits,
+				RewardXPSkill:  wq.RewardXPSkill,
+				RewardXPAmount: wq.RewardXPAmount,
+				RewardItemID:   wq.RewardItemID,
+				RewardItemName: wq.RewardItemName,
+				RewardItemDesc: wq.RewardItemDesc,
+				GiverNPCID:     wq.GiverNPCID,
+				NextQuestID:    wq.NextQuestID,
+			}
+			if err := quests.Accept(db, nextQ); err == nil {
+				out.WriteString(fmt.Sprintf("\n[NEW QUEST] %s\n%s", wq.Title, wq.Description))
+			}
 		}
 	}
 
