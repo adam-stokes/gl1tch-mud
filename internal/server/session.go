@@ -13,6 +13,7 @@ import (
 
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
+	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
 	"github.com/adam-stokes/gl1tch-mud/internal/factions"
@@ -438,9 +439,27 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		})
 	}
 
-	// Crafting recipes.
-	recipes := make([]Recipe, 0, len(s.world.CraftingRecipes))
+	// Crafting recipes — filter out gun recipes until player has unlocked them.
+	gunUnlocked := crafting.IsPlayerFlagSet(s.database, "gun_recipes_unlocked")
+	var visibleRecipes []world.CraftingRecipe
 	for _, r := range s.world.CraftingRecipes {
+		if !gunUnlocked {
+			isGunRecipe := false
+			for _, slot := range r.Slots {
+				if strings.HasPrefix(slot.AcceptsTag, "gun-") {
+					isGunRecipe = true
+					break
+				}
+			}
+			if isGunRecipe {
+				continue
+			}
+		}
+		visibleRecipes = append(visibleRecipes, r)
+	}
+
+	recipes := make([]Recipe, 0, len(visibleRecipes))
+	for _, r := range visibleRecipes {
 		ings := make([]RecipeIngredient, len(r.Ingredients))
 		for i, ing := range r.Ingredients {
 			ings[i] = RecipeIngredient{ID: ing.ID, Count: ing.Count}
