@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/analytics"
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/chat"
@@ -44,6 +45,11 @@ type ClientSession struct {
 	cancel       context.CancelFunc
 	lastActivity time.Time
 	registry     *SessionRegistry
+
+	// Analytics tracking
+	loginAt           time.Time
+	roomEnteredAt     time.Time
+	lastRoomID        string
 }
 
 // Handle is the main read loop for a connected, authenticated session.
@@ -64,10 +70,18 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		defer s.database.Close()
 		s.gdb = gamedb.NewSQLite(s.database)
 	}
+	s.loginAt = time.Now()
+	analytics.Login(s.accountID, s.username, s.worldName)
 	defer func() {
 		if s.state != nil {
 			_ = player.Save(s.gdb, s.state)
 		}
+		// Final room exit timing for the session.
+		if s.lastRoomID != "" {
+			analytics.RoomExit(s.accountID, s.username, s.worldName, s.lastRoomID,
+				time.Since(s.roomEnteredAt).Milliseconds())
+		}
+		analytics.Logout(s.accountID, s.username, s.worldName, int(time.Since(s.loginAt).Seconds()))
 	}()
 
 	s.state, err = player.Load(s.gdb)
@@ -109,6 +123,11 @@ func (s *ClientSession) Handle(ctx context.Context) {
 	})
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
 	s.sendStateUpdate(ctx)
+
+	// Seed initial room tracking for analytics.
+	s.lastRoomID = s.state.RoomID
+	s.roomEnteredAt = time.Now()
+	analytics.RoomEnter(s.accountID, s.username, s.worldName, s.state.RoomID)
 
 	// Command context — replaced on each command to support interrupt.
 	cmdCtx, cmdCancel := context.WithCancel(ctx)
@@ -167,6 +186,18 @@ func (s *ClientSession) Handle(ctx context.Context) {
 				})
 			}
 
+		case "analytics":
+			// Frontend "no result" / button-click telemetry. Server enriches
+			// the payload with auth + world context before logging.
+			var p map[string]any
+			if err := json.Unmarshal(msg.Payload, &p); err != nil || p == nil {
+				continue
+			}
+			p["account"] = s.accountID
+			p["user"] = s.username
+			p["world"] = s.worldName
+			analytics.Event("client_event", p)
+
 		default:
 			_ = writeMsg(ctx, s.conn, ServerMsg{
 				Type:    "error",
@@ -185,6 +216,11 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	}
 
 	verb, args := commands.Parse(input)
+
+	// Analytics: log every command attempt. We log before dispatch with
+	// success=true since most commands succeed; the registry path below
+	// records output length once the handler returns.
+	analytics.Command(s.accountID, s.username, s.worldName, s.state.RoomID, verb, args, "", true)
 
 	// ── say: broadcast to room ───────────────────────────────────────────────
 	if verb == "say" {
@@ -290,6 +326,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 			return
 		}
 		s.state.RoomID = roomID
+		s.trackRoomChange()
 		res := commands.Look(s.gdb, s.state, s.world, nil)
 		_ = writeMsg(ctx, s.conn, ServerMsg{
 			Type:    "output.token",
@@ -372,7 +409,27 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	if s.worldName == "mudout" {
 		base.MaybeSpawnRaid(s.gdb)
 	}
+	s.trackRoomChange()
 	s.sendStateUpdate(ctx)
+}
+
+// trackRoomChange emits room_exit/room_enter analytics events when the
+// session's current room differs from the last room we logged. Safe to
+// call repeatedly; it is a no-op when the room has not changed.
+func (s *ClientSession) trackRoomChange() {
+	if s.state == nil {
+		return
+	}
+	if s.state.RoomID == s.lastRoomID {
+		return
+	}
+	if s.lastRoomID != "" {
+		analytics.RoomExit(s.accountID, s.username, s.worldName, s.lastRoomID,
+			time.Since(s.roomEnteredAt).Milliseconds())
+	}
+	s.lastRoomID = s.state.RoomID
+	s.roomEnteredAt = time.Now()
+	analytics.RoomEnter(s.accountID, s.username, s.worldName, s.state.RoomID)
 }
 
 // routeChatMessages dispatches ChatMessages from a command result to the
@@ -449,6 +506,13 @@ func (s *ClientSession) handleAdminAction(ctx context.Context, action *commands.
 // reopens the database for the new world, updates session fields, and notifies
 // the client with a world_meta message so the UI title updates immediately.
 func (s *ClientSession) switchWorld(ctx context.Context, targetName string) error {
+	// Analytics: emit a final room_exit for the old world before switching.
+	if s.lastRoomID != "" {
+		analytics.RoomExit(s.accountID, s.username, s.worldName, s.lastRoomID,
+			time.Since(s.roomEnteredAt).Milliseconds())
+	}
+	analytics.WorldSwitch(s.accountID, s.username, s.worldName, targetName)
+
 	// Save current state before switching.
 	if s.state != nil && s.gdb != nil {
 		_ = player.Save(s.gdb, s.state)
@@ -533,6 +597,12 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 		Payload: OutputTokenPayload{Token: res.Output + "\r\n"},
 	})
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+
+	// Reset room tracking for the new world and emit room_enter.
+	s.lastRoomID = s.state.RoomID
+	s.roomEnteredAt = time.Now()
+	analytics.RoomEnter(s.accountID, s.username, s.worldName, s.state.RoomID)
+
 	s.sendStateUpdate(ctx)
 	return nil
 }

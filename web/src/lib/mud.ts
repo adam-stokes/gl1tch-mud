@@ -1959,8 +1959,9 @@ export function initMUD() {
     }
 
     if (action === 'talk') {
-      const talkers = (state?.room_npcs ?? []).filter(n => n.can_talk);
-      if (talkers.length === 0) return;
+      // Don't filter by can_talk — backend handles silent/hostile NPCs.
+      const talkers = state?.room_npcs ?? [];
+      if (talkers.length === 0) { sendAnalyticsNoResult('talk', 'empty_room'); return; }
       if (talkers.length === 1) { sendCommand(`talk ${talkers[0].id}`); return; }
       showTargetPicker('Who do you want to talk to?', talkers, id => sendCommand(`talk ${id}`));
       return;
@@ -2029,6 +2030,7 @@ export function initMUD() {
       const items = (_lastState?.room_items ?? []).filter(i => i.takeable);
       if (items.length === 0) {
         appendOutput('nothing to take here.\n');
+        sendAnalyticsNoResult('take', 'empty_room');
         return true;
       }
       if (items.length === 1) {
@@ -2043,9 +2045,12 @@ export function initMUD() {
       return true;
     }
     if (cmd === 'talk') {
-      const npcs = (_lastState?.room_npcs ?? []).filter(n => n.can_talk);
+      // Don't filter by can_talk — show all NPCs and let the backend respond
+      // with a generic line for hostile/silent NPCs.
+      const npcs = _lastState?.room_npcs ?? [];
       if (npcs.length === 0) {
-        appendOutput('no one to talk to.\n');
+        appendOutput('no one here.\n');
+        sendAnalyticsNoResult('talk', 'empty_room');
         return true;
       }
       if (npcs.length === 1) {
@@ -2059,7 +2064,38 @@ export function initMUD() {
       );
       return true;
     }
+    if (cmd === 'attack') {
+      const npcs = (_lastState?.room_npcs ?? []).filter(n => n.attackable);
+      if (npcs.length === 0) {
+        appendOutput('nothing to attack here.\n');
+        sendAnalyticsNoResult('attack', 'empty_room');
+        return true;
+      }
+      if (npcs.length === 1) {
+        sendCommand(`attack ${npcs[0].id}`);
+        return true;
+      }
+      showTargetPicker(
+        'Attack who?',
+        npcs.map(n => ({ id: n.id, name: n.name })),
+        id => sendCommand(`attack ${id}`),
+      );
+      return true;
+    }
     return false;
+  }
+
+  // sendAnalyticsNoResult notifies the server when a smart action button
+  // produced no game effect, so we can track player frustration signals.
+  function sendAnalyticsNoResult(action: string, reason: string): void {
+    try {
+      ws?.send(JSON.stringify({
+        type: 'analytics',
+        payload: { event: 'no_result', action, reason },
+      }));
+    } catch {
+      // best-effort, ignore
+    }
   }
 
   document.addEventListener('click', (e) => {

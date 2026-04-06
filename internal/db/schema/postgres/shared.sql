@@ -14,7 +14,8 @@ CREATE TABLE shared_inventory (
     world_id TEXT NOT NULL,
     item_id TEXT NOT NULL,
     item_name TEXT NOT NULL,
-    item_desc TEXT NOT NULL DEFAULT ''
+    item_desc TEXT NOT NULL DEFAULT '',
+    CONSTRAINT shared_inventory_unique UNIQUE (account_id, world_id, item_id)
 );
 
 CREATE TABLE shared_player_skills (

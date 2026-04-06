@@ -113,6 +113,7 @@ func (q *Queries) AddSharedEnchantingXP(ctx context.Context, arg AddSharedEnchan
 const addSharedItem = `-- name: AddSharedItem :exec
 INSERT INTO shared_inventory (account_id, world_id, item_id, item_name, item_desc)
 VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (account_id, world_id, item_id) DO NOTHING
 `
 
 type AddSharedItemParams struct {

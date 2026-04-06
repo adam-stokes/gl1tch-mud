@@ -1101,7 +1101,10 @@ func Talk(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 	}
 
 	if len(npc.Dialogue) == 0 {
-		return Result{Output: fmt.Sprintf("%s doesn't seem interested in talking.", npc.Name)}
+		if npc.Attack > 0 {
+			return Result{Output: fmt.Sprintf("%s ignores you, weapon ready.", npc.Name)}
+		}
+		return Result{Output: fmt.Sprintf("%s has nothing to say.", npc.Name)}
 	}
 
 	// Build player context

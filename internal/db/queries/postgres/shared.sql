@@ -25,7 +25,8 @@ WHERE account_id = $1 AND world_id = $2;
 
 -- name: AddSharedItem :exec
 INSERT INTO shared_inventory (account_id, world_id, item_id, item_name, item_desc)
-VALUES ($1, $2, $3, $4, $5);
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (account_id, world_id, item_id) DO NOTHING;
 
 -- name: RemoveSharedItem :execresult
 DELETE FROM shared_inventory
