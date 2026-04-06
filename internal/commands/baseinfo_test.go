@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -52,12 +54,13 @@ func makeBaseInfoWorld() *world.World {
 
 func TestBaseInfoEmpty(t *testing.T) {
 	db := openBaseInfoTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{}
 	w := makeBaseInfoWorld()
 
-	res := commands.BaseInfo(db, s, w, nil)
+	res := commands.BaseInfo(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("expected non-empty output")
 	}
@@ -68,6 +71,7 @@ func TestBaseInfoEmpty(t *testing.T) {
 
 func TestBaseInfoWithStructures(t *testing.T) {
 	db := openBaseInfoTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','base-walls','Reinforced Walls',1)`) //nolint:errcheck
@@ -77,7 +81,7 @@ func TestBaseInfoWithStructures(t *testing.T) {
 	s := &player.State{}
 	w := makeBaseInfoWorld()
 
-	res := commands.BaseInfo(db, s, w, nil)
+	res := commands.BaseInfo(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("expected non-empty output")
 	}

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	_ "modernc.org/sqlite"
 )
@@ -34,9 +36,10 @@ func openTestDB(t *testing.T) *sql.DB {
 
 func TestLoadStealthDefault(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	s := LoadStealth(db)
+	s := LoadStealth(gdb)
 	if s.Level != 50 || s.Disguise != "none" {
 		t.Errorf("expected level=50 disguise=none, got %+v", s)
 	}
@@ -44,9 +47,10 @@ func TestLoadStealthDefault(t *testing.T) {
 
 func TestHide(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	s, _ := Hide(db)
+	s, _ := Hide(gdb)
 	if s.Level < 50 {
 		t.Errorf("stealth should not decrease from hide: got %d", s.Level)
 	}
@@ -57,12 +61,13 @@ func TestHide(t *testing.T) {
 
 func TestHideCap(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	// Manually set stealth to 98
 	db.Exec(`INSERT INTO player_stealth (id, level, disguise) VALUES (1, 98, 'none')`) //nolint:errcheck
 
-	s, _ := Hide(db)
+	s, _ := Hide(gdb)
 	if s.Level > 100 {
 		t.Errorf("stealth exceeded 100: got %d", s.Level)
 	}
@@ -141,9 +146,10 @@ func TestEvalDialogueEmpty(t *testing.T) {
 
 func TestRecordMemory(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := RecordMemory(db, "npc-0", "talked"); err != nil {
+	if err := RecordMemory(gdb, "npc-0", "talked"); err != nil {
 		t.Fatalf("RecordMemory: %v", err)
 	}
 

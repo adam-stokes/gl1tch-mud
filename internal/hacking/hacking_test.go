@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	_ "modernc.org/sqlite"
 )
@@ -47,10 +49,11 @@ func testRoom() *world.Room {
 
 func TestNoSystemInRoom(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	emptyRoom := &world.Room{ID: "r-empty"}
-	res := Hack(db, emptyRoom, "anything", 5)
+	res := Hack(gdb, emptyRoom, "anything", 5)
 	if !res.NoSystem {
 		t.Errorf("expected NoSystem=true for room with no systems")
 	}
@@ -58,6 +61,7 @@ func TestNoSystemInRoom(t *testing.T) {
 
 func TestHackSuccess(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	room := testRoom()
@@ -66,7 +70,7 @@ func TestHackSuccess(t *testing.T) {
 	// Minimum roll = 1+50-10 = 41 → still < 50 sometimes. Use skill=100 to guarantee.
 	found := false
 	for i := 0; i < 100; i++ {
-		res := Hack(db, room, "easy-sys", 100)
+		res := Hack(gdb, room, "easy-sys", 100)
 		if res.Success {
 			found = true
 			if res.RewardItem != "data-chip" {
@@ -82,13 +86,14 @@ func TestHackSuccess(t *testing.T) {
 
 func TestAlreadyHacked(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	// Manually mark as hacked
 	db.Exec(`INSERT INTO system_state (room_id, system_id, hacked) VALUES ('r0','easy-sys',1)`) //nolint:errcheck
 
 	room := testRoom()
-	res := Hack(db, room, "easy-sys", 100)
+	res := Hack(gdb, room, "easy-sys", 100)
 	if !res.AlreadyHacked {
 		t.Errorf("expected AlreadyHacked=true")
 	}
@@ -96,6 +101,7 @@ func TestAlreadyHacked(t *testing.T) {
 
 func TestAlertEscalation(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	room := testRoom()
@@ -103,7 +109,7 @@ func TestAlertEscalation(t *testing.T) {
 	// Always fails.
 	alerts := 0
 	for i := 0; i < 3; i++ {
-		res := Hack(db, room, "hard-sys", 0)
+		res := Hack(gdb, room, "hard-sys", 0)
 		if !res.Success {
 			alerts = res.AlertLevel
 		}
@@ -115,13 +121,14 @@ func TestAlertEscalation(t *testing.T) {
 
 func TestAlertReachesThreshold(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	// Pre-set alert to 2
 	db.Exec(`INSERT INTO system_state (room_id, system_id, alert, hacked) VALUES ('r0','hard-sys',2,0)`) //nolint:errcheck
 
 	room := testRoom()
-	res := Hack(db, room, "hard-sys", 0)
+	res := Hack(gdb, room, "hard-sys", 0)
 	if res.Success {
 		return // rare success, skip
 	}

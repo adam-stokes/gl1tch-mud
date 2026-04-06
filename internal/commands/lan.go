@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"database/sql"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -45,7 +45,7 @@ func init() {
 }
 
 // Lan handles /lan [stop|status|<passphrase>].
-func Lan(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Lan(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	sub := ""
 	if len(args) > 0 {
 		sub = strings.ToLower(args[0])

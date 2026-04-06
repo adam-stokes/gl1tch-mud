@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
@@ -15,8 +16,8 @@ const TickInterval = 50
 
 // Current returns the current weather condition for biome.
 // Returns "clear" if no record exists.
-func Current(db *sql.DB, biome string) (string, error) {
-	q := sqliteq.New(db)
+func Current(gdb *gamedb.GameDB, biome string) (string, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	cond, err := q.GetWeatherCondition(context.Background(), biome)
 	if err == sql.ErrNoRows {
 		return "clear", nil
@@ -30,8 +31,8 @@ func Current(db *sql.DB, biome string) (string, error) {
 // Tick checks whether weather should change for biome (if currentAction >= expires_action)
 // and if so rolls a new condition from possible. Returns the current (possibly new) condition.
 // When err is non-nil the returned condition string was not persisted and should be discarded.
-func Tick(db *sql.DB, biome string, currentAction int, possible []string) (string, error) {
-	q := sqliteq.New(db)
+func Tick(gdb *gamedb.GameDB, biome string, currentAction int, possible []string) (string, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	row, err := q.GetWeatherState(ctx, biome)

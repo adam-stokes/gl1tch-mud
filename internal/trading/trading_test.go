@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	_ "modernc.org/sqlite"
 )
@@ -49,10 +51,11 @@ func makeNPC() *world.NPC {
 
 func TestListOffersNoRep(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	npc := makeNPC()
-	offers := ListOffers(nil, npc, db)
+	offers := ListOffers(nil, npc, gdb)
 	// Should only see the open trade (no faction req)
 	if len(offers) != 1 {
 		t.Errorf("expected 1 offer without rep, got %d", len(offers))
@@ -64,12 +67,13 @@ func TestListOffersNoRep(t *testing.T) {
 
 func TestListOffersWithRep(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	db.Exec(`INSERT INTO player_reputation (faction, value) VALUES ('netrunners', 10)`) //nolint:errcheck
 
 	npc := makeNPC()
-	offers := ListOffers(nil, npc, db)
+	offers := ListOffers(nil, npc, gdb)
 	if len(offers) != 2 {
 		t.Errorf("expected 2 offers with rep=10, got %d", len(offers))
 	}
@@ -77,10 +81,11 @@ func TestListOffersWithRep(t *testing.T) {
 
 func TestExecuteMissingItems(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	npc := makeNPC()
-	res := Execute(db, npc, "trade-open", []string{})
+	res := Execute(gdb, npc, "trade-open", []string{})
 	if res.OK {
 		t.Error("expected failure when missing wanted items")
 	}
@@ -91,10 +96,11 @@ func TestExecuteMissingItems(t *testing.T) {
 
 func TestExecuteFactionGate(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	npc := makeNPC()
-	res := Execute(db, npc, "trade-faction", []string{"raw-data", "raw-data"})
+	res := Execute(gdb, npc, "trade-faction", []string{"raw-data", "raw-data"})
 	if res.OK {
 		t.Error("expected failure when faction rep not met")
 	}
@@ -102,13 +108,14 @@ func TestExecuteFactionGate(t *testing.T) {
 
 func TestExecuteSuccess(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	// Add data-chip to inventory
 	db.Exec(`INSERT INTO inventory (item_id, item_name, item_desc) VALUES ('data-chip','Data Chip','A chip.')`) //nolint:errcheck
 
 	npc := makeNPC()
-	res := Execute(db, npc, "trade-open", []string{"data-chip"})
+	res := Execute(gdb, npc, "trade-open", []string{"data-chip"})
 	if !res.OK {
 		t.Errorf("expected success, got: %s", res.Message)
 	}

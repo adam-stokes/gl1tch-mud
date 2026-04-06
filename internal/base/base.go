@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -16,8 +17,8 @@ import (
 const baseRoomID = "dusthaven-4"
 
 // actionCount reads the player's action count from player_actions.
-func actionCount(db *sql.DB) int {
-	q := sqliteq.New(db)
+func actionCount(gdb *gamedb.GameDB) int {
+	q := sqliteq.New(gdb.SQLiteDB())
 	c, err := q.GetActionCountBase(context.Background())
 	if err != nil || !c.Valid {
 		return 0
@@ -26,8 +27,8 @@ func actionCount(db *sql.DB) int {
 }
 
 // DefenseScore sums the defense stats of all structures built in dusthaven-4.
-func DefenseScore(db *sql.DB, w *world.World) int {
-	q := sqliteq.New(db)
+func DefenseScore(gdb *gamedb.GameDB, w *world.World) int {
+	q := sqliteq.New(gdb.SQLiteDB())
 	buildIDs, err := q.ListBuildIDsInRoom(context.Background(), baseRoomID)
 	if err != nil {
 		return 0
@@ -44,13 +45,13 @@ func DefenseScore(db *sql.DB, w *world.World) int {
 // MaybeSpawnRaid spawns a base-raid world event if all conditions are met:
 // action count is a multiple of 30, at least one structure is built in
 // dusthaven-4, and no active base-raid event already exists.
-func MaybeSpawnRaid(db *sql.DB) {
-	current := actionCount(db)
+func MaybeSpawnRaid(gdb *gamedb.GameDB) {
+	current := actionCount(gdb)
 	if current == 0 || current%30 != 0 {
 		return
 	}
 
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	structCount, _ := q.CountBuildsInRoom(ctx, baseRoomID)
@@ -84,10 +85,10 @@ func MaybeSpawnRaid(db *sql.DB) {
 
 // ResolvePendingRaids checks for expired base-raid events, resolves them,
 // and returns a narrative report string. Returns empty string if no raids pending.
-func ResolvePendingRaids(db *sql.DB, w *world.World) string {
-	current := actionCount(db)
+func ResolvePendingRaids(gdb *gamedb.GameDB, w *world.World) string {
+	current := actionCount(gdb)
 
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	raidIDs, err := q.ListExpiredBaseRaids(ctx, sqliteq.ListExpiredBaseRaidsParams{
@@ -98,7 +99,7 @@ func ResolvePendingRaids(db *sql.DB, w *world.World) string {
 		return ""
 	}
 
-	defense := DefenseScore(db, w)
+	defense := DefenseScore(gdb, w)
 	var reports []string
 
 	for _, id := range raidIDs {
@@ -110,7 +111,7 @@ func ResolvePendingRaids(db *sql.DB, w *world.World) string {
 				strength, defense,
 			)
 		} else {
-			lost := loseChestItems(db, 3)
+			lost := loseChestItems(gdb, 3)
 			if len(lost) == 0 {
 				report = fmt.Sprintf(
 					"RAID REPORT: Ash Raiders hit your base while you were gone.\nRaid strength: %d  |  Your defense: %d\nRaiders broke through. Your storage was empty — nothing lost.",
@@ -132,8 +133,8 @@ func ResolvePendingRaids(db *sql.DB, w *world.World) string {
 
 // loseChestItems deletes up to max random items from the base chest and
 // returns the names of lost items.
-func loseChestItems(db *sql.DB, max int) []string {
-	q := sqliteq.New(db)
+func loseChestItems(gdb *gamedb.GameDB, max int) []string {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	items, err := q.ListRandomChestItems(ctx, sqliteq.ListRandomChestItemsParams{

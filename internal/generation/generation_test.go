@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	_ "modernc.org/sqlite"
 )
@@ -81,13 +83,14 @@ func mockOllama(t *testing.T, responseContent string, statusCode int) *httptest.
 
 func TestGenerateSuccess(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	srv := mockOllama(t, validRoomYAML(), 200)
 	defer srv.Close()
 
 	wld := makeTestWorld()
-	g := NewWithURL(db, srv.URL)
+	g := NewWithURL(gdb, srv.URL)
 
 	current := wld.Room("net-0")
 	if current == nil {
@@ -122,6 +125,7 @@ func TestGenerateSuccess(t *testing.T) {
 
 func TestGenerateCacheHit(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	callCount := 0
@@ -135,7 +139,7 @@ func TestGenerateCacheHit(t *testing.T) {
 	defer srv.Close()
 
 	wld := makeTestWorld()
-	g := NewWithURL(db, srv.URL)
+	g := NewWithURL(gdb, srv.URL)
 
 	current := wld.Room("net-0")
 
@@ -163,10 +167,11 @@ func TestGenerateCacheHit(t *testing.T) {
 
 func TestGenerateOllamaUnreachable(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	wld := makeTestWorld()
-	g := NewWithURL(db, "http://127.0.0.1:19999") // nothing listening here
+	g := NewWithURL(gdb, "http://127.0.0.1:19999") // nothing listening here
 	g.httpClient.Timeout = 100 * 1000 * 1000       // 100ms in nanoseconds (not working, set Duration)
 
 	current := wld.Room("net-0")
@@ -182,13 +187,14 @@ func TestGenerateOllamaUnreachable(t *testing.T) {
 
 func TestGenerateMalformedYAML(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	srv := mockOllama(t, "this is not valid YAML with no name field\n---\nfoo: bar", 200)
 	defer srv.Close()
 
 	wld := makeTestWorld()
-	g := NewWithURL(db, srv.URL)
+	g := NewWithURL(gdb, srv.URL)
 
 	current := wld.Room("net-0")
 	res := g.Generate(context.Background(), wld, current, "down")

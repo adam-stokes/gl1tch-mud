@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -45,9 +47,10 @@ func TestLevelForXP(t *testing.T) {
 
 func TestLoadDefault(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	level, xp, err := Load(db, "hacking")
+	level, xp, err := Load(gdb, "hacking")
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -58,9 +61,10 @@ func TestLoadDefault(t *testing.T) {
 
 func TestAwardXP(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	res, err := Award(db, "hacking", 20)
+	res, err := Award(gdb, "hacking", 20)
 	if err != nil {
 		t.Fatalf("Award: %v", err)
 	}
@@ -69,7 +73,7 @@ func TestAwardXP(t *testing.T) {
 	}
 
 	// Award enough to level up
-	res2, err := Award(db, "hacking", 35) // total = 55 → level 1
+	res2, err := Award(gdb, "hacking", 35) // total = 55 → level 1
 	if err != nil {
 		t.Fatalf("Award (level-up): %v", err)
 	}
@@ -80,11 +84,12 @@ func TestAwardXP(t *testing.T) {
 
 func TestSkillPersists(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	Award(db, "lockpicking", 100) //nolint:errcheck
+	Award(gdb, "lockpicking", 100) //nolint:errcheck
 
-	level, xp, err := Load(db, "lockpicking")
+	level, xp, err := Load(gdb, "lockpicking")
 	if err != nil {
 		t.Fatalf("Load after award: %v", err)
 	}
@@ -96,12 +101,13 @@ func TestSkillPersists(t *testing.T) {
 
 func TestAll(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	Award(db, "hacking", 10)     //nolint:errcheck
-	Award(db, "lockpicking", 20) //nolint:errcheck
+	Award(gdb, "hacking", 10)     //nolint:errcheck
+	Award(gdb, "lockpicking", 20) //nolint:errcheck
 
-	m, err := All(db)
+	m, err := All(gdb)
 	if err != nil {
 		t.Fatalf("All: %v", err)
 	}

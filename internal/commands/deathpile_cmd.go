@@ -1,10 +1,10 @@
 package commands
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -14,8 +14,8 @@ func init() {
 }
 
 // Deathpile shows the location and contents of the player's last death pile.
-func Deathpile(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	roomID, count, err := player.AnyDeathPile(db)
+func Deathpile(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	roomID, count, err := player.AnyDeathPile(gdb)
 	if err != nil || roomID == "" || count == 0 {
 		return Result{Output: "you have no death pile."}
 	}
@@ -25,7 +25,7 @@ func Deathpile(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 		roomName = r.Name
 	}
 
-	pile, err := player.GetDeathPile(db, roomID)
+	pile, err := player.GetDeathPile(gdb, roomID)
 	if err != nil || len(pile) == 0 {
 		return Result{Output: "you have no death pile."}
 	}

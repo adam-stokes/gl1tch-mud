@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/enchanting"
 	_ "modernc.org/sqlite"
 )
@@ -36,12 +38,13 @@ func openTestDB(t *testing.T) *sql.DB {
 
 func TestApplyAndList(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := enchanting.Apply(db, "iron-sword", "sharpness", 1, 0); err != nil {
+	if err := enchanting.Apply(gdb, "iron-sword", "sharpness", 1, 0); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	got, err := enchanting.List(db, "iron-sword")
+	got, err := enchanting.List(gdb, "iron-sword")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -52,12 +55,13 @@ func TestApplyAndList(t *testing.T) {
 
 func TestAddXPAndLevel(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := enchanting.AddXP(db, 100); err != nil {
+	if err := enchanting.AddXP(gdb, 100); err != nil {
 		t.Fatalf("AddXP: %v", err)
 	}
-	xp, level, err := enchanting.XPState(db)
+	xp, level, err := enchanting.XPState(gdb)
 	if err != nil {
 		t.Fatalf("XPState: %v", err)
 	}

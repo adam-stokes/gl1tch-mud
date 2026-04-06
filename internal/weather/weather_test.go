@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	_ "modernc.org/sqlite"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/weather"
@@ -28,9 +30,10 @@ func openMem(t *testing.T) *sql.DB {
 
 func TestCurrentDefault(t *testing.T) {
 	db := openMem(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	cond, err := weather.Current(db, "meadow")
+	cond, err := weather.Current(gdb, "meadow")
 	if err != nil {
 		t.Fatalf("Current: %v", err)
 	}
@@ -41,11 +44,12 @@ func TestCurrentDefault(t *testing.T) {
 
 func TestTickChangesWeather(t *testing.T) {
 	db := openMem(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	possible := []string{"clear", "rainy", "stormy"}
 	// Set expires_action to 0, current action to 100 — should roll new weather.
-	cond, err := weather.Tick(db, "meadow", 100, possible)
+	cond, err := weather.Tick(gdb, "meadow", 100, possible)
 	if err != nil {
 		t.Fatalf("Tick: %v", err)
 	}
@@ -62,6 +66,7 @@ func TestTickChangesWeather(t *testing.T) {
 
 func TestTickNoChangeBeforeExpiry(t *testing.T) {
 	db := openMem(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	possible := []string{"clear", "rainy", "stormy"}
@@ -74,7 +79,7 @@ func TestTickNoChangeBeforeExpiry(t *testing.T) {
 		t.Fatal(err)
 	}
 	// currentAction=100 < expires_action=200, so weather should not change.
-	cond, err := weather.Tick(db, "meadow", 100, possible)
+	cond, err := weather.Tick(gdb, "meadow", 100, possible)
 	if err != nil {
 		t.Fatalf("Tick: %v", err)
 	}

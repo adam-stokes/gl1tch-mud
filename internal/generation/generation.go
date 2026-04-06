@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	"gopkg.in/yaml.v3"
 )
@@ -23,27 +23,27 @@ const (
 	defaultTimeout   = 5 * time.Second
 )
 
-// Generator handles Ollama-based room generation with SQLite caching.
+// Generator handles Ollama-based room generation with caching.
 type Generator struct {
-	db         *sql.DB
+	gdb        *gamedb.GameDB
 	ollamaURL  string
 	httpClient *http.Client
 }
 
-// New creates a new Generator using the given DB and default Ollama URL.
-func New(db *sql.DB) *Generator {
+// New creates a new Generator using the given GameDB and default Ollama URL.
+func New(gdb *gamedb.GameDB) *Generator {
 	return &Generator{
-		db:        db,
-		ollamaURL: defaultOllamaURL,
+		gdb:        gdb,
+		ollamaURL:  defaultOllamaURL,
 		httpClient: &http.Client{Timeout: defaultTimeout},
 	}
 }
 
 // NewWithURL creates a Generator with a custom Ollama URL (for testing).
-func NewWithURL(db *sql.DB, url string) *Generator {
+func NewWithURL(gdb *gamedb.GameDB, url string) *Generator {
 	return &Generator{
-		db:        db,
-		ollamaURL: url,
+		gdb:        gdb,
+		ollamaURL:  url,
 		httpClient: &http.Client{Timeout: defaultTimeout},
 	}
 }
@@ -76,7 +76,7 @@ func oppositeDirection(dir string) string {
 // cachedRoom looks up a generated room from the cache. Returns nil if not found.
 func (g *Generator) cachedRoom(hash string) *world.Room {
 	var blob string
-	err := g.db.QueryRow(
+	err := g.gdb.SQLiteDB().QueryRow(
 		`SELECT yaml_blob FROM generated_content WHERE prompt_hash=? AND type='room'`, hash,
 	).Scan(&blob)
 	if err != nil {
@@ -95,7 +95,7 @@ func (g *Generator) persistRoom(hash string, r *world.Room) error {
 	if err != nil {
 		return err
 	}
-	_, err = g.db.Exec(
+	_, err = g.gdb.SQLiteDB().Exec(
 		`INSERT OR IGNORE INTO generated_content (prompt_hash, type, yaml_blob, created_at) VALUES (?,?,?,?)`,
 		hash, "room", string(blob), time.Now().Unix(),
 	)

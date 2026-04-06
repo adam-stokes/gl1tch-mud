@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
@@ -33,8 +34,8 @@ type FactionMember struct {
 }
 
 // Exists reports whether the player already has a faction.
-func Exists(db *sql.DB) (bool, error) {
-	q := sqliteq.New(db)
+func Exists(gdb *gamedb.GameDB) (bool, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	_, err := q.FactionExists(context.Background())
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -46,10 +47,10 @@ func Exists(db *sql.DB) (bool, error) {
 }
 
 // Create creates the player faction with the given name and agenda.
-func Create(db *sql.DB, name, agenda string) (*PlayerFaction, error) {
+func Create(gdb *gamedb.GameDB, name, agenda string) (*PlayerFaction, error) {
 	factionID := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 	now := time.Now().Unix()
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	err := q.CreateFaction(context.Background(), sqliteq.CreateFactionParams{
 		FactionID:   factionID,
 		FactionName: name,
@@ -68,8 +69,8 @@ func Create(db *sql.DB, name, agenda string) (*PlayerFaction, error) {
 }
 
 // Get returns the player's faction.
-func Get(db *sql.DB) (*PlayerFaction, error) {
-	q := sqliteq.New(db)
+func Get(gdb *gamedb.GameDB) (*PlayerFaction, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	row, err := q.GetFaction(context.Background())
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("no faction exists")
@@ -88,14 +89,14 @@ func Get(db *sql.DB) (*PlayerFaction, error) {
 }
 
 // SetHideout updates the hideout room for the player's faction.
-func SetHideout(db *sql.DB, roomID string) error {
-	q := sqliteq.New(db)
+func SetHideout(gdb *gamedb.GameDB, roomID string) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.SetFactionHideout(context.Background(), sql.NullString{String: roomID, Valid: roomID != ""})
 }
 
 // Members returns all faction members.
-func Members(db *sql.DB) ([]FactionMember, error) {
-	q := sqliteq.New(db)
+func Members(gdb *gamedb.GameDB) ([]FactionMember, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	rows, err := q.ListFactionMembers(context.Background())
 	if err != nil {
 		return nil, err
@@ -116,15 +117,15 @@ func Members(db *sql.DB) ([]FactionMember, error) {
 }
 
 // Recruit adds an NPC to the player's faction. Returns an error if already recruited.
-func Recruit(db *sql.DB, npcID, npcName, npcDesc, role string) error {
-	already, err := IsRecruited(db, npcID)
+func Recruit(gdb *gamedb.GameDB, npcID, npcName, npcDesc, role string) error {
+	already, err := IsRecruited(gdb, npcID)
 	if err != nil {
 		return err
 	}
 	if already {
 		return fmt.Errorf("%s is already part of your crew", npcName)
 	}
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.InsertFactionMember(context.Background(), sqliteq.InsertFactionMemberParams{
 		NpcID:       npcID,
 		NpcName:     npcName,
@@ -135,8 +136,8 @@ func Recruit(db *sql.DB, npcID, npcName, npcDesc, role string) error {
 }
 
 // IsRecruited reports whether an NPC is already in the faction.
-func IsRecruited(db *sql.DB, npcID string) (bool, error) {
-	q := sqliteq.New(db)
+func IsRecruited(gdb *gamedb.GameDB, npcID string) (bool, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	_, err := q.GetFactionMember(context.Background(), npcID)
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -148,8 +149,8 @@ func IsRecruited(db *sql.DB, npcID string) (bool, error) {
 }
 
 // MemberCount returns the number of faction members.
-func MemberCount(db *sql.DB) (int, error) {
-	q := sqliteq.New(db)
+func MemberCount(gdb *gamedb.GameDB) (int, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	n, err := q.CountFactionMembers(context.Background())
 	return int(n), err
 }

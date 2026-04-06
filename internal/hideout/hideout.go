@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -31,7 +32,8 @@ var Catalog = []Upgrade{
 }
 
 // Installed returns the IDs of all installed upgrades.
-func Installed(db *sql.DB) ([]string, error) {
+func Installed(gdb *gamedb.GameDB) ([]string, error) {
+	db := gdb.SQLiteDB()
 	rows, err := db.Query(`SELECT upgrade_id FROM hideout_upgrades`)
 	if err != nil {
 		return nil, err
@@ -49,7 +51,8 @@ func Installed(db *sql.DB) ([]string, error) {
 }
 
 // HasUpgrade reports whether a specific upgrade is installed.
-func HasUpgrade(db *sql.DB, id string) (bool, error) {
+func HasUpgrade(gdb *gamedb.GameDB, id string) (bool, error) {
+	db := gdb.SQLiteDB()
 	var uid string
 	err := db.QueryRow(`SELECT upgrade_id FROM hideout_upgrades WHERE upgrade_id=?`, id).Scan(&uid)
 	if err == sql.ErrNoRows {
@@ -62,7 +65,8 @@ func HasUpgrade(db *sql.DB, id string) (bool, error) {
 }
 
 // Install records an upgrade as installed.
-func Install(db *sql.DB, id string) error {
+func Install(gdb *gamedb.GameDB, id string) error {
+	db := gdb.SQLiteDB()
 	_, err := db.Exec(
 		`INSERT OR IGNORE INTO hideout_upgrades (upgrade_id, installed_at) VALUES (?, ?)`,
 		id, time.Now().Unix(),
@@ -71,8 +75,8 @@ func Install(db *sql.DB, id string) error {
 }
 
 // Available returns all upgrades from the Catalog that are not yet installed.
-func Available(db *sql.DB) ([]Upgrade, error) {
-	installed, err := Installed(db)
+func Available(gdb *gamedb.GameDB) ([]Upgrade, error) {
+	installed, err := Installed(gdb)
 	if err != nil {
 		return nil, err
 	}

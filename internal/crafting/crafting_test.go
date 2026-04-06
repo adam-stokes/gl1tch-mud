@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	_ "modernc.org/sqlite"
 )
@@ -52,10 +54,11 @@ func makeWorld() *world.World {
 
 func TestUnknownRecipe(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	w := makeWorld()
-	res := Craft(db, w, nil, "bogus", []string{}, 0, nil)
+	res := Craft(gdb, w, nil, "bogus", []string{}, 0, nil)
 	if res.OK {
 		t.Error("expected failure for unknown recipe")
 	}
@@ -66,10 +69,11 @@ func TestUnknownRecipe(t *testing.T) {
 
 func TestSkillGate(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	w := makeWorld()
-	res := Craft(db, w, nil, "sniffer", []string{"silicon", "silicon", "wire"}, 0, nil)
+	res := Craft(gdb, w, nil, "sniffer", []string{"silicon", "silicon", "wire"}, 0, nil)
 	if res.OK {
 		t.Error("expected failure for insufficient skill")
 	}
@@ -80,11 +84,12 @@ func TestSkillGate(t *testing.T) {
 
 func TestMissingIngredients(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	w := makeWorld()
 	// SkillReq=2, hackingSkill=3 → passes skill gate; but no ingredients
-	res := Craft(db, w, nil, "sniffer", []string{}, 3, nil)
+	res := Craft(gdb, w, nil, "sniffer", []string{}, 3, nil)
 	if res.OK {
 		t.Error("expected failure for missing ingredients")
 	}
@@ -95,6 +100,7 @@ func TestMissingIngredients(t *testing.T) {
 
 func TestSuccessfulCraft(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	// Add ingredients to DB inventory
@@ -103,7 +109,7 @@ func TestSuccessfulCraft(t *testing.T) {
 
 	w := makeWorld()
 	// sniffer needs silicon x2 but we only have 1 in unique inventory — adjust test to use ice-pick
-	res := Craft(db, w, nil, "ice-pick", []string{"carbon-blade"}, 0, nil)
+	res := Craft(gdb, w, nil, "ice-pick", []string{"carbon-blade"}, 0, nil)
 	if !res.OK {
 		t.Errorf("expected success, got: %s", res.Message)
 	}
@@ -114,10 +120,11 @@ func TestSuccessfulCraft(t *testing.T) {
 
 func TestNoRecipesKnown(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	w := &world.World{}
-	res := Craft(db, w, nil, "anything", []string{}, 0, nil)
+	res := Craft(gdb, w, nil, "anything", []string{}, 0, nil)
 	if res.OK {
 		t.Error("expected failure when world has no recipes")
 	}
@@ -165,12 +172,13 @@ func seedAssemblyInventory(t *testing.T, db *sql.DB) {
 
 func TestAssembleMissingRequiredSlot(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	seedAssemblyInventory(t, db)
 
 	w := makeAssemblyWorld()
 	slots := map[string]string{"frame": "pipe-frame-crude"}
-	res := Craft(db, w, nil, "pipe-pistol", []string{"pipe-frame-crude"}, 0, slots)
+	res := Craft(gdb, w, nil, "pipe-pistol", []string{"pipe-frame-crude"}, 0, slots)
 	if res.OK {
 		t.Error("expected failure: required slot 'barrel' not filled")
 	}
@@ -178,12 +186,13 @@ func TestAssembleMissingRequiredSlot(t *testing.T) {
 
 func TestAssembleWrongComponent(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	seedAssemblyInventory(t, db)
 
 	w := makeAssemblyWorld()
 	slots := map[string]string{"frame": "wrong-item", "barrel": "copper-tube-crude"}
-	res := Craft(db, w, nil, "pipe-pistol", []string{"wrong-item", "copper-tube-crude"}, 0, slots)
+	res := Craft(gdb, w, nil, "pipe-pistol", []string{"wrong-item", "copper-tube-crude"}, 0, slots)
 	if res.OK {
 		t.Error("expected failure: wrong component tag for frame slot")
 	}
@@ -191,12 +200,13 @@ func TestAssembleWrongComponent(t *testing.T) {
 
 func TestAssembleSuccess(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	seedAssemblyInventory(t, db)
 
 	w := makeAssemblyWorld()
 	slots := map[string]string{"frame": "pipe-frame-crude", "barrel": "copper-tube-crude"}
-	res := Craft(db, w, nil, "pipe-pistol", []string{"pipe-frame-crude", "copper-tube-crude"}, 0, slots)
+	res := Craft(gdb, w, nil, "pipe-pistol", []string{"pipe-frame-crude", "copper-tube-crude"}, 0, slots)
 	if !res.OK {
 		t.Errorf("expected success, got: %s", res.Message)
 	}
@@ -210,6 +220,7 @@ func TestAssembleSuccess(t *testing.T) {
 
 func TestAssembleStatAccumulation(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	seedAssemblyInventory(t, db)
 
@@ -219,7 +230,7 @@ func TestAssembleStatAccumulation(t *testing.T) {
 		"barrel": "copper-tube-crude",
 		"grip":   "wrapped-grip-crude",
 	}
-	res := Craft(db, w, nil, "pipe-pistol", []string{"pipe-frame-crude", "copper-tube-crude", "wrapped-grip-crude"}, 0, slots)
+	res := Craft(gdb, w, nil, "pipe-pistol", []string{"pipe-frame-crude", "copper-tube-crude", "wrapped-grip-crude"}, 0, slots)
 	if !res.OK {
 		t.Errorf("expected success, got: %s", res.Message)
 	}

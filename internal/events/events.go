@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -30,7 +31,8 @@ type WorldEvent struct {
 }
 
 // Active returns all events with status='active'.
-func Active(db *sql.DB) ([]WorldEvent, error) {
+func Active(gdb *gamedb.GameDB) ([]WorldEvent, error) {
+	db := gdb.SQLiteDB()
 	rows, err := db.Query(
 		`SELECT id, type, title, description, target_room, faction,
 		        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
@@ -45,7 +47,8 @@ func Active(db *sql.DB) ([]WorldEvent, error) {
 }
 
 // Get fetches a single world event by ID.
-func Get(db *sql.DB, id string) (*WorldEvent, error) {
+func Get(gdb *gamedb.GameDB, id string) (*WorldEvent, error) {
+	db := gdb.SQLiteDB()
 	row := db.QueryRow(
 		`SELECT id, type, title, description, target_room, faction,
 		        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
@@ -64,7 +67,8 @@ func Get(db *sql.DB, id string) (*WorldEvent, error) {
 }
 
 // Create inserts a new world event.
-func Create(db *sql.DB, e WorldEvent) error {
+func Create(gdb *gamedb.GameDB, e WorldEvent) error {
+	db := gdb.SQLiteDB()
 	if e.CreatedAt == 0 {
 		e.CreatedAt = time.Now().Unix()
 	}
@@ -82,13 +86,15 @@ func Create(db *sql.DB, e WorldEvent) error {
 }
 
 // Complete sets an event status to 'completed'.
-func Complete(db *sql.DB, id string) error {
+func Complete(gdb *gamedb.GameDB, id string) error {
+	db := gdb.SQLiteDB()
 	_, err := db.Exec(`UPDATE world_events SET status='completed' WHERE id=?`, id)
 	return err
 }
 
 // ExpireOld expires events whose lifetime has elapsed. Returns count of expired events.
-func ExpireOld(db *sql.DB, currentActions int) (int, error) {
+func ExpireOld(gdb *gamedb.GameDB, currentActions int) (int, error) {
+	db := gdb.SQLiteDB()
 	res, err := db.Exec(
 		`UPDATE world_events SET status='expired'
 		 WHERE status='active' AND (created_actions + expires_actions) <= ?`,
@@ -141,7 +147,7 @@ var eventTemplates = map[string][2]string{
 }
 
 // SeedRandom generates a random world event for a random room and inserts it.
-func SeedRandom(db *sql.DB, w *world.World) (*WorldEvent, error) {
+func SeedRandom(gdb *gamedb.GameDB, w *world.World) (*WorldEvent, error) {
 	if len(w.Rooms) == 0 {
 		return nil, fmt.Errorf("world has no rooms")
 	}
@@ -159,7 +165,7 @@ func SeedRandom(db *sql.DB, w *world.World) (*WorldEvent, error) {
 	id := fmt.Sprintf("event-%s-%d", evType, time.Now().UnixNano())
 	id = strings.ReplaceAll(id, "_", "-")
 
-	currentActions := actionCount(db)
+	currentActions := actionCount(gdb)
 
 	e := WorldEvent{
 		ID:             id,
@@ -177,14 +183,15 @@ func SeedRandom(db *sql.DB, w *world.World) (*WorldEvent, error) {
 		CreatedAt:      time.Now().Unix(),
 	}
 
-	if err := Create(db, e); err != nil {
+	if err := Create(gdb, e); err != nil {
 		return nil, err
 	}
 	return &e, nil
 }
 
 // actionCount reads the player's action count from player_actions.
-func actionCount(db *sql.DB) int {
+func actionCount(gdb *gamedb.GameDB) int {
+	db := gdb.SQLiteDB()
 	var c int
 	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&c) //nolint:errcheck
 	return c

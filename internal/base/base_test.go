@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 	_ "modernc.org/sqlite"
@@ -72,10 +74,11 @@ func setActionCount(db *sql.DB, n int) {
 
 func TestDefenseScoreEmpty(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := makeBaseWorld()
 
-	score := base.DefenseScore(db, w)
+	score := base.DefenseScore(gdb, w)
 	if score != 0 {
 		t.Errorf("empty base: got %d want 0", score)
 	}
@@ -83,13 +86,14 @@ func TestDefenseScoreEmpty(t *testing.T) {
 
 func TestDefenseScore(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := makeBaseWorld()
 
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','base-walls','Reinforced Walls',1)`) //nolint:errcheck
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','base-turret','Sentry Turret',2)`)   //nolint:errcheck
 
-	score := base.DefenseScore(db, w)
+	score := base.DefenseScore(gdb, w)
 	if score != 8 {
 		t.Errorf("walls+turret: got %d want 8", score)
 	}
@@ -97,12 +101,13 @@ func TestDefenseScore(t *testing.T) {
 
 func TestDefenseScoreIgnoresOtherRooms(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := makeBaseWorld()
 
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-0','base-walls','Walls',1)`) //nolint:errcheck
 
-	score := base.DefenseScore(db, w)
+	score := base.DefenseScore(gdb, w)
 	if score != 0 {
 		t.Errorf("other room structure: got %d want 0", score)
 	}
@@ -110,12 +115,13 @@ func TestDefenseScoreIgnoresOtherRooms(t *testing.T) {
 
 func TestMaybeSpawnRaid_spawns(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','foundation','Foundation',1)`) //nolint:errcheck
 	setActionCount(db, 30)
 
-	base.MaybeSpawnRaid(db)
+	base.MaybeSpawnRaid(gdb)
 
 	var cnt int
 	db.QueryRow(`SELECT COUNT(*) FROM world_events WHERE type='base-raid' AND target_room='dusthaven-4' AND status='active'`).Scan(&cnt) //nolint:errcheck
@@ -126,10 +132,11 @@ func TestMaybeSpawnRaid_spawns(t *testing.T) {
 
 func TestMaybeSpawnRaid_noSpawnWithoutStructures(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	setActionCount(db, 30)
-	base.MaybeSpawnRaid(db)
+	base.MaybeSpawnRaid(gdb)
 
 	var cnt int
 	db.QueryRow(`SELECT COUNT(*) FROM world_events WHERE type='base-raid'`).Scan(&cnt) //nolint:errcheck
@@ -140,13 +147,14 @@ func TestMaybeSpawnRaid_noSpawnWithoutStructures(t *testing.T) {
 
 func TestMaybeSpawnRaid_noSpawnIfActiveRaid(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','foundation','Foundation',1)`) //nolint:errcheck
 	db.Exec(`INSERT INTO world_events (id, type, title, description, target_room, faction, payout_credits, payout_item_id, payout_item_name, payout_item_desc, status, expires_actions, created_actions, created_at) VALUES ('existing-raid','base-raid','Raid','Desc','dusthaven-4','ash-raiders',0,'','','','active',30,0,0)`) //nolint:errcheck
 	setActionCount(db, 30)
 
-	base.MaybeSpawnRaid(db)
+	base.MaybeSpawnRaid(gdb)
 
 	var cnt int
 	db.QueryRow(`SELECT COUNT(*) FROM world_events WHERE type='base-raid' AND status='active'`).Scan(&cnt) //nolint:errcheck
@@ -157,12 +165,13 @@ func TestMaybeSpawnRaid_noSpawnIfActiveRaid(t *testing.T) {
 
 func TestMaybeSpawnRaid_noSpawnIfNotMultipleOf30(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','foundation','Foundation',1)`) //nolint:errcheck
 	setActionCount(db, 31)
 
-	base.MaybeSpawnRaid(db)
+	base.MaybeSpawnRaid(gdb)
 
 	var cnt int
 	db.QueryRow(`SELECT COUNT(*) FROM world_events WHERE type='base-raid'`).Scan(&cnt) //nolint:errcheck
@@ -173,10 +182,11 @@ func TestMaybeSpawnRaid_noSpawnIfNotMultipleOf30(t *testing.T) {
 
 func TestResolvePendingRaids_noPending(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := makeBaseWorld()
 
-	report := base.ResolvePendingRaids(db, w)
+	report := base.ResolvePendingRaids(gdb, w)
 	if report != "" {
 		t.Errorf("no raids: expected empty report, got %q", report)
 	}
@@ -184,6 +194,7 @@ func TestResolvePendingRaids_noPending(t *testing.T) {
 
 func TestResolvePendingRaids_repelled(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := makeBaseWorld()
 
@@ -194,7 +205,7 @@ func TestResolvePendingRaids_repelled(t *testing.T) {
 	db.Exec(`INSERT INTO world_events (id, type, title, description, target_room, faction, payout_credits, payout_item_id, payout_item_name, payout_item_desc, status, expires_actions, created_actions, created_at) VALUES ('raid-1','base-raid','Raid','Desc','dusthaven-4','ash-raiders',0,'','','','active',30,0,0)`) //nolint:errcheck
 	setActionCount(db, 60)
 
-	report := base.ResolvePendingRaids(db, w)
+	report := base.ResolvePendingRaids(gdb, w)
 
 	if report == "" {
 		t.Error("expected non-empty report")
@@ -212,6 +223,7 @@ func TestResolvePendingRaids_repelled(t *testing.T) {
 
 func TestResolvePendingRaids_brokenThrough(t *testing.T) {
 	db := openBaseTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	w := &world.World{} // no recipes = defense 0, raid always breaks through
@@ -222,7 +234,7 @@ func TestResolvePendingRaids_brokenThrough(t *testing.T) {
 	db.Exec(`INSERT INTO world_events (id, type, title, description, target_room, faction, payout_credits, payout_item_id, payout_item_name, payout_item_desc, status, expires_actions, created_actions, created_at) VALUES ('raid-2','base-raid','Raid','Desc','dusthaven-4','ash-raiders',0,'','','','active',30,0,0)`) //nolint:errcheck
 	setActionCount(db, 60)
 
-	report := base.ResolvePendingRaids(db, w)
+	report := base.ResolvePendingRaids(gdb, w)
 
 	if report == "" {
 		t.Error("expected non-empty report")

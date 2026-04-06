@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -24,8 +25,8 @@ type Result struct {
 }
 
 // isHacked reports whether a system in a room was already successfully hacked this session.
-func isHacked(db *sql.DB, roomID, systemID string) bool {
-	q := sqliteq.New(db)
+func isHacked(gdb *gamedb.GameDB, roomID, systemID string) bool {
+	q := sqliteq.New(gdb.SQLiteDB())
 	hacked, err := q.GetSystemHacked(context.Background(), sqliteq.GetSystemHackedParams{
 		RoomID:   roomID,
 		SystemID: systemID,
@@ -37,8 +38,8 @@ func isHacked(db *sql.DB, roomID, systemID string) bool {
 }
 
 // alertLevel returns the current alert level for a system.
-func alertLevel(db *sql.DB, roomID, systemID string) int {
-	q := sqliteq.New(db)
+func alertLevel(gdb *gamedb.GameDB, roomID, systemID string) int {
+	q := sqliteq.New(gdb.SQLiteDB())
 	alert, err := q.GetSystemAlert(context.Background(), sqliteq.GetSystemAlertParams{
 		RoomID:   roomID,
 		SystemID: systemID,
@@ -50,8 +51,8 @@ func alertLevel(db *sql.DB, roomID, systemID string) int {
 }
 
 // markHacked marks a system as successfully hacked.
-func markHacked(db *sql.DB, roomID, systemID string) error {
-	q := sqliteq.New(db)
+func markHacked(gdb *gamedb.GameDB, roomID, systemID string) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.MarkSystemHacked(context.Background(), sqliteq.MarkSystemHackedParams{
 		RoomID:   roomID,
 		SystemID: systemID,
@@ -59,8 +60,8 @@ func markHacked(db *sql.DB, roomID, systemID string) error {
 }
 
 // incrementAlert increments the alert level and returns the new value.
-func incrementAlert(db *sql.DB, roomID, systemID string) (int, error) {
-	q := sqliteq.New(db)
+func incrementAlert(gdb *gamedb.GameDB, roomID, systemID string) (int, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	err := q.IncrementSystemAlert(context.Background(), sqliteq.IncrementSystemAlertParams{
 		RoomID:   roomID,
 		SystemID: systemID,
@@ -68,12 +69,12 @@ func incrementAlert(db *sql.DB, roomID, systemID string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return alertLevel(db, roomID, systemID), nil
+	return alertLevel(gdb, roomID, systemID), nil
 }
 
 // Hack attempts to compromise a system in the given room.
 // hackingSkill is the player's current hacking skill level.
-func Hack(db *sql.DB, room *world.Room, systemID string, hackingSkill int) Result {
+func Hack(gdb *gamedb.GameDB, room *world.Room, systemID string, hackingSkill int) Result {
 	if room == nil {
 		return Result{NoSystem: true, Message: "no hackable systems here."}
 	}
@@ -83,14 +84,14 @@ func Hack(db *sql.DB, room *world.Room, systemID string, hackingSkill int) Resul
 		return Result{NoSystem: true, Message: fmt.Sprintf("no system %q in this room.", systemID)}
 	}
 
-	if isHacked(db, room.ID, systemID) {
+	if isHacked(gdb, room.ID, systemID) {
 		return Result{AlreadyHacked: true, Message: fmt.Sprintf("system %q is already compromised.", systemID)}
 	}
 
 	// Skill roll: rand(1,100) + skill - security_level*10 >= 50
 	roll := rand.Intn(100) + 1 + hackingSkill - sys.SecurityLevel*10
 	if roll >= 50 {
-		markHacked(db, room.ID, systemID) //nolint:errcheck
+		markHacked(gdb, room.ID, systemID) //nolint:errcheck
 		msg := fmt.Sprintf("access granted. you breached system %q.", systemID)
 		if sys.RewardText != "" {
 			msg = sys.RewardText
@@ -104,7 +105,7 @@ func Hack(db *sql.DB, room *world.Room, systemID string, hackingSkill int) Resul
 	}
 
 	// Failure — increment alert
-	newAlert, err := incrementAlert(db, room.ID, systemID)
+	newAlert, err := incrementAlert(gdb, room.ID, systemID)
 	if err != nil {
 		return Result{Message: "hack failed — system error recording alert."}
 	}
@@ -121,8 +122,8 @@ func Hack(db *sql.DB, room *world.Room, systemID string, hackingSkill int) Resul
 }
 
 // AlertLevel returns the current alert level for a system (0 if no record).
-func AlertLevel(db *sql.DB, roomID, systemID string) int {
-	return alertLevel(db, roomID, systemID)
+func AlertLevel(gdb *gamedb.GameDB, roomID, systemID string) int {
+	return alertLevel(gdb, roomID, systemID)
 }
 
 // HackPhase is a named stage of a multi-phase hack.
@@ -144,13 +145,13 @@ type PhaseResult struct {
 // HackMulti runs a three-phase hack: breach, exploit, exfil.
 // exploitBonus is added to the exploit roll (e.g. from exploit fragment items).
 // Returns per-phase results and a bounty flag (true if exfil failed after successful exploit).
-func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, exploitBonus int) ([]PhaseResult, bool, error) {
+func HackMulti(gdb *gamedb.GameDB, room *world.Room, systemID string, hackingSkill int, exploitBonus int) ([]PhaseResult, bool, error) {
 	sys := room.FindSystem(systemID)
 	if sys == nil {
 		return nil, false, fmt.Errorf("system %q not found in room %q", systemID, room.ID)
 	}
 
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	// Load current alert level.
@@ -227,8 +228,8 @@ func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, 
 
 // SetVulnWindow sets a temporary vulnerability window for a system.
 // The window expires after currentAction+3 actions have elapsed.
-func SetVulnWindow(db *sql.DB, systemID string, bonus int, currentAction int) error {
-	q := sqliteq.New(db)
+func SetVulnWindow(gdb *gamedb.GameDB, systemID string, bonus int, currentAction int) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.SetVulnWindow(context.Background(), sqliteq.SetVulnWindowParams{
 		SystemID:      systemID,
 		Bonus:         sql.NullInt64{Int64: int64(bonus), Valid: true},
@@ -237,8 +238,8 @@ func SetVulnWindow(db *sql.DB, systemID string, bonus int, currentAction int) er
 }
 
 // VulnBonus returns the current vulnerability bonus for a system, or 0 if expired/absent.
-func VulnBonus(db *sql.DB, systemID string, currentAction int) (int, error) {
-	q := sqliteq.New(db)
+func VulnBonus(gdb *gamedb.GameDB, systemID string, currentAction int) (int, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	row, err := q.GetVulnWindow(ctx, systemID)
 	if err != nil {

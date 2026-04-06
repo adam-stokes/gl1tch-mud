@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	_ "modernc.org/sqlite"
 )
@@ -37,21 +39,22 @@ func openTestDB(t *testing.T) *sql.DB {
 
 func TestDumpAndClaimDeathPile(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := player.AddItem(db, "iron-sword", "Iron Sword", "A sharp blade."); err != nil {
+	if err := player.AddItem(gdb, "iron-sword", "Iron Sword", "A sharp blade."); err != nil {
 		t.Fatalf("AddItem: %v", err)
 	}
-	if err := player.AddItem(db, "bread", "Bread", "Restores HP."); err != nil {
+	if err := player.AddItem(gdb, "bread", "Bread", "Restores HP."); err != nil {
 		t.Fatalf("AddItem: %v", err)
 	}
 
-	if err := player.DumpToDeathPile(db, "forest-1", 42); err != nil {
+	if err := player.DumpToDeathPile(gdb, "forest-1", 42); err != nil {
 		t.Fatalf("DumpToDeathPile: %v", err)
 	}
 
 	// Inventory should be empty
-	items, err := player.Inventory(db)
+	items, err := player.Inventory(gdb)
 	if err != nil {
 		t.Fatalf("Inventory: %v", err)
 	}
@@ -60,7 +63,7 @@ func TestDumpAndClaimDeathPile(t *testing.T) {
 	}
 
 	// Death pile should have 2 items
-	pile, err := player.GetDeathPile(db, "forest-1")
+	pile, err := player.GetDeathPile(gdb, "forest-1")
 	if err != nil {
 		t.Fatalf("GetDeathPile: %v", err)
 	}
@@ -69,12 +72,12 @@ func TestDumpAndClaimDeathPile(t *testing.T) {
 	}
 
 	// Claim death pile
-	if err = player.ClaimDeathPile(db, "forest-1"); err != nil {
+	if err = player.ClaimDeathPile(gdb, "forest-1"); err != nil {
 		t.Fatalf("ClaimDeathPile: %v", err)
 	}
 
 	// Inventory should have 2 items again
-	items, err = player.Inventory(db)
+	items, err = player.Inventory(gdb)
 	if err != nil {
 		t.Fatalf("Inventory after claim: %v", err)
 	}
@@ -83,7 +86,7 @@ func TestDumpAndClaimDeathPile(t *testing.T) {
 	}
 
 	// Death pile should be empty
-	pile, err = player.GetDeathPile(db, "forest-1")
+	pile, err = player.GetDeathPile(gdb, "forest-1")
 	if err != nil {
 		t.Fatalf("GetDeathPile after claim: %v", err)
 	}
@@ -94,16 +97,17 @@ func TestDumpAndClaimDeathPile(t *testing.T) {
 
 func TestRemoveItem(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := player.AddItem(db, "coal", "Coal", "Fuel."); err != nil {
+	if err := player.AddItem(gdb, "coal", "Coal", "Fuel."); err != nil {
 		t.Fatalf("AddItem: %v", err)
 	}
 
-	if err := player.RemoveItem(db, "coal"); err != nil {
+	if err := player.RemoveItem(gdb, "coal"); err != nil {
 		t.Fatalf("RemoveItem: %v", err)
 	}
-	items, err := player.Inventory(db)
+	items, err := player.Inventory(gdb)
 	if err != nil {
 		t.Fatalf("Inventory: %v", err)
 	}
@@ -139,13 +143,14 @@ func openArmorTestDB(t *testing.T) *sql.DB {
 
 func TestEquipArmor(t *testing.T) {
 	db := openArmorTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := player.EquipArmor(db, "leather-armor", "Leather Armor", 3); err != nil {
+	if err := player.EquipArmor(gdb, "leather-armor", "Leather Armor", 3); err != nil {
 		t.Fatalf("EquipArmor: %v", err)
 	}
 
-	rec, err := player.GetEquippedArmor(db)
+	rec, err := player.GetEquippedArmor(gdb)
 	if err != nil {
 		t.Fatalf("GetEquippedArmor: %v", err)
 	}
@@ -162,14 +167,15 @@ func TestEquipArmor(t *testing.T) {
 
 func TestEquipArmorReplaces(t *testing.T) {
 	db := openArmorTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	player.EquipArmor(db, "leather-armor", "Leather Armor", 2) //nolint:errcheck
-	if err := player.EquipArmor(db, "iron-vest", "Iron Vest", 5); err != nil {
+	player.EquipArmor(gdb, "leather-armor", "Leather Armor", 2) //nolint:errcheck
+	if err := player.EquipArmor(gdb, "iron-vest", "Iron Vest", 5); err != nil {
 		t.Fatalf("second EquipArmor: %v", err)
 	}
 
-	rec, _ := player.GetEquippedArmor(db)
+	rec, _ := player.GetEquippedArmor(gdb)
 	if rec == nil || rec.ItemID != "iron-vest" {
 		t.Errorf("expected iron-vest to replace leather-armor, got %+v", rec)
 	}
@@ -177,14 +183,15 @@ func TestEquipArmorReplaces(t *testing.T) {
 
 func TestUnequipArmor(t *testing.T) {
 	db := openArmorTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	player.EquipArmor(db, "leather-armor", "Leather Armor", 2) //nolint:errcheck
-	if err := player.UnequipArmor(db); err != nil {
+	player.EquipArmor(gdb, "leather-armor", "Leather Armor", 2) //nolint:errcheck
+	if err := player.UnequipArmor(gdb); err != nil {
 		t.Fatalf("UnequipArmor: %v", err)
 	}
 
-	rec, err := player.GetEquippedArmor(db)
+	rec, err := player.GetEquippedArmor(gdb)
 	if err != nil {
 		t.Fatalf("GetEquippedArmor after unequip: %v", err)
 	}
@@ -195,16 +202,17 @@ func TestUnequipArmor(t *testing.T) {
 
 func TestLoadDefense(t *testing.T) {
 	db := openArmorTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{}
-	player.LoadDefense(db, s)
+	player.LoadDefense(gdb, s)
 	if s.Defense != 0 {
 		t.Errorf("defense with no armor: got %d want 0", s.Defense)
 	}
 
-	player.EquipArmor(db, "leather-armor", "Leather Armor", 4) //nolint:errcheck
-	player.LoadDefense(db, s)
+	player.EquipArmor(gdb, "leather-armor", "Leather Armor", 4) //nolint:errcheck
+	player.LoadDefense(gdb, s)
 	if s.Defense != 4 {
 		t.Errorf("defense after equip: got %d want 4", s.Defense)
 	}

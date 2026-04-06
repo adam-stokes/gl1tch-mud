@@ -2,11 +2,11 @@ package commands
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/enchanting"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
@@ -34,8 +34,8 @@ func itemCategory(itemID string) string {
 }
 
 // Enchant enchants an item using the enchanting table.
-func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	q := sqliteq.New(db)
+func Enchant(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	cnt, err := q.CountEnchantingTable(ctx, s.RoomID)
 	if err != nil {
@@ -45,7 +45,7 @@ func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		return Result{Output: "you need an enchanting table. build one with 'build enchanting-table'."}
 	}
 
-	xp, level, _ := enchanting.XPState(db)
+	xp, level, _ := enchanting.XPState(gdb)
 
 	if len(args) == 0 {
 		return Result{Output: fmt.Sprintf(
@@ -54,7 +54,7 @@ func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	itemID := strings.ToLower(args[0])
-	invIDs := inventoryIDs(db)
+	invIDs := inventoryIDs(gdb)
 	hasItem := false
 	for _, id := range invIDs {
 		if id == itemID {
@@ -92,8 +92,8 @@ func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		)}
 	}
 
-	current := actionCount(db)
-	if err := enchanting.Apply(db, itemID, chosenID, enchantLevel, current); err != nil {
+	current := actionCount(gdb)
+	if err := enchanting.Apply(gdb, itemID, chosenID, enchantLevel, current); err != nil {
 		return Result{Output: "enchantment failed — try again."}
 	}
 	if err := q.DeductEnchantingXP(ctx, int64(xpCost)); err != nil {

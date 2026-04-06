@@ -1,10 +1,10 @@
 package commands
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -14,7 +14,7 @@ func init() {
 }
 
 // World handles "world list" and "world switch <name>".
-func World(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func World(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "usage: world list | world switch <name>"}
 	}

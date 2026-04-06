@@ -2,23 +2,25 @@
 package trading
 
 import (
-	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
 // Reputation returns the player's reputation with a faction (0 if not found).
-func Reputation(db *sql.DB, faction string) int {
+func Reputation(gdb *gamedb.GameDB, faction string) int {
+	db := gdb.SQLiteDB()
 	var value int
 	db.QueryRow(`SELECT value FROM player_reputation WHERE faction=?`, faction).Scan(&value) //nolint:errcheck
 	return value
 }
 
 // IncrementReputation adds 1 to a faction's reputation.
-func IncrementReputation(db *sql.DB, faction string) error {
+func IncrementReputation(gdb *gamedb.GameDB, faction string) error {
+	db := gdb.SQLiteDB()
 	_, err := db.Exec(
 		`INSERT INTO player_reputation (faction, value) VALUES (?,1)
 		 ON CONFLICT(faction) DO UPDATE SET value=value+1`,
@@ -41,12 +43,12 @@ func parseFactionReq(req string) (string, int) {
 }
 
 // ListOffers returns all trades the NPC will offer given player reputation.
-func ListOffers(w *world.World, npc *world.NPC, db *sql.DB) []world.TradeOffer {
+func ListOffers(w *world.World, npc *world.NPC, gdb *gamedb.GameDB) []world.TradeOffer {
 	var result []world.TradeOffer
 	for _, trade := range npc.Trades {
 		faction, minRep := parseFactionReq(trade.FactionReq)
 		if faction != "" {
-			rep := Reputation(db, faction)
+			rep := Reputation(gdb, faction)
 			if rep < minRep {
 				continue
 			}
@@ -77,7 +79,9 @@ type ExecuteResult struct {
 
 // Execute performs a trade identified by tradeID with an NPC.
 // inventory is a map[itemID]bool of items the player carries.
-func Execute(db *sql.DB, npc *world.NPC, tradeID string, inventoryIDs []string) ExecuteResult {
+func Execute(gdb *gamedb.GameDB, npc *world.NPC, tradeID string, inventoryIDs []string) ExecuteResult {
+	db := gdb.SQLiteDB()
+
 	// Find trade
 	var trade *world.TradeOffer
 	for i := range npc.Trades {
@@ -93,7 +97,7 @@ func Execute(db *sql.DB, npc *world.NPC, tradeID string, inventoryIDs []string) 
 	// Check faction rep
 	faction, minRep := parseFactionReq(trade.FactionReq)
 	if faction != "" {
-		rep := Reputation(db, faction)
+		rep := Reputation(gdb, faction)
 		if rep < minRep {
 			return ExecuteResult{
 				Message: fmt.Sprintf(
@@ -148,7 +152,7 @@ func Execute(db *sql.DB, npc *world.NPC, tradeID string, inventoryIDs []string) 
 
 	// Increment faction reputation
 	if faction != "" {
-		IncrementReputation(db, faction) //nolint:errcheck
+		IncrementReputation(gdb, faction) //nolint:errcheck
 	}
 
 	var gaveIDs []string

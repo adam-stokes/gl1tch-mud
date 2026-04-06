@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -41,15 +43,16 @@ func openTestDB(t *testing.T) *sql.DB {
 
 func TestCheckCraft(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	q := Quest{
 		ID: "q-craft-test", Title: "Craft Test",
 		ObjType: "craft", ObjTarget: "stone-sword", ObjCount: 1,
 		AcceptedAt: 1,
 	}
-	if err := Accept(db, q); err != nil {
+	if err := Accept(gdb, q); err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
-	ready, err := CheckCraft(db, "stone-sword")
+	ready, err := CheckCraft(gdb, "stone-sword")
 	if err != nil {
 		t.Fatalf("CheckCraft: %v", err)
 	}
@@ -60,16 +63,17 @@ func TestCheckCraft(t *testing.T) {
 
 func TestCheckGather(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	q := Quest{
 		ID: "q-gather-test", Title: "Gather Test",
 		ObjType: "gather", ObjTarget: "stick", ObjCount: 5,
 		AcceptedAt: 1,
 	}
-	if err := Accept(db, q); err != nil {
+	if err := Accept(gdb, q); err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
 	for i := 0; i < 4; i++ {
-		ready, err := CheckGather(db, "stick")
+		ready, err := CheckGather(gdb, "stick")
 		if err != nil {
 			t.Fatalf("CheckGather iter %d: %v", i, err)
 		}
@@ -77,7 +81,7 @@ func TestCheckGather(t *testing.T) {
 			t.Errorf("gather %d: expected not ready, got %v", i+1, ready)
 		}
 	}
-	ready, err := CheckGather(db, "stick")
+	ready, err := CheckGather(gdb, "stick")
 	if err != nil {
 		t.Fatalf("CheckGather final: %v", err)
 	}
@@ -88,15 +92,16 @@ func TestCheckGather(t *testing.T) {
 
 func TestCheckSmelt(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	q := Quest{
 		ID: "q-smelt-test", Title: "Smelt Test",
 		ObjType: "smelt", ObjTarget: "iron-ingot", ObjCount: 1,
 		AcceptedAt: 1,
 	}
-	if err := Accept(db, q); err != nil {
+	if err := Accept(gdb, q); err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
-	ready, err := CheckSmelt(db, "iron-ingot")
+	ready, err := CheckSmelt(gdb, "iron-ingot")
 	if err != nil {
 		t.Fatalf("CheckSmelt: %v", err)
 	}
@@ -107,15 +112,16 @@ func TestCheckSmelt(t *testing.T) {
 
 func TestCheckAssemble(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	q := Quest{
 		ID: "q-assemble-test", Title: "Assemble Test",
 		ObjType: "assemble", ObjTarget: "pipe-pistol", ObjCount: 1,
 		AcceptedAt: 1,
 	}
-	if err := Accept(db, q); err != nil {
+	if err := Accept(gdb, q); err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
-	ready, err := CheckAssemble(db, "pipe-pistol")
+	ready, err := CheckAssemble(gdb, "pipe-pistol")
 	if err != nil {
 		t.Fatalf("CheckAssemble: %v", err)
 	}
@@ -126,16 +132,17 @@ func TestCheckAssemble(t *testing.T) {
 
 func TestNextQuestID(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	q := Quest{
 		ID: "q-chain-1", Title: "Chain 1",
 		ObjType: "gather", ObjTarget: "stick", ObjCount: 1,
 		NextQuestID: "q-chain-2",
 		AcceptedAt:  1,
 	}
-	if err := Accept(db, q); err != nil {
+	if err := Accept(gdb, q); err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
-	got, err := Get(db, "q-chain-1")
+	got, err := Get(gdb, "q-chain-1")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -146,13 +153,14 @@ func TestNextQuestID(t *testing.T) {
 
 func TestActiveIDs(t *testing.T) {
 	db := openTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	q1 := Quest{ID: "q-a1", Title: "A1", ObjType: "gather", ObjTarget: "stick", ObjCount: 1, AcceptedAt: 1}
 	q2 := Quest{ID: "q-a2", Title: "A2", ObjType: "gather", ObjTarget: "flint", ObjCount: 1, AcceptedAt: 1}
-	Accept(db, q1) //nolint:errcheck
-	Accept(db, q2) //nolint:errcheck
-	Complete(db, "q-a2") //nolint:errcheck
+	Accept(gdb, q1) //nolint:errcheck
+	Accept(gdb, q2) //nolint:errcheck
+	Complete(gdb, "q-a2") //nolint:errcheck
 
-	ids, err := ActiveIDs(db)
+	ids, err := ActiveIDs(gdb)
 	if err != nil {
 		t.Fatalf("ActiveIDs: %v", err)
 	}

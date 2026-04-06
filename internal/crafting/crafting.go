@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -33,7 +34,7 @@ type Result struct {
 // inventoryIDs is a list of item IDs the player currently carries.
 // room is the player's current room (used for workbench check).
 // slots maps slotID → itemID for assembly recipes; nil for ingredient recipes.
-func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
+func Craft(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipeID string, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
 	recipe := w.FindRecipe(recipeID)
 	if recipe == nil {
 		var names []string
@@ -50,15 +51,15 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 
 	switch recipe.Type {
 	case world.RecipeTypeAssembly:
-		return craftAssemble(db, w, room, recipe, inventoryIDs, hackingSkill, slots)
+		return craftAssemble(gdb, w, room, recipe, inventoryIDs, hackingSkill, slots)
 	default:
-		return craftIngredient(db, w, room, recipe, inventoryIDs, hackingSkill)
+		return craftIngredient(gdb, w, room, recipe, inventoryIDs, hackingSkill)
 	}
 }
 
 // craftIngredient is the existing ingredient-list crafting path, unchanged in behaviour.
-func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int) Result {
-	q := sqliteq.New(db)
+func craftIngredient(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int) Result {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	// Blueprint/unlock check
@@ -142,8 +143,8 @@ func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world
 }
 
 // craftAssemble is the slot-based assembly path.
-func craftAssemble(db *sql.DB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
-	q := sqliteq.New(db)
+func craftAssemble(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	// Skill gate
@@ -256,8 +257,8 @@ func hasTag(tags []string, target string) bool {
 }
 
 // UnlockRecipe records that the given recipe has been unlocked via a blueprint.
-func UnlockRecipe(db *sql.DB, recipeID string) error {
-	q := sqliteq.New(db)
+func UnlockRecipe(gdb *gamedb.GameDB, recipeID string) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.UnlockRecipe(context.Background(), sqliteq.UnlockRecipeParams{
 		RecipeID:   recipeID,
 		UnlockedAt: sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
@@ -265,21 +266,21 @@ func UnlockRecipe(db *sql.DB, recipeID string) error {
 }
 
 // IsUnlocked reports whether the given recipe has been unlocked.
-func IsUnlocked(db *sql.DB, recipeID string) (bool, error) {
-	q := sqliteq.New(db)
+func IsUnlocked(gdb *gamedb.GameDB, recipeID string) (bool, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	count, err := q.IsRecipeUnlocked(context.Background(), recipeID)
 	return count > 0, err
 }
 
 // SetPlayerFlag sets a boolean flag in the player_flags table.
-func SetPlayerFlag(db *sql.DB, flag string) error {
-	q := sqliteq.New(db)
+func SetPlayerFlag(gdb *gamedb.GameDB, flag string) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.SetPlayerFlag(context.Background(), flag)
 }
 
 // IsPlayerFlagSet returns true if the flag exists in player_flags.
-func IsPlayerFlagSet(db *sql.DB, flag string) bool {
-	q := sqliteq.New(db)
+func IsPlayerFlagSet(gdb *gamedb.GameDB, flag string) bool {
+	q := sqliteq.New(gdb.SQLiteDB())
 	count, _ := q.CountPlayerFlag(context.Background(), flag)
 	return count > 0
 }

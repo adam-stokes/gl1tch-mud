@@ -2,10 +2,10 @@ package commands
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -19,9 +19,9 @@ func init() {
 
 // Build constructs a structure in the current room using world crafting recipes
 // tagged with workbench type "build".
-func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Build(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
-		items, _ := player.Inventory(db)
+		items, _ := player.Inventory(gdb)
 		invCount := make(map[string]int, len(items))
 		for _, it := range items {
 			invCount[it.ID]++
@@ -66,7 +66,7 @@ func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	// Build an item count map from inventory.
-	items, _ := player.Inventory(db)
+	items, _ := player.Inventory(gdb)
 	invCount := make(map[string]int, len(items))
 	for _, it := range items {
 		invCount[it.ID]++
@@ -79,12 +79,12 @@ func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	for _, ing := range recipe.Ingredients {
 		for i := 0; i < ing.Count; i++ {
-			player.RemoveItem(db, ing.ID) //nolint:errcheck
+			player.RemoveItem(gdb, ing.ID) //nolint:errcheck
 		}
 	}
 
-	current := actionCount(db)
-	q := sqliteq.New(db)
+	current := actionCount(gdb)
+	q := sqliteq.New(gdb.SQLiteDB())
 	q.InsertBuild(context.Background(), sqliteq.InsertBuildParams{ //nolint:errcheck
 		RoomID:   s.RoomID,
 		BuildID:  recipe.ID,
@@ -92,7 +92,7 @@ func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		Desc:     recipe.Output.Desc,
 		PlacedAt: int64(current),
 	})
-	bumpActions(db)
+	bumpActions(gdb)
 
 	unlocks := buildUnlockMessage(recipe.ID)
 	return Result{Output: fmt.Sprintf("you build a %s.%s", recipe.Name, unlocks)}
@@ -115,19 +115,19 @@ func buildUnlockMessage(buildID string) string {
 }
 
 // Stash puts an item from inventory into a chest in the current room.
-func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Stash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "stash <item-id> — store an item in the room's chest"}
 	}
 
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	cnt, _ := q.CountChestInRoom(context.Background(), s.RoomID)
 	if cnt == 0 {
 		return Result{Output: "there is no chest here. build one first."}
 	}
 
 	itemID := strings.ToLower(args[0])
-	items, err := player.Inventory(db)
+	items, err := player.Inventory(gdb)
 	if err != nil {
 		return Result{Output: "could not read inventory."}
 	}
@@ -142,7 +142,7 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("you don't have %q.", itemID)}
 	}
 
-	tx, err := db.Begin()
+	tx, err := gdb.SQLiteDB().Begin()
 	if err != nil {
 		return Result{Output: "could not begin transaction."}
 	}
@@ -168,8 +168,8 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Unstash retrieves an item from the chest in the current room.
-func Unstash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	q := sqliteq.New(db)
+func Unstash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	cnt, _ := q.CountChestInRoom(ctx, s.RoomID)
 	if cnt == 0 {
@@ -198,7 +198,7 @@ func Unstash(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		return Result{Output: fmt.Sprintf("no %q in the chest.", itemID)}
 	}
 
-	tx, err := db.Begin()
+	tx, err := gdb.SQLiteDB().Begin()
 	if err != nil {
 		return Result{Output: "could not begin transaction."}
 	}

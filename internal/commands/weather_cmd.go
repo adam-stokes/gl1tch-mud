@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"database/sql"
 	"fmt"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/weather"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -14,7 +14,7 @@ func init() {
 }
 
 // Weather shows current weather in the player's biome.
-func Weather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Weather(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	biome := "meadow"
 	if room != nil && room.Biome != "" {
@@ -32,8 +32,8 @@ func Weather(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		possible = []string{"clear"}
 	}
 
-	current := actionCount(db)
-	cond, err := weather.Tick(db, biome, current, possible)
+	current := actionCount(gdb)
+	cond, err := weather.Tick(gdb, biome, current, possible)
 	if err != nil {
 		return Result{Output: "unable to check weather."}
 	}

@@ -3,8 +3,8 @@ package enchanting
 
 import (
 	"context"
-	"database/sql"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
@@ -16,8 +16,8 @@ type Enchant struct {
 }
 
 // Apply adds an enchantment to an item (or upgrades level if already present).
-func Apply(db *sql.DB, itemID, enchantID string, level, appliedAt int) error {
-	q := sqliteq.New(db)
+func Apply(gdb *gamedb.GameDB, itemID, enchantID string, level, appliedAt int) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.ApplyEnchant(context.Background(), sqliteq.ApplyEnchantParams{
 		ItemID:    itemID,
 		EnchantID: enchantID,
@@ -27,8 +27,8 @@ func Apply(db *sql.DB, itemID, enchantID string, level, appliedAt int) error {
 }
 
 // List returns all enchantments on an item.
-func List(db *sql.DB, itemID string) ([]Enchant, error) {
-	q := sqliteq.New(db)
+func List(gdb *gamedb.GameDB, itemID string) ([]Enchant, error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	rows, err := q.ListEnchants(context.Background(), itemID)
 	if err != nil {
 		return nil, err
@@ -45,8 +45,8 @@ func List(db *sql.DB, itemID string) ([]Enchant, error) {
 }
 
 // AddXP adds enchanting experience points and recalculates level (100 XP per level, cap 30).
-func AddXP(db *sql.DB, amount int) error {
-	q := sqliteq.New(db)
+func AddXP(gdb *gamedb.GameDB, amount int) error {
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.AddEnchantingXP(context.Background(), sqliteq.AddEnchantingXPParams{
 		Xp:   int64(amount),
 		Xp_2: int64(amount),
@@ -54,8 +54,8 @@ func AddXP(db *sql.DB, amount int) error {
 }
 
 // XPState returns current enchanting XP and level.
-func XPState(db *sql.DB) (xp, level int, err error) {
-	q := sqliteq.New(db)
+func XPState(gdb *gamedb.GameDB) (xp, level int, err error) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	row, err := q.GetEnchantingXPState(context.Background())
 	if err != nil {
 		return 0, 0, err

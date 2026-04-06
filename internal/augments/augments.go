@@ -1,14 +1,16 @@
 package augments
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 )
 
 const maxAugments = 3
 
-func Install(db *sql.DB, skill string, bonus int) error {
+func Install(gdb *gamedb.GameDB, skill string, bonus int) error {
+	db := gdb.SQLiteDB()
 	var count int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM player_augments`).Scan(&count); err != nil {
 		return err
@@ -21,16 +23,18 @@ func Install(db *sql.DB, skill string, bonus int) error {
 	return err
 }
 
-func TotalBonus(db *sql.DB, skill string) int {
+func TotalBonus(gdb *gamedb.GameDB, skill string) int {
+	db := gdb.SQLiteDB()
 	var total int
 	_ = db.QueryRow(`SELECT COALESCE(SUM(bonus), 0) FROM player_augments WHERE skill = ?`, skill).Scan(&total)
 	return total
 }
 
-func List(db *sql.DB) ([]struct {
+func List(gdb *gamedb.GameDB) ([]struct {
 	Skill string
 	Bonus int
 }, error) {
+	db := gdb.SQLiteDB()
 	rows, err := db.Query(`SELECT skill, bonus FROM player_augments ORDER BY installed_at`)
 	if err != nil {
 		return nil, err

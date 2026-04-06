@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/arena"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -65,13 +67,14 @@ func freshState() *player.State {
 
 func TestStartTDM(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if err := arena.StartTDM(db); err != nil {
+	if err := arena.StartTDM(gdb); err != nil {
 		t.Fatalf("StartTDM: %v", err)
 	}
 
-	m := arena.GetActive(db)
+	m := arena.GetActive(gdb)
 	if m == nil {
 		t.Fatal("expected active match after StartTDM")
 	}
@@ -96,14 +99,15 @@ func TestStartTDM(t *testing.T) {
 
 func TestStartTowerDefense(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld() // defense=0, no turret damage
 
-	if err := arena.StartTowerDefense(db, w); err != nil {
+	if err := arena.StartTowerDefense(gdb, w); err != nil {
 		t.Fatalf("StartTowerDefense: %v", err)
 	}
 
-	m := arena.GetActive(db)
+	m := arena.GetActive(gdb)
 	if m == nil {
 		t.Fatal("expected active match")
 	}
@@ -123,26 +127,28 @@ func TestStartTowerDefense(t *testing.T) {
 
 func TestGetActive_none(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	if m := arena.GetActive(db); m != nil {
+	if m := arena.GetActive(gdb); m != nil {
 		t.Errorf("expected nil, got %+v", m)
 	}
 }
 
 func TestProcessAttack_TDM_damagesEnemy(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld()
 	s := freshState()
 
-	arena.StartTDM(db) //nolint:errcheck
-	res := arena.ProcessAttack(db, w, s)
+	arena.StartTDM(gdb) //nolint:errcheck
+	res := arena.ProcessAttack(gdb, w, s)
 
 	if res.Lost || res.Won {
 		t.Fatalf("unexpected match end after one attack: won=%v lost=%v", res.Won, res.Lost)
 	}
-	m := arena.GetActive(db)
+	m := arena.GetActive(gdb)
 	if m == nil {
 		t.Fatal("match should still be active")
 	}
@@ -154,12 +160,13 @@ func TestProcessAttack_TDM_damagesEnemy(t *testing.T) {
 
 func TestProcessAttack_TDM_enemiesCounterattack(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld()
 	s := freshState() // Defense=0
 
-	arena.StartTDM(db) //nolint:errcheck
-	arena.ProcessAttack(db, w, s) // one attack
+	arena.StartTDM(gdb) //nolint:errcheck
+	arena.ProcessAttack(gdb, w, s) // one attack
 
 	// 5 enemies attack for max(1, 8-0)=8 each → player HP = 100 - (5*8) = 60
 	if s.HP != 60 {
@@ -169,15 +176,16 @@ func TestProcessAttack_TDM_enemiesCounterattack(t *testing.T) {
 
 func TestProcessAttack_TDM_win(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld()
 	s := &player.State{HP: 1000, MaxHP: 1000, Defense: 0}
 
-	arena.StartTDM(db) //nolint:errcheck
+	arena.StartTDM(gdb) //nolint:errcheck
 	// Need 2 attacks per enemy (HP=30, playerDmg=15): 10 attacks total
 	var res arena.AttackResult
 	for i := 0; i < 10; i++ {
-		res = arena.ProcessAttack(db, w, s)
+		res = arena.ProcessAttack(gdb, w, s)
 	}
 
 	if !res.Won {
@@ -194,17 +202,18 @@ func TestProcessAttack_TDM_win(t *testing.T) {
 
 func TestProcessAttack_TDM_loss(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld()
 	s := &player.State{HP: 1, MaxHP: 100, Defense: 0} // 1 HP — any counterattack kills
 
-	arena.StartTDM(db) //nolint:errcheck
-	res := arena.ProcessAttack(db, w, s)
+	arena.StartTDM(gdb) //nolint:errcheck
+	res := arena.ProcessAttack(gdb, w, s)
 
 	if !res.Lost {
 		t.Errorf("expected Lost with 1 HP, got: lost=%v", res.Lost)
 	}
-	m := arena.GetActive(db)
+	m := arena.GetActive(gdb)
 	if m != nil {
 		t.Error("match should not be active after loss")
 	}
@@ -212,6 +221,7 @@ func TestProcessAttack_TDM_loss(t *testing.T) {
 
 func TestStartTowerDefense_turretsDamageOnStart(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	// Build a structure with defense=3 in dusthaven-4
@@ -221,9 +231,9 @@ func TestStartTowerDefense_turretsDamageOnStart(t *testing.T) {
 	}
 	db.Exec(`INSERT INTO builds (room_id, build_id, name, placed_at) VALUES ('dusthaven-4','base-walls','Walls',1)`) //nolint:errcheck
 
-	arena.StartTowerDefense(db, w) //nolint:errcheck
+	arena.StartTowerDefense(gdb, w) //nolint:errcheck
 
-	m := arena.GetActive(db)
+	m := arena.GetActive(gdb)
 	if m == nil {
 		t.Fatal("expected active match")
 	}
@@ -237,19 +247,20 @@ func TestStartTowerDefense_turretsDamageOnStart(t *testing.T) {
 
 func TestProcessAttack_TD_waveClear(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld()
 	s := &player.State{HP: 1000, MaxHP: 1000, Defense: 0}
 
-	arena.StartTowerDefense(db, w) //nolint:errcheck
+	arena.StartTowerDefense(gdb, w) //nolint:errcheck
 	// Kill 3 enemies: each needs 2 attacks (HP=25, dmg=15 → 10 → dead)
 	for i := 0; i < 6; i++ {
-		arena.ProcessAttack(db, w, s) //nolint:errcheck
+		arena.ProcessAttack(gdb, w, s) //nolint:errcheck
 	}
 	// Now all 3 dead — next attack should advance to wave 1
-	res := arena.ProcessAttack(db, w, s)
+	res := arena.ProcessAttack(gdb, w, s)
 
-	m := arena.GetActive(db)
+	m := arena.GetActive(gdb)
 	if m == nil {
 		t.Fatal("match should still be active after wave 0")
 	}
@@ -264,16 +275,17 @@ func TestProcessAttack_TD_waveClear(t *testing.T) {
 
 func TestProcessAttack_TD_win(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 	w := emptyWorld()
 	s := &player.State{HP: 10000, MaxHP: 10000, Defense: 0}
 
-	arena.StartTowerDefense(db, w) //nolint:errcheck
+	arena.StartTowerDefense(gdb, w) //nolint:errcheck
 
 	// Win by attacking enough times
 	var res arena.AttackResult
 	for i := 0; i < 100 && !res.Won; i++ {
-		res = arena.ProcessAttack(db, w, s)
+		res = arena.ProcessAttack(gdb, w, s)
 	}
 
 	if !res.Won {
@@ -295,15 +307,16 @@ func TestProcessAttack_TD_win(t *testing.T) {
 
 func TestQuit(t *testing.T) {
 	db := openArenaDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
-	arena.StartTDM(db) //nolint:errcheck
-	msg := arena.Quit(db)
+	arena.StartTDM(gdb) //nolint:errcheck
+	msg := arena.Quit(gdb)
 
 	if msg == "" {
 		t.Error("expected non-empty quit message")
 	}
-	if m := arena.GetActive(db); m != nil {
+	if m := arena.GetActive(gdb); m != nil {
 		t.Error("match should not be active after quit")
 	}
 }

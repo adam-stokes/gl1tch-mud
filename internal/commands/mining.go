@@ -2,11 +2,11 @@ package commands
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/enchanting"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
@@ -24,14 +24,14 @@ func init() {
 }
 
 // bumpActions increments the player action counter.
-func bumpActions(db *sql.DB) {
-	q := sqliteq.New(db)
+func bumpActions(gdb *gamedb.GameDB) {
+	q := sqliteq.New(gdb.SQLiteDB())
 	q.BumpActions(context.Background()) //nolint:errcheck
 }
 
 // isResourceDepleted checks if a resource in a room is currently depleted.
-func isResourceDepleted(db *sql.DB, roomID, resourceID string, respawnActions int) bool {
-	q := sqliteq.New(db)
+func isResourceDepleted(gdb *gamedb.GameDB, roomID, resourceID string, respawnActions int) bool {
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	row, err := q.GetResourceState(ctx, sqliteq.GetResourceStateParams{
 		RoomID:     roomID,
@@ -43,7 +43,7 @@ func isResourceDepleted(db *sql.DB, roomID, resourceID string, respawnActions in
 	if row.Depleted == 0 {
 		return false
 	}
-	current := actionCount(db)
+	current := actionCount(gdb)
 	if current >= int(row.DepletedAtAction)+respawnActions {
 		q.ClearResourceDepletion(ctx, sqliteq.ClearResourceDepletionParams{ //nolint:errcheck
 			RoomID:     roomID,
@@ -55,9 +55,9 @@ func isResourceDepleted(db *sql.DB, roomID, resourceID string, respawnActions in
 }
 
 // depleteResource marks a resource as depleted.
-func depleteResource(db *sql.DB, roomID, resourceID string) {
-	current := actionCount(db)
-	q := sqliteq.New(db)
+func depleteResource(gdb *gamedb.GameDB, roomID, resourceID string) {
+	current := actionCount(gdb)
+	q := sqliteq.New(gdb.SQLiteDB())
 	q.DepleteResource(context.Background(), sqliteq.DepleteResourceParams{ //nolint:errcheck
 		RoomID:           roomID,
 		ResourceID:       resourceID,
@@ -66,11 +66,11 @@ func depleteResource(db *sql.DB, roomID, resourceID string) {
 }
 
 // rollYield rolls loot from a resource's yields list, applying weather + fortune enchant bonuses.
-func rollYield(db *sql.DB, yields []world.LootEntry, biome string) []world.LootEntry {
+func rollYield(gdb *gamedb.GameDB, yields []world.LootEntry, biome string) []world.LootEntry {
 	var bonusCount int
-	items, _ := player.Inventory(db)
+	items, _ := player.Inventory(gdb)
 	for _, it := range items {
-		enchants, _ := enchanting.List(db, it.ID)
+		enchants, _ := enchanting.List(gdb, it.ID)
 		for _, e := range enchants {
 			if e.EnchantID == "fortune" {
 				bonusCount += enchanting.YieldBonus("fortune", e.Level)
@@ -78,7 +78,7 @@ func rollYield(db *sql.DB, yields []world.LootEntry, biome string) []world.LootE
 		}
 	}
 
-	cond, _ := weather.Current(db, biome)
+	cond, _ := weather.Current(gdb, biome)
 	weatherBonus := weather.YieldBonus(cond)
 
 	var out []world.LootEntry
@@ -99,7 +99,7 @@ func rollYield(db *sql.DB, yields []world.LootEntry, biome string) []world.LootE
 }
 
 // Mine lists or mines a resource in the current room.
-func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Mine(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "nowhere to mine."}
@@ -120,7 +120,7 @@ func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		b.WriteString("mineable resources:\n")
 		for _, r := range mineResources {
 			status := ""
-			if isResourceDepleted(db, s.RoomID, r.ID, r.RespawnActions) {
+			if isResourceDepleted(gdb, s.RoomID, r.ID, r.RespawnActions) {
 				status = " (depleted)"
 			}
 			fmt.Fprintf(&b, "  %s%s\n", r.ID, status)
@@ -139,12 +139,12 @@ func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if res == nil {
 		return Result{Output: fmt.Sprintf("no mineable resource %q here.", target)}
 	}
-	if isResourceDepleted(db, s.RoomID, res.ID, res.RespawnActions) {
+	if isResourceDepleted(gdb, s.RoomID, res.ID, res.RespawnActions) {
 		return Result{Output: fmt.Sprintf("the %s is exhausted. come back later.", res.ID)}
 	}
 
 	if res.ToolRequired != "" {
-		invIDs := inventoryIDs(db)
+		invIDs := inventoryIDs(gdb)
 		hasTool := false
 		for _, id := range invIDs {
 			if strings.Contains(id, res.ToolRequired) {
@@ -157,11 +157,11 @@ func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 
-	bumpActions(db)
-	depleteResource(db, s.RoomID, res.ID)
-	enchanting.AddXP(db, 5) //nolint:errcheck
+	bumpActions(gdb)
+	depleteResource(gdb, s.RoomID, res.ID)
+	enchanting.AddXP(gdb, 5) //nolint:errcheck
 
-	yields := rollYield(db, res.Yields, room.Biome)
+	yields := rollYield(gdb, res.Yields, room.Biome)
 	if len(yields) == 0 {
 		return Result{Output: fmt.Sprintf("you mine the %s but find nothing useful.", res.ID)}
 	}
@@ -169,11 +169,11 @@ func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	var b strings.Builder
 	fmt.Fprintf(&b, "you mine the %s...\n", res.ID)
 	for _, y := range yields {
-		player.AddItem(db, y.ItemID, y.Name, y.Desc) //nolint:errcheck
+		player.AddItem(gdb, y.ItemID, y.Name, y.Desc) //nolint:errcheck
 		fmt.Fprintf(&b, "  + %dx %s\n", y.CountMin, y.Name)
 	}
 	out := strings.TrimRight(b.String(), "\n")
-	readyQuests, _ := quests.CheckMine(db, res.ID)
+	readyQuests, _ := quests.CheckMine(gdb, res.ID)
 	for _, q := range readyQuests {
 		out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
 	}
@@ -181,7 +181,7 @@ func Mine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Harvest lists or harvests a resource in the current room.
-func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Harvest(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "nowhere to harvest."}
@@ -194,8 +194,8 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		}
 	}
 
-	current := actionCount(db)
-	q := sqliteq.New(db)
+	current := actionCount(gdb)
+	q := sqliteq.New(gdb.SQLiteDB())
 	seedIDs, _ := q.ListReadyCrops(context.Background(), sqliteq.ListReadyCropsParams{
 		RoomID:        s.RoomID,
 		ReadyAtAction: int64(current),
@@ -212,7 +212,7 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		b.WriteString("harvestable resources:\n")
 		for _, r := range harvestResources {
 			status := ""
-			if isResourceDepleted(db, s.RoomID, r.ID, r.RespawnActions) {
+			if isResourceDepleted(gdb, s.RoomID, r.ID, r.RespawnActions) {
 				status = " (depleted)"
 			}
 			fmt.Fprintf(&b, "  %s%s\n", r.ID, status)
@@ -237,7 +237,7 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 			SeedID:        seedID,
 			ReadyAtAction: int64(current),
 		})
-		player.AddItem(db, seedID+"-harvest", strings.Title(seedID), "A freshly harvested crop.") //nolint:errcheck
+		player.AddItem(gdb, seedID+"-harvest", strings.Title(seedID), "A freshly harvested crop.") //nolint:errcheck
 		return Result{Output: fmt.Sprintf("you harvest the %s.", seedID)}
 	}
 
@@ -251,14 +251,14 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	if res == nil {
 		return Result{Output: fmt.Sprintf("no harvestable resource %q here.", target)}
 	}
-	if isResourceDepleted(db, s.RoomID, res.ID, res.RespawnActions) {
+	if isResourceDepleted(gdb, s.RoomID, res.ID, res.RespawnActions) {
 		return Result{Output: fmt.Sprintf("the %s is exhausted. come back later.", res.ID)}
 	}
 
-	bumpActions(db)
-	depleteResource(db, s.RoomID, res.ID)
+	bumpActions(gdb)
+	depleteResource(gdb, s.RoomID, res.ID)
 
-	yields := rollYield(db, res.Yields, room.Biome)
+	yields := rollYield(gdb, res.Yields, room.Biome)
 	if len(yields) == 0 {
 		return Result{Output: fmt.Sprintf("you harvest the %s but find nothing useful.", res.ID)}
 	}
@@ -266,14 +266,14 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	var b strings.Builder
 	fmt.Fprintf(&b, "you harvest the %s...\n", res.ID)
 	for _, y := range yields {
-		player.AddItem(db, y.ItemID, y.Name, y.Desc) //nolint:errcheck
+		player.AddItem(gdb, y.ItemID, y.Name, y.Desc) //nolint:errcheck
 		fmt.Fprintf(&b, "  + %dx %s\n", y.CountMin, y.Name)
 	}
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
 // Gather picks up ambient resources from the environment (no tool required).
-func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Gather(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	biome := "meadow"
 	if room != nil {
@@ -281,12 +281,12 @@ func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	const cooldown = 20
-	if isResourceDepleted(db, s.RoomID+"-gather", "gather-cooldown", cooldown) {
+	if isResourceDepleted(gdb, s.RoomID+"-gather", "gather-cooldown", cooldown) {
 		return Result{Output: "you need to rest before gathering again."}
 	}
 
-	bumpActions(db)
-	depleteResource(db, s.RoomID+"-gather", "gather-cooldown")
+	bumpActions(gdb)
+	depleteResource(gdb, s.RoomID+"-gather", "gather-cooldown")
 
 	ambient := map[string][]world.LootEntry{
 		"meadow": {
@@ -321,7 +321,7 @@ func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		pool = ambient["meadow"]
 	}
 
-	yields := rollYield(db, pool, biome)
+	yields := rollYield(gdb, pool, biome)
 	if len(yields) == 0 {
 		return Result{Output: "you search the area but find nothing useful."}
 	}
@@ -329,9 +329,9 @@ func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	var b strings.Builder
 	b.WriteString("you gather from the surroundings...\n")
 	for _, y := range yields {
-		player.AddItem(db, y.ItemID, y.Name, y.Desc) //nolint:errcheck
+		player.AddItem(gdb, y.ItemID, y.Name, y.Desc) //nolint:errcheck
 		fmt.Fprintf(&b, "  + %dx %s\n", y.CountMin, y.Name)
-		readyQuests, _ := quests.CheckGather(db, y.ItemID)
+		readyQuests, _ := quests.CheckGather(gdb, y.ItemID)
 		for _, q := range readyQuests {
 			fmt.Fprintf(&b, "\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
 		}
@@ -340,7 +340,7 @@ func Gather(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Smelt converts ores to ingots using a furnace.
-func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Smelt(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "smelt <item-id> — requires a furnace and fuel (wood or coal)"}
 	}
@@ -355,7 +355,7 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 	if !hasFurnace {
-		q := sqliteq.New(db)
+		q := sqliteq.New(gdb.SQLiteDB())
 		cnt, _ := q.CountBuildsByType(context.Background(), sqliteq.CountBuildsByTypeParams{
 			RoomID:  s.RoomID,
 			BuildID: "furnace",
@@ -366,7 +366,7 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: "you need a furnace to smelt. build one with 'build furnace' or find one."}
 	}
 
-	invIDs := inventoryIDs(db)
+	invIDs := inventoryIDs(gdb)
 	fuel := ""
 	for _, id := range invIDs {
 		if id == "coal" || id == "wood-log" || id == "charcoal" {
@@ -404,19 +404,19 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("you don't have %s.", itemID)}
 	}
 
-	if err := player.RemoveItem(db, itemID); err != nil {
+	if err := player.RemoveItem(gdb, itemID); err != nil {
 		return Result{Output: fmt.Sprintf("you don't have %s.", itemID)}
 	}
 	if fuel != itemID {
-		if err := player.RemoveItem(db, fuel); err != nil {
+		if err := player.RemoveItem(gdb, fuel); err != nil {
 			return Result{Output: fmt.Sprintf("you don't have %s for fuel.", fuel)}
 		}
 	}
-	player.AddItem(db, result[0], result[1], fmt.Sprintf("Smelted from %s.", itemID)) //nolint:errcheck
-	bumpActions(db)
+	player.AddItem(gdb, result[0], result[1], fmt.Sprintf("Smelted from %s.", itemID)) //nolint:errcheck
+	bumpActions(gdb)
 
 	out := fmt.Sprintf("you feed the furnace with %s and smelt the %s.\nyou receive: 1x %s.", fuel, itemID, result[1])
-	readyQuests, _ := quests.CheckSmelt(db, result[0])
+	readyQuests, _ := quests.CheckSmelt(gdb, result[0])
 	for _, rq := range readyQuests {
 		out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", rq.Title, rq.ID)
 	}
@@ -424,7 +424,7 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Plant plants a seed in the current room.
-func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Plant(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "plant <seed-id>"}
 	}
@@ -436,7 +436,7 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	canPlant := room.Biome == "meadow"
 	if !canPlant {
-		q := sqliteq.New(db)
+		q := sqliteq.New(gdb.SQLiteDB())
 		cnt, _ := q.CountBuildsByType(context.Background(), sqliteq.CountBuildsByTypeParams{
 			RoomID:  s.RoomID,
 			BuildID: "garden-plot",
@@ -448,7 +448,7 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	seedID := strings.ToLower(args[0])
-	invIDs := inventoryIDs(db)
+	invIDs := inventoryIDs(gdb)
 	hasSeed := false
 	for _, id := range invIDs {
 		if id == seedID {
@@ -470,10 +470,10 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 
-	current := actionCount(db)
+	current := actionCount(gdb)
 
 	// Find the lowest available slot (0-3) not occupied by an active crop.
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	usedSlotsList, _ := q.ListActiveCropSlots(context.Background(), s.RoomID)
 	usedSlots := map[int]bool{}
 	for _, used := range usedSlotsList {
@@ -490,7 +490,7 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: "the farmland is full. harvest some crops first."}
 	}
 
-	player.RemoveItem(db, seedID) //nolint:errcheck
+	player.RemoveItem(gdb, seedID) //nolint:errcheck
 	q.InsertCrop(context.Background(), sqliteq.InsertCropParams{ //nolint:errcheck
 		RoomID:          s.RoomID,
 		Slot:            int64(slot),
@@ -498,7 +498,7 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		PlantedAtAction: int64(current),
 		ReadyAtAction:   int64(current + growActions),
 	})
-	bumpActions(db)
+	bumpActions(gdb)
 
 	return Result{Output: fmt.Sprintf(
 		"you plant the %s in the soil. it will be ready to harvest in about %d actions.",

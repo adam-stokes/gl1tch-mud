@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
@@ -57,11 +58,11 @@ func fromSqlcQuest(q sqliteq.Quest) Quest {
 }
 
 // Accept inserts a new quest into the database.
-func Accept(db *sql.DB, q Quest) error {
+func Accept(gdb *gamedb.GameDB, q Quest) error {
 	if q.AcceptedAt == 0 {
 		q.AcceptedAt = time.Now().Unix()
 	}
-	queries := sqliteq.New(db)
+	queries := sqliteq.New(gdb.SQLiteDB())
 	return queries.AcceptQuest(context.Background(), sqliteq.AcceptQuestParams{
 		ID:             q.ID,
 		Title:          q.Title,
@@ -85,8 +86,8 @@ func Accept(db *sql.DB, q Quest) error {
 }
 
 // Active returns all quests with status='active'.
-func Active(db *sql.DB) ([]Quest, error) {
-	queries := sqliteq.New(db)
+func Active(gdb *gamedb.GameDB) ([]Quest, error) {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	rows, err := queries.ListActiveQuests(context.Background())
 	if err != nil {
 		return nil, err
@@ -99,8 +100,8 @@ func Active(db *sql.DB) ([]Quest, error) {
 }
 
 // Progress increments obj_progress by n for the given quest.
-func Progress(db *sql.DB, id string, n int) error {
-	queries := sqliteq.New(db)
+func Progress(gdb *gamedb.GameDB, id string, n int) error {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	return queries.ProgressQuest(context.Background(), sqliteq.ProgressQuestParams{
 		ObjProgress: int64(n),
 		ID:          id,
@@ -108,20 +109,20 @@ func Progress(db *sql.DB, id string, n int) error {
 }
 
 // Complete sets quest status to 'completed'.
-func Complete(db *sql.DB, id string) error {
-	queries := sqliteq.New(db)
+func Complete(gdb *gamedb.GameDB, id string) error {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	return queries.CompleteQuest(context.Background(), id)
 }
 
 // Fail sets quest status to 'failed'.
-func Fail(db *sql.DB, id string) error {
-	queries := sqliteq.New(db)
+func Fail(gdb *gamedb.GameDB, id string) error {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	return queries.FailQuest(context.Background(), id)
 }
 
 // Get fetches a single quest by ID.
-func Get(db *sql.DB, id string) (*Quest, error) {
-	queries := sqliteq.New(db)
+func Get(gdb *gamedb.GameDB, id string) (*Quest, error) {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	row, err := queries.GetQuest(context.Background(), id)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("quest %q not found", id)
@@ -135,55 +136,55 @@ func Get(db *sql.DB, id string) (*Quest, error) {
 
 // CheckKill finds active kill quests matching npcID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckKill(db *sql.DB, npcID string) ([]Quest, error) {
-	return checkProgress(db, "kill", npcID)
+func CheckKill(gdb *gamedb.GameDB, npcID string) ([]Quest, error) {
+	return checkProgress(gdb, "kill", npcID)
 }
 
 // CheckHack finds active hack quests matching systemID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckHack(db *sql.DB, systemID string) ([]Quest, error) {
-	return checkProgress(db, "hack", systemID)
+func CheckHack(gdb *gamedb.GameDB, systemID string) ([]Quest, error) {
+	return checkProgress(gdb, "hack", systemID)
 }
 
 // CheckRetrieve finds active retrieve quests matching itemID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckRetrieve(db *sql.DB, itemID string) ([]Quest, error) {
-	return checkProgress(db, "retrieve", itemID)
+func CheckRetrieve(gdb *gamedb.GameDB, itemID string) ([]Quest, error) {
+	return checkProgress(gdb, "retrieve", itemID)
 }
 
 // CheckCraft finds active craft quests matching itemID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckCraft(db *sql.DB, itemID string) ([]Quest, error) {
-	return checkProgress(db, "craft", itemID)
+func CheckCraft(gdb *gamedb.GameDB, itemID string) ([]Quest, error) {
+	return checkProgress(gdb, "craft", itemID)
 }
 
 // CheckGather finds active gather quests matching itemID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckGather(db *sql.DB, itemID string) ([]Quest, error) {
-	return checkProgress(db, "gather", itemID)
+func CheckGather(gdb *gamedb.GameDB, itemID string) ([]Quest, error) {
+	return checkProgress(gdb, "gather", itemID)
 }
 
 // CheckSmelt finds active smelt quests matching itemID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckSmelt(db *sql.DB, itemID string) ([]Quest, error) {
-	return checkProgress(db, "smelt", itemID)
+func CheckSmelt(gdb *gamedb.GameDB, itemID string) ([]Quest, error) {
+	return checkProgress(gdb, "smelt", itemID)
 }
 
 // CheckAssemble finds active assemble quests matching itemID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckAssemble(db *sql.DB, itemID string) ([]Quest, error) {
-	return checkProgress(db, "assemble", itemID)
+func CheckAssemble(gdb *gamedb.GameDB, itemID string) ([]Quest, error) {
+	return checkProgress(gdb, "assemble", itemID)
 }
 
 // CheckMine finds active mine quests matching resourceID, increments progress,
 // and returns quests that just reached obj_count.
-func CheckMine(db *sql.DB, resourceID string) ([]Quest, error) {
-	return checkProgress(db, "mine", resourceID)
+func CheckMine(gdb *gamedb.GameDB, resourceID string) ([]Quest, error) {
+	return checkProgress(gdb, "mine", resourceID)
 }
 
 // ActiveIDs returns a set of all active quest IDs.
-func ActiveIDs(db *sql.DB) (map[string]bool, error) {
-	queries := sqliteq.New(db)
+func ActiveIDs(gdb *gamedb.GameDB) (map[string]bool, error) {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	idList, err := queries.ListActiveQuestIDs(context.Background())
 	if err != nil {
 		return nil, err
@@ -196,8 +197,8 @@ func ActiveIDs(db *sql.DB) (map[string]bool, error) {
 }
 
 // checkProgress is the shared implementation for Check* functions.
-func checkProgress(db *sql.DB, objType, target string) ([]Quest, error) {
-	queries := sqliteq.New(db)
+func checkProgress(gdb *gamedb.GameDB, objType, target string) ([]Quest, error) {
+	queries := sqliteq.New(gdb.SQLiteDB())
 	rows, err := queries.ListActiveQuestsByTypeTarget(context.Background(), sqliteq.ListActiveQuestsByTypeTargetParams{
 		ObjType:   objType,
 		ObjTarget: target,
@@ -213,7 +214,7 @@ func checkProgress(db *sql.DB, objType, target string) ([]Quest, error) {
 
 	var ready []Quest
 	for _, q := range matching {
-		if err := Progress(db, q.ID, 1); err != nil {
+		if err := Progress(gdb, q.ID, 1); err != nil {
 			continue
 		}
 		q.ObjProgress++

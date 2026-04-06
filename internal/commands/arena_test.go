@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -74,12 +76,13 @@ func openArenaCommandDB(t *testing.T) *sql.DB {
 
 func TestArenaCommand_startTDM(t *testing.T) {
 	db := openArenaCommandDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "barrens-3", HP: 100, MaxHP: 100}
 	w := &world.World{}
 
-	res := commands.Arena(db, s, w, nil)
+	res := commands.Arena(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("expected non-empty output")
 	}
@@ -90,12 +93,13 @@ func TestArenaCommand_startTDM(t *testing.T) {
 
 func TestArenaCommand_startTD(t *testing.T) {
 	db := openArenaCommandDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "ruins-3", HP: 100, MaxHP: 100}
 	w := &world.World{}
 
-	res := commands.Arena(db, s, w, nil)
+	res := commands.Arena(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("expected non-empty output")
 	}
@@ -106,12 +110,13 @@ func TestArenaCommand_startTD(t *testing.T) {
 
 func TestArenaCommand_wrongRoom(t *testing.T) {
 	db := openArenaCommandDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "dusthaven-0", HP: 100, MaxHP: 100}
 	w := &world.World{}
 
-	res := commands.Arena(db, s, w, nil)
+	res := commands.Arena(gdb, s, w, nil)
 	if !strings.Contains(res.Output, "arena entrance") {
 		t.Errorf("expected 'arena entrance' hint, got: %q", res.Output)
 	}
@@ -119,13 +124,14 @@ func TestArenaCommand_wrongRoom(t *testing.T) {
 
 func TestArenaCommand_showStatus(t *testing.T) {
 	db := openArenaCommandDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "barrens-3", HP: 100, MaxHP: 100}
 	w := &world.World{}
 
-	commands.Arena(db, s, w, nil) // start match
-	res := commands.Arena(db, s, w, nil) // show status
+	commands.Arena(gdb, s, w, nil) // start match
+	res := commands.Arena(gdb, s, w, nil) // show status
 	if !strings.Contains(res.Output, "ARENA") {
 		t.Errorf("expected ARENA status, got: %q", res.Output)
 	}
@@ -133,13 +139,14 @@ func TestArenaCommand_showStatus(t *testing.T) {
 
 func TestArenaCommand_quit(t *testing.T) {
 	db := openArenaCommandDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "barrens-3", HP: 100, MaxHP: 100}
 	w := &world.World{}
 
-	commands.Arena(db, s, w, nil) // start match
-	res := commands.Arena(db, s, w, []string{"quit"})
+	commands.Arena(gdb, s, w, nil) // start match
+	res := commands.Arena(gdb, s, w, []string{"quit"})
 	if res.MoveRoom != "dusthaven-0" {
 		t.Errorf("MoveRoom: got %q want dusthaven-0", res.MoveRoom)
 	}
@@ -147,15 +154,16 @@ func TestArenaCommand_quit(t *testing.T) {
 
 func TestAttackIntercept_arenaActive(t *testing.T) {
 	db := openArenaCommandDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "barrens-3", HP: 100, MaxHP: 100, Defense: 0}
 	w := &world.World{}
 
-	commands.Arena(db, s, w, nil) // start TDM match
+	commands.Arena(gdb, s, w, nil) // start TDM match
 
 	// Attack should route to arena, not room NPC
-	res := commands.Attack(db, s, w, []string{"raider"})
+	res := commands.Attack(gdb, s, w, []string{"raider"})
 	if res.Output == "" {
 		t.Error("expected arena attack output")
 	}

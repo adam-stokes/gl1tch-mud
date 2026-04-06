@@ -3,7 +3,6 @@ package arena
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -55,11 +55,11 @@ type AttackResult struct {
 }
 
 // StartTDM creates a new active TDM match with 5 raiders.
-func StartTDM(db *sql.DB) error {
+func StartTDM(gdb *gamedb.GameDB) error {
 	enemies := makeTDMEnemies()
 	enemyJSON, _ := json.Marshal(enemies)
 	id := fmt.Sprintf("arena-%d", time.Now().UnixNano())
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.InsertArenaSession(context.Background(), sqliteq.InsertArenaSessionParams{
 		ID:             id,
 		GameType:       "tdm",
@@ -77,13 +77,13 @@ func StartTDM(db *sql.DB) error {
 
 // StartTowerDefense creates a new active tower-defense match with wave 0.
 // Applies turret auto-damage (base.DefenseScore) to the first wave's enemies immediately.
-func StartTowerDefense(db *sql.DB, w *world.World) error {
+func StartTowerDefense(gdb *gamedb.GameDB, w *world.World) error {
 	enemies := makeTDEnemies()
-	defScore := base.DefenseScore(db, w)
+	defScore := base.DefenseScore(gdb, w)
 	enemies = applyTurretDamage(enemies, defScore)
 	enemyJSON, _ := json.Marshal(enemies)
 	id := fmt.Sprintf("arena-%d", time.Now().UnixNano())
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	return q.InsertArenaSession(context.Background(), sqliteq.InsertArenaSessionParams{
 		ID:             id,
 		GameType:       "tower-defense",
@@ -100,8 +100,8 @@ func StartTowerDefense(db *sql.DB, w *world.World) error {
 }
 
 // GetActive returns the current active match, or nil if none exists.
-func GetActive(db *sql.DB) *Match {
-	q := sqliteq.New(db)
+func GetActive(gdb *gamedb.GameDB) *Match {
+	q := sqliteq.New(gdb.SQLiteDB())
 	row, err := q.GetActiveArenaSession(context.Background())
 	if err != nil {
 		return nil
@@ -123,21 +123,21 @@ func GetActive(db *sql.DB) *Match {
 
 // ProcessAttack executes one combat tick in the active arena match.
 // Mutates s.HP in place. Returns output and won/lost flags.
-func ProcessAttack(db *sql.DB, w *world.World, s *player.State) AttackResult {
-	m := GetActive(db)
+func ProcessAttack(gdb *gamedb.GameDB, w *world.World, s *player.State) AttackResult {
+	m := GetActive(gdb)
 	if m == nil {
 		return AttackResult{Output: "no active arena match."}
 	}
 	var out strings.Builder
 	if m.GameType == "tdm" {
-		return processTDMAttack(db, m, s, &out)
+		return processTDMAttack(gdb, m, s, &out)
 	}
-	return processTDAttack(db, w, m, s, &out)
+	return processTDAttack(gdb, w, m, s, &out)
 }
 
 // Quit forfeits the active match and marks it lost.
-func Quit(db *sql.DB) string {
-	q := sqliteq.New(db)
+func Quit(gdb *gamedb.GameDB) string {
+	q := sqliteq.New(gdb.SQLiteDB())
 	q.QuitArenaSession(context.Background()) //nolint:errcheck
 	return "you forfeit the match."
 }
@@ -213,9 +213,9 @@ func firstAliveIdx(enemies []Enemy) int {
 	return -1
 }
 
-func saveMatch(db *sql.DB, m *Match) {
+func saveMatch(gdb *gamedb.GameDB, m *Match) {
 	enemyJSON, _ := json.Marshal(m.Enemies)
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	q.UpdateArenaSession(context.Background(), sqliteq.UpdateArenaSessionParams{ //nolint:errcheck
 		Phase:       m.Phase,
 		Wave:        int64(m.Wave),
@@ -225,7 +225,7 @@ func saveMatch(db *sql.DB, m *Match) {
 	})
 }
 
-func processTDMAttack(db *sql.DB, m *Match, s *player.State, out *strings.Builder) AttackResult {
+func processTDMAttack(gdb *gamedb.GameDB, m *Match, s *player.State, out *strings.Builder) AttackResult {
 	idx := firstAliveIdx(m.Enemies)
 	if idx == -1 {
 		return AttackResult{Output: "no enemies left."}
@@ -243,8 +243,8 @@ func processTDMAttack(db *sql.DB, m *Match, s *player.State, out *strings.Builde
 	alive := aliveCount(m.Enemies)
 	if alive == 0 {
 		m.Status = "won"
-		saveMatch(db, m)
-		credits.Add(db, m.RewardCredits) //nolint:errcheck
+		saveMatch(gdb, m)
+		credits.Add(gdb, m.RewardCredits) //nolint:errcheck
 		fmt.Fprintf(out, "--- all enemies down. match won. ---\n+%d caps deposited.", m.RewardCredits)
 		return AttackResult{Output: strings.TrimRight(out.String(), "\n"), Won: true}
 	}
@@ -264,24 +264,24 @@ func processTDMAttack(db *sql.DB, m *Match, s *player.State, out *strings.Builde
 
 	if s.HP <= 0 {
 		m.Status = "lost"
-		saveMatch(db, m)
+		saveMatch(gdb, m)
 		return AttackResult{Output: strings.TrimRight(out.String(), "\n"), Lost: true}
 	}
 
-	saveMatch(db, m)
+	saveMatch(gdb, m)
 	return AttackResult{Output: strings.TrimRight(out.String(), "\n")}
 }
 
-func processTDAttack(db *sql.DB, w *world.World, m *Match, s *player.State, out *strings.Builder) AttackResult {
+func processTDAttack(gdb *gamedb.GameDB, w *world.World, m *Match, s *player.State, out *strings.Builder) AttackResult {
 	// All current wave enemies dead — advance wave or win
 	if aliveCount(m.Enemies) == 0 {
 		m.Wave++
 		if m.Wave >= tdWaveCount {
 			m.Status = "won"
-			saveMatch(db, m)
-			credits.Add(db, m.RewardCredits) //nolint:errcheck
+			saveMatch(gdb, m)
+			credits.Add(gdb, m.RewardCredits) //nolint:errcheck
 			if m.RewardItemID != "" {
-				player.AddItem(db, m.RewardItemID, m.RewardItemName, m.RewardItemDesc) //nolint:errcheck
+				player.AddItem(gdb, m.RewardItemID, m.RewardItemName, m.RewardItemDesc) //nolint:errcheck
 			}
 			fmt.Fprintf(out, "--- all waves survived. match won. ---\n+%d caps deposited.", m.RewardCredits)
 			if m.RewardItemID != "" {
@@ -295,7 +295,7 @@ func processTDAttack(db *sql.DB, w *world.World, m *Match, s *player.State, out 
 			s.HP = s.MaxHP
 		}
 		enemies := makeTDEnemies()
-		defScore := base.DefenseScore(db, w)
+		defScore := base.DefenseScore(gdb, w)
 		enemies = applyTurretDamage(enemies, defScore)
 		m.Enemies = enemies
 		fmt.Fprintf(out, "Wave %d cleared. +15 HP. [HP: %d/%d]\n--- Wave %d incoming ---\n", m.Wave, s.HP, s.MaxHP, m.Wave+1)
@@ -312,7 +312,7 @@ func processTDAttack(db *sql.DB, w *world.World, m *Match, s *player.State, out 
 				}
 			}
 		}
-		saveMatch(db, m)
+		saveMatch(gdb, m)
 		return AttackResult{Output: strings.TrimRight(out.String(), "\n")}
 	}
 
@@ -330,7 +330,7 @@ func processTDAttack(db *sql.DB, w *world.World, m *Match, s *player.State, out 
 	alive := aliveCount(m.Enemies)
 	if alive == 0 {
 		fmt.Fprintf(out, "--- wave cleared. type 'attack' to continue. ---")
-		saveMatch(db, m)
+		saveMatch(gdb, m)
 		return AttackResult{Output: strings.TrimRight(out.String(), "\n")}
 	}
 
@@ -349,10 +349,10 @@ func processTDAttack(db *sql.DB, w *world.World, m *Match, s *player.State, out 
 
 	if s.HP <= 0 {
 		m.Status = "lost"
-		saveMatch(db, m)
+		saveMatch(gdb, m)
 		return AttackResult{Output: strings.TrimRight(out.String(), "\n"), Lost: true}
 	}
 
-	saveMatch(db, m)
+	saveMatch(gdb, m)
 	return AttackResult{Output: strings.TrimRight(out.String(), "\n")}
 }

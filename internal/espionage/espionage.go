@@ -2,13 +2,13 @@
 package espionage
 
 import (
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -20,7 +20,8 @@ type StealthState struct {
 }
 
 // LoadStealth reads stealth state from DB; defaults to level=50, disguise="none".
-func LoadStealth(db *sql.DB) StealthState {
+func LoadStealth(gdb *gamedb.GameDB) StealthState {
+	db := gdb.SQLiteDB()
 	var s StealthState
 	err := db.QueryRow(`SELECT level, disguise FROM player_stealth WHERE id=1`).
 		Scan(&s.Level, &s.Disguise)
@@ -31,7 +32,8 @@ func LoadStealth(db *sql.DB) StealthState {
 }
 
 // SaveStealth persists stealth state to DB.
-func SaveStealth(db *sql.DB, s StealthState) error {
+func SaveStealth(gdb *gamedb.GameDB, s StealthState) error {
+	db := gdb.SQLiteDB()
 	_, err := db.Exec(
 		`INSERT INTO player_stealth (id, level, disguise) VALUES (1, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET level=excluded.level, disguise=excluded.disguise`,
@@ -41,20 +43,20 @@ func SaveStealth(db *sql.DB, s StealthState) error {
 }
 
 // Hide attempts to raise stealth by a random amount between 5 and 15 (capped at 100).
-func Hide(db *sql.DB) (StealthState, bool) {
-	s := LoadStealth(db)
+func Hide(gdb *gamedb.GameDB) (StealthState, bool) {
+	s := LoadStealth(gdb)
 	gain := 5 + rand.Intn(11) // 5..15
 	s.Level += gain
 	if s.Level > 100 {
 		s.Level = 100
 	}
-	SaveStealth(db, s) //nolint:errcheck
+	SaveStealth(gdb, s) //nolint:errcheck
 	return s, s.Level > 70
 }
 
 // Disguise applies a disguise item to the player's stealth state.
 // Returns false if the item is not in inventory or not a disguise item.
-func Disguise(db *sql.DB, w *world.World, itemID string, inventoryIDs []string) (StealthState, bool, string) {
+func Disguise(gdb *gamedb.GameDB, w *world.World, itemID string, inventoryIDs []string) (StealthState, bool, string) {
 	// Check item is in inventory
 	hasItem := false
 	for _, id := range inventoryIDs {
@@ -64,7 +66,7 @@ func Disguise(db *sql.DB, w *world.World, itemID string, inventoryIDs []string) 
 		}
 	}
 	if !hasItem {
-		return LoadStealth(db), false, fmt.Sprintf("you don't have %q.", itemID)
+		return LoadStealth(gdb), false, fmt.Sprintf("you don't have %q.", itemID)
 	}
 
 	// Check item is tagged as_disguise in any room
@@ -90,12 +92,12 @@ func Disguise(db *sql.DB, w *world.World, itemID string, inventoryIDs []string) 
 	}
 
 	if !isDisguise {
-		return LoadStealth(db), false, fmt.Sprintf("%q is not a disguise item.", itemID)
+		return LoadStealth(gdb), false, fmt.Sprintf("%q is not a disguise item.", itemID)
 	}
 
-	s := LoadStealth(db)
+	s := LoadStealth(gdb)
 	s.Disguise = itemID
-	SaveStealth(db, s) //nolint:errcheck
+	SaveStealth(gdb, s) //nolint:errcheck
 	return s, true, fmt.Sprintf("you put on %s. you look the part.", itemID)
 }
 
@@ -172,7 +174,8 @@ func matchTrigger(trigger string, ctx PlayerContext) bool {
 }
 
 // RecordMemory records an NPC interaction in the npc_memory table.
-func RecordMemory(db *sql.DB, npcID, action string) error {
+func RecordMemory(gdb *gamedb.GameDB, npcID, action string) error {
+	db := gdb.SQLiteDB()
 	_, err := db.Exec(
 		`INSERT INTO npc_memory (npc_id, action, ts) VALUES (?,?,?)
 		 ON CONFLICT(npc_id, action) DO UPDATE SET ts=excluded.ts`,

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -55,13 +57,14 @@ func makeEquipWorld() *world.World {
 
 func TestWearCommand(t *testing.T) {
 	db := openEquipTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{RoomID: "dusthaven-0"}
 	w := makeEquipWorld()
-	player.AddItem(db, "leather-armor", "Leather Armor", "Light armor.") //nolint:errcheck
+	player.AddItem(gdb, "leather-armor", "Leather Armor", "Light armor.") //nolint:errcheck
 
-	res := commands.Wear(db, s, w, []string{"leather-armor"})
+	res := commands.Wear(gdb, s, w, []string{"leather-armor"})
 	if res.Output == "" {
 		t.Error("Wear: expected non-empty output")
 	}
@@ -69,7 +72,7 @@ func TestWearCommand(t *testing.T) {
 		t.Errorf("Wear: state.Defense: got %d want 2", s.Defense)
 	}
 
-	rec, err := player.GetEquippedArmor(db)
+	rec, err := player.GetEquippedArmor(gdb)
 	if err != nil {
 		t.Fatalf("GetEquippedArmor: %v", err)
 	}
@@ -80,6 +83,7 @@ func TestWearCommand(t *testing.T) {
 
 func TestWearRequiresArmorTag(t *testing.T) {
 	db := openEquipTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{}
@@ -95,9 +99,9 @@ func TestWearRequiresArmorTag(t *testing.T) {
 			},
 		},
 	}
-	player.AddItem(db, "bread", "Bread", "Food.") //nolint:errcheck
+	player.AddItem(gdb, "bread", "Bread", "Food.") //nolint:errcheck
 
-	res := commands.Wear(db, s, w, []string{"bread"})
+	res := commands.Wear(gdb, s, w, []string{"bread"})
 	if s.Defense != 0 {
 		t.Errorf("Wear non-armor: state.Defense should be 0, got %d", s.Defense)
 	}
@@ -108,12 +112,13 @@ func TestWearRequiresArmorTag(t *testing.T) {
 
 func TestWearNotInInventory(t *testing.T) {
 	db := openEquipTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{}
 	w := makeEquipWorld()
 
-	res := commands.Wear(db, s, w, []string{"leather-armor"})
+	res := commands.Wear(gdb, s, w, []string{"leather-armor"})
 	if s.Defense != 0 {
 		t.Errorf("Wear missing item: Defense should be 0, got %d", s.Defense)
 	}
@@ -124,14 +129,15 @@ func TestWearNotInInventory(t *testing.T) {
 
 func TestUnwearCommand(t *testing.T) {
 	db := openEquipTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{Defense: 2}
 	w := makeEquipWorld()
-	player.AddItem(db, "leather-armor", "Leather Armor", "Light armor.") //nolint:errcheck
-	player.EquipArmor(db, "leather-armor", "Leather Armor", 2)           //nolint:errcheck
+	player.AddItem(gdb, "leather-armor", "Leather Armor", "Light armor.") //nolint:errcheck
+	player.EquipArmor(gdb, "leather-armor", "Leather Armor", 2)           //nolint:errcheck
 
-	res := commands.Unwear(db, s, w, nil)
+	res := commands.Unwear(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("Unwear: expected non-empty output")
 	}
@@ -139,13 +145,13 @@ func TestUnwearCommand(t *testing.T) {
 		t.Errorf("Unwear: state.Defense: got %d want 0", s.Defense)
 	}
 
-	rec, _ := player.GetEquippedArmor(db)
+	rec, _ := player.GetEquippedArmor(gdb)
 	if rec != nil {
 		t.Errorf("GetEquippedArmor after unwear: expected nil, got %+v", rec)
 	}
 
 	// Item should be back in inventory
-	items, _ := player.Inventory(db)
+	items, _ := player.Inventory(gdb)
 	found := false
 	for _, it := range items {
 		if it.ID == "leather-armor" {
@@ -159,20 +165,21 @@ func TestUnwearCommand(t *testing.T) {
 
 func TestEquipmentCommand(t *testing.T) {
 	db := openEquipTestDB(t)
+	gdb := gamedb.NewSQLite(db)
 	defer db.Close()
 
 	s := &player.State{}
 	w := makeEquipWorld()
 
 	// Nothing equipped
-	res := commands.Equipment(db, s, w, nil)
+	res := commands.Equipment(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("Equipment (empty): expected output")
 	}
 
 	// Equip and check
-	player.EquipArmor(db, "leather-armor", "Leather Armor", 3) //nolint:errcheck
-	res = commands.Equipment(db, s, w, nil)
+	player.EquipArmor(gdb, "leather-armor", "Leather Armor", 3) //nolint:errcheck
+	res = commands.Equipment(gdb, s, w, nil)
 	if res.Output == "" {
 		t.Error("Equipment (with armor): expected output")
 	}
