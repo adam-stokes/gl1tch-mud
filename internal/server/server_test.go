@@ -128,8 +128,8 @@ func TestWSHandlerUnknownWorldReturns400(t *testing.T) {
 
 func TestRegistryPlayersInWorld(t *testing.T) {
 	r := newSessionRegistry()
-	r.sessions["player1"] = &ClientSession{worldName: "alpha"}
-	r.sessions["player2"] = &ClientSession{worldName: "beta"}
+	r.sessions["player1"] = &ClientSession{accountID: "player1", username: "player1", worldName: "alpha"}
+	r.sessions["player2"] = &ClientSession{accountID: "player2", username: "player2", worldName: "beta"}
 
 	alphaWorld := &world.World{Name: "alpha"}
 	players := r.PlayersInWorld("alpha", alphaWorld)
@@ -144,7 +144,7 @@ func TestRegistryPlayersInWorld(t *testing.T) {
 
 func TestNewLockedWorldMode(t *testing.T) {
 	worlds := makeTestWorlds()
-	gs := New(worlds, "alpha")
+	gs := New(worlds, "alpha", nil)
 	if gs.lockedWorld != "alpha" {
 		t.Errorf("lockedWorld: got %q want alpha", gs.lockedWorld)
 	}
@@ -294,9 +294,9 @@ func TestWorldMetaPayloadUIProfileJSON(t *testing.T) {
 
 func TestOnlinePlayersInWorldExcludesSelf(t *testing.T) {
 	reg := newSessionRegistry()
-	reg.sessions["alice"] = &ClientSession{playerID: "alice", worldName: "bh", state: &player.State{RoomID: "room-1"}}
-	reg.sessions["bob"]   = &ClientSession{playerID: "bob",   worldName: "bh", state: &player.State{RoomID: "room-2"}}
-	reg.sessions["carol"] = &ClientSession{playerID: "carol", worldName: "other", state: &player.State{RoomID: "room-x"}}
+	reg.sessions["alice"] = &ClientSession{accountID: "alice", username: "alice", worldName: "bh", state: &player.State{RoomID: "room-1"}}
+	reg.sessions["bob"]   = &ClientSession{accountID: "bob",   username: "bob",   worldName: "bh", state: &player.State{RoomID: "room-2"}}
+	reg.sessions["carol"] = &ClientSession{accountID: "carol", username: "carol", worldName: "other", state: &player.State{RoomID: "room-x"}}
 
 	result := reg.OnlinePlayersInWorld("bh", "alice")
 	if len(result) != 1 {
@@ -310,9 +310,9 @@ func TestOnlinePlayersInWorldExcludesSelf(t *testing.T) {
 func TestOnlinePlayersInWorldSkipsNoRoom(t *testing.T) {
 	reg := newSessionRegistry()
 	// nil state — excluded
-	reg.sessions["ghost"]  = &ClientSession{playerID: "ghost",  worldName: "bh", state: nil}
+	reg.sessions["ghost"]  = &ClientSession{accountID: "ghost",  username: "ghost",  worldName: "bh", state: nil}
 	// empty RoomID — excluded
-	reg.sessions["newbie"] = &ClientSession{playerID: "newbie", worldName: "bh", state: &player.State{RoomID: ""}}
+	reg.sessions["newbie"] = &ClientSession{accountID: "newbie", username: "newbie", worldName: "bh", state: &player.State{RoomID: ""}}
 
 	result := reg.OnlinePlayersInWorld("bh", "other")
 	if len(result) != 0 {

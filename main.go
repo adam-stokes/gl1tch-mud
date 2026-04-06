@@ -16,6 +16,8 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/auth"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
@@ -150,7 +152,19 @@ func runServe(port int, passphrase, lockedWorld string) {
 		os.Exit(1)
 	}
 
-	srv := server.New(worlds, lockedWorld)
+	// Try Postgres connection for account auth; nil is fine (legacy mode).
+	var pgPool *pgxpool.Pool
+	if os.Getenv("DATABASE_URL") != "" {
+		pool, pgErr := pgdb.Connect(context.Background())
+		if pgErr != nil {
+			fmt.Fprintf(os.Stderr, "gl1tch-mud: postgres (continuing without): %v\n", pgErr)
+		} else {
+			pgPool = pool
+			defer pgPool.Close()
+		}
+	}
+
+	srv := server.New(worlds, lockedWorld, pgPool)
 	if _, err := srv.Start(port, passphrase); err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: serve:", err)
 		os.Exit(1)
@@ -197,7 +211,7 @@ func runGame(worldName string) {
 
 	commands.SetBinary(executablePath())
 
-	lanSrv := server.New(map[string]*world.World{w.Name: w}, w.Name)
+	lanSrv := server.New(map[string]*world.World{w.Name: w}, w.Name, nil)
 	commands.SetLANServer(lanSrv)
 
 	interactive := term.IsTerminal(int(os.Stdin.Fd()))
@@ -269,7 +283,7 @@ func runGame(worldName string) {
 				} else {
 					w = newWorld
 					lanSrv.Stop()
-					lanSrv = server.New(map[string]*world.World{w.Name: w}, w.Name)
+					lanSrv = server.New(map[string]*world.World{w.Name: w}, w.Name, nil)
 					commands.SetLANServer(lanSrv)
 					prompt = w.UIPrompt() + " "
 					newState, _ := player.LoadForWorld(database, result.SwitchWorld, w.StartRoom)

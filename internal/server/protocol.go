@@ -25,10 +25,25 @@ type ServerMsg struct {
 // Payload types for ServerMsg.
 
 type AuthOKPayload struct {
-	PlayerID string `json:"playerID"`
-	Level    int    `json:"level"`
-	Title    string `json:"title"`
-	XP       int    `json:"xp"`
+	PlayerID  string `json:"playerID,omitempty"`  // legacy compat
+	AccountID string `json:"accountID,omitempty"` // Postgres auth
+	Username  string `json:"username,omitempty"`  // Postgres auth
+	Token     string `json:"token,omitempty"`     // session token
+	Role      string `json:"role,omitempty"`      // "admin" or "player"
+	Level     int    `json:"level"`
+	Title     string `json:"title"`
+	XP        int    `json:"xp"`
+}
+
+// LoginPayload is the payload of an incoming "login" ClientMsg (Postgres auth).
+type LoginPayload struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// ResumePayload is the payload of an incoming "resume" ClientMsg (token resume).
+type ResumePayload struct {
+	Token string `json:"token"`
 }
 
 type AuthFailPayload struct {

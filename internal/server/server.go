@@ -13,15 +13,20 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/achievements"
+	"github.com/adam-stokes/gl1tch-mud/internal/auth"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/pgq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
-// SessionRegistry tracks active WebSocket sessions by playerID.
+// SessionRegistry tracks active WebSocket sessions by accountID.
 type SessionRegistry struct {
 	mu               sync.RWMutex
-	sessions         map[string]*ClientSession
+	sessions         map[string]*ClientSession // keyed by accountID
 	busPub           func(topic string, payload any)
 	onPendingRequest func(requestID, playerID string)
 }
@@ -55,13 +60,13 @@ func (r *SessionRegistry) Unregister(playerID string) {
 	delete(r.sessions, playerID)
 }
 
-// List returns the names of all connected players.
+// List returns the display names of all connected players.
 func (r *SessionRegistry) List() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	names := make([]string, 0, len(r.sessions))
-	for id := range r.sessions {
-		names = append(names, id)
+	for _, s := range r.sessions {
+		names = append(names, s.username)
 	}
 	return names
 }
@@ -101,7 +106,7 @@ func (r *SessionRegistry) PlayersInWorld(worldName string, w *world.World) []Pla
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	result := make([]PlayerInfo, 0)
-	for id, s := range r.sessions {
+	for _, s := range r.sessions {
 		if s.worldName != worldName {
 			continue
 		}
@@ -111,13 +116,13 @@ func (r *SessionRegistry) PlayersInWorld(worldName string, w *world.World) []Pla
 				roomName = room.Name
 			}
 		}
-		result = append(result, PlayerInfo{Name: id, RoomName: roomName})
+		result = append(result, PlayerInfo{Name: s.username, RoomName: roomName})
 	}
 	return result
 }
 
 // OnlinePlayersInWorld returns OnlinePlayerInfo for all sessions in worldName
-// except excludeID. Sessions without a known room are omitted.
+// except excludeID (accountID). Sessions without a known room are omitted.
 func (r *SessionRegistry) OnlinePlayersInWorld(worldName string, excludeID string) []OnlinePlayerInfo {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -129,7 +134,7 @@ func (r *SessionRegistry) OnlinePlayersInWorld(worldName string, excludeID strin
 		if s.state == nil || s.state.RoomID == "" {
 			continue
 		}
-		result = append(result, OnlinePlayerInfo{Name: id, RoomID: s.state.RoomID})
+		result = append(result, OnlinePlayerInfo{Name: s.username, RoomID: s.state.RoomID})
 	}
 	return result
 }
@@ -182,7 +187,8 @@ type GameServer struct {
 	worlds          map[string]*world.World
 	lockedWorld     string
 	registry        *SessionRegistry
-	passphrase      string
+	pgPool          *pgxpool.Pool // nil if no Postgres configured (solo mode)
+	passphrase      string        // keep for backward compat when no Postgres
 	httpServer      *http.Server
 	lanURL          string
 	busClient       *busd.Client
@@ -192,11 +198,13 @@ type GameServer struct {
 
 // New creates a GameServer supporting multiple worlds.
 // If lockedWorld is non-empty, all connections are routed to that world regardless of query param.
-func New(worlds map[string]*world.World, lockedWorld string) *GameServer {
+// pgPool may be nil; when nil the server uses legacy playerID+passphrase auth.
+func New(worlds map[string]*world.World, lockedWorld string, pgPool *pgxpool.Pool) *GameServer {
 	gs := &GameServer{
 		worlds:          worlds,
 		lockedWorld:     lockedWorld,
 		registry:        newSessionRegistry(),
+		pgPool:          pgPool,
 		pendingRequests: make(map[string]string),
 	}
 	gs.registry.onPendingRequest = func(rid, pid string) {
@@ -566,14 +574,14 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	// Auth handshake — first message must be {"type":"auth",...}
+	// Auth handshake — first message must be auth, login, or resume.
 	_, data, err := conn.Read(ctx)
 	if err != nil {
 		return
 	}
 
 	var first ClientMsg
-	if err := json.Unmarshal(data, &first); err != nil || first.Type != "auth" {
+	if err := json.Unmarshal(data, &first); err != nil {
 		_ = writeMsg(ctx, conn, ServerMsg{
 			Type:    "auth.fail",
 			Payload: AuthFailPayload{Reason: "auth required"},
@@ -582,45 +590,174 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var auth AuthPayload
-	if err := json.Unmarshal(first.Payload, &auth); err != nil {
-		_ = writeMsg(ctx, conn, ServerMsg{
-			Type:    "auth.fail",
-			Payload: AuthFailPayload{Reason: "invalid auth payload"},
-		})
-		conn.Close(websocket.StatusPolicyViolation, "invalid payload")
-		return
-	}
+	var accountID, username, role, token string
 
-	if err := ValidatePlayerID(auth.PlayerID); err != nil {
-		_ = writeMsg(ctx, conn, ServerMsg{
-			Type:    "auth.fail",
-			Payload: AuthFailPayload{Reason: err.Error()},
-		})
-		conn.Close(websocket.StatusPolicyViolation, "invalid playerID")
-		return
-	}
+	switch {
+	// ── Postgres login ──────────────────────────────────────────────────
+	case first.Type == "login" && gs.pgPool != nil:
+		var lp LoginPayload
+		if err := json.Unmarshal(first.Payload, &lp); err != nil || lp.Username == "" {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "invalid login payload"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid payload")
+			return
+		}
 
-	if !ValidatePassphrase(auth.Passphrase, gs.passphrase) {
+		account, err := pgq.New(gs.pgPool).GetAccountByUsername(ctx, lp.Username)
+		if err != nil {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "unknown username"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "unknown username")
+			return
+		}
+		if account.Banned {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "account banned"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "banned")
+			return
+		}
+		if !auth.CheckPassword(lp.Password, account.PasswordHash) {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "invalid password"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid password")
+			return
+		}
+
+		tok, err := auth.GenerateToken()
+		if err != nil {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "internal error"},
+			})
+			conn.Close(websocket.StatusInternalError, "token gen failed")
+			return
+		}
+
+		_, err = pgq.New(gs.pgPool).CreateSession(ctx, pgq.CreateSessionParams{
+			AccountID: account.ID,
+			Token:     tok,
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(7 * 24 * time.Hour), Valid: true},
+		})
+		if err != nil {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "internal error"},
+			})
+			conn.Close(websocket.StatusInternalError, "session create failed")
+			return
+		}
+
+		accountID = formatUUID(account.ID.Bytes)
+		username = account.Username
+		role = account.Role
+		token = tok
+
+	// ── Postgres resume ─────────────────────────────────────────────────
+	case first.Type == "resume" && gs.pgPool != nil:
+		var rp ResumePayload
+		if err := json.Unmarshal(first.Payload, &rp); err != nil || rp.Token == "" {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "invalid resume payload"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid payload")
+			return
+		}
+
+		sess, err := pgq.New(gs.pgPool).GetSession(ctx, rp.Token)
+		if err != nil {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "session expired or invalid"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid session")
+			return
+		}
+		if sess.Banned {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "account banned"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "banned")
+			return
+		}
+
+		// Extend session expiry by 7 days.
+		_ = pgq.New(gs.pgPool).TouchSession(ctx, pgq.TouchSessionParams{
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(7 * 24 * time.Hour), Valid: true},
+			Token:     rp.Token,
+		})
+
+		accountID = formatUUID(sess.AccountID.Bytes)
+		username = sess.Username
+		role = sess.Role
+		token = rp.Token
+
+	// ── Legacy passphrase auth (no Postgres) ────────────────────────────
+	case first.Type == "auth":
+		var ap AuthPayload
+		if err := json.Unmarshal(first.Payload, &ap); err != nil {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "invalid auth payload"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid payload")
+			return
+		}
+
+		if err := ValidatePlayerID(ap.PlayerID); err != nil {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: err.Error()},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid playerID")
+			return
+		}
+
+		if !ValidatePassphrase(ap.Passphrase, gs.passphrase) {
+			_ = writeMsg(ctx, conn, ServerMsg{
+				Type:    "auth.fail",
+				Payload: AuthFailPayload{Reason: "invalid passphrase"},
+			})
+			conn.Close(websocket.StatusPolicyViolation, "invalid passphrase")
+			return
+		}
+
+		accountID = ap.PlayerID
+		username = ap.PlayerID
+		role = "player"
+
+	default:
 		_ = writeMsg(ctx, conn, ServerMsg{
 			Type:    "auth.fail",
-			Payload: AuthFailPayload{Reason: "invalid passphrase"},
+			Payload: AuthFailPayload{Reason: "auth required"},
 		})
-		conn.Close(websocket.StatusPolicyViolation, "invalid passphrase")
+		conn.Close(websocket.StatusPolicyViolation, "auth required")
 		return
 	}
 
 	session := &ClientSession{
-		playerID:     auth.PlayerID,
+		accountID:    accountID,
+		username:     username,
+		role:         role,
 		conn:         conn,
 		world:        selectedWorld,
 		worldName:    selectedWorld.Name,
+		pgPool:       gs.pgPool,
 		cancel:       cancel,
 		lastActivity: time.Now(),
 		registry:     gs.registry,
 	}
 
-	if err := gs.registry.Register(auth.PlayerID, session); err != nil {
+	if err := gs.registry.Register(accountID, session); err != nil {
 		_ = writeMsg(ctx, conn, ServerMsg{
 			Type:    "auth.fail",
 			Payload: AuthFailPayload{Reason: err.Error()},
@@ -631,10 +768,16 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	defer gs.broadcastPlayerListForWorld(session.worldName) // registered first → runs second (after Close removes session)
 	defer session.Close()                                   // registered second → runs first
 
-	_ = writeMsg(ctx, conn, ServerMsg{
-		Type:    "auth.ok",
-		Payload: AuthOKPayload{PlayerID: auth.PlayerID, Level: 1, Title: "Script Kiddie", XP: 0},
-	})
+	authOK := AuthOKPayload{Level: 1, Title: "Script Kiddie", XP: 0}
+	if token != "" {
+		authOK.AccountID = accountID
+		authOK.Username = username
+		authOK.Token = token
+		authOK.Role = role
+	} else {
+		authOK.PlayerID = username
+	}
+	_ = writeMsg(ctx, conn, ServerMsg{Type: "auth.ok", Payload: authOK})
 
 	mapRooms := buildMapRooms(selectedWorld)
 	worldMode := selectedWorld.Mode
@@ -681,6 +824,12 @@ func (gs *GameServer) idleWatcher() {
 		}
 		gs.registry.mu.Unlock()
 	}
+}
+
+// formatUUID converts a [16]byte UUID to its string representation.
+func formatUUID(b [16]byte) string {
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // lanIP returns the machine's first non-loopback IPv4 address.

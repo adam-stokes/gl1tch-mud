@@ -11,6 +11,8 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
@@ -26,12 +28,15 @@ import (
 
 // ClientSession represents one connected browser player.
 type ClientSession struct {
-	playerID     string
+	accountID    string // UUID from Postgres auth, or playerID for legacy
+	username     string // display name (username for Postgres, playerID for legacy)
+	role         string // "admin" or "player"
 	conn         *websocket.Conn
 	database     *sql.DB
 	state        *player.State
 	world        *world.World
 	worldName    string
+	pgPool       *pgxpool.Pool // non-nil for shared worlds
 	cancel       context.CancelFunc
 	lastActivity time.Time
 	registry     *SessionRegistry
@@ -41,7 +46,7 @@ type ClientSession struct {
 // It opens the player's DB, loads state, and dispatches incoming messages.
 func (s *ClientSession) Handle(ctx context.Context) {
 	var err error
-	s.database, err = db.OpenForPlayer(s.playerID, s.worldName)
+	s.database, err = db.OpenForPlayer(s.accountID, s.worldName)
 	if err != nil {
 		_ = writeMsg(ctx, s.conn, ServerMsg{
 			Type:    "error",
@@ -64,7 +69,7 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		})
 		return
 	}
-	s.state.PlayerID = s.playerID
+	s.state.PlayerID = s.username
 	player.LoadDefense(s.database, s.state)
 	if s.worldName == "mudout" {
 		if report := base.ResolvePendingRaids(s.database, s.world); report != "" {
@@ -139,14 +144,14 @@ func (s *ClientSession) Handle(ctx context.Context) {
 			}
 			s.registry.BroadcastToWorld(s.worldName, ServerMsg{
 				Type:    "chat.message",
-				Payload: ChatMessagePayload{From: s.playerID, Text: text},
+				Payload: ChatMessagePayload{From: s.username, Text: text},
 			})
 			// If the player addressed glitch, publish a mention event so the
 			// companion pipeline can generate a reply via mud.chat.reply.
 			lower := strings.ToLower(text)
 			if strings.Contains(lower, "glitch") {
 				s.registry.PublishEvent("mud.chat.mention", map[string]any{
-					"from":  s.playerID,
+					"from":  s.username,
 					"text":  text,
 					"world": s.worldName,
 				})
@@ -177,11 +182,11 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		if text != "" {
 			s.registry.BroadcastToWorld(s.worldName, ServerMsg{
 				Type:    "chat.message",
-				Payload: ChatMessagePayload{From: s.playerID, Text: text},
+				Payload: ChatMessagePayload{From: s.username, Text: text},
 			})
 			if strings.Contains(strings.ToLower(text), "glitch") {
 				s.registry.PublishEvent("mud.chat.mention", map[string]any{
-					"from":  s.playerID,
+					"from":  s.username,
 					"text":  text,
 					"world": s.worldName,
 				})
@@ -202,7 +207,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 			return
 		}
 		targetID := args[0]
-		if targetID == s.playerID {
+		if targetID == s.accountID {
 			_ = writeMsg(ctx, s.conn, ServerMsg{
 				Type:    "output.token",
 				Payload: OutputTokenPayload{Token: "you can't teleport to yourself.\r\n"},
@@ -278,7 +283,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 			}
 			s.registry.PublishEvent("game.action", map[string]any{
 				"source":  "gl1tch-mud",
-				"player":  s.playerID,
+				"player":  s.username,
 				"faction": faction,
 				"agent":   false,
 				"action":  action,
@@ -325,7 +330,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 		s.database.Close()
 	}
 
-	newDB, err := db.OpenForPlayer(s.playerID, targetName)
+	newDB, err := db.OpenForPlayer(s.accountID, targetName)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
@@ -353,7 +358,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	s.world = newWorld
 	s.worldName = targetName
 	s.state = newState
-	s.state.PlayerID = s.playerID
+	s.state.PlayerID = s.username
 	player.LoadDefense(newDB, newState)
 	if targetName == "mudout" {
 		if report := base.ResolvePendingRaids(s.database, s.world); report != "" {
@@ -554,7 +559,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		RoomResources: roomResources,
 		Quests:        questInfos,
 		Skills:        skillInfos,
-		OnlinePlayers: s.registry.OnlinePlayersInWorld(s.worldName, s.playerID),
+		OnlinePlayers: s.registry.OnlinePlayersInWorld(s.worldName, s.accountID),
 		EquippedArmor: equippedArmorInfo,
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
@@ -575,6 +580,6 @@ func (s *ClientSession) Close() {
 		s.cancel()
 	}
 	if s.registry != nil {
-		s.registry.Unregister(s.playerID)
+		s.registry.Unregister(s.accountID)
 	}
 }
