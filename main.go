@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -22,6 +23,7 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/pgq"
 	"github.com/adam-stokes/gl1tch-mud/internal/pgdb"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
@@ -164,6 +166,12 @@ func runServe(port int, passphrase, lockedWorld string) {
 		}
 	}
 
+	if pgPool != nil {
+		if err := pgdb.Migrate(context.Background(), pgPool); err != nil {
+			log.Fatalf("migration failed: %v", err)
+		}
+	}
+
 	srv := server.New(worlds, lockedWorld, pgPool)
 	if _, err := srv.Start(port, passphrase); err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: serve:", err)
@@ -191,14 +199,16 @@ func runGame(worldName string) {
 		os.Exit(1)
 	}
 
-	s, err := player.Load(database)
+	gdb := gamedb.NewSQLite(database)
+
+	s, err := player.Load(gdb)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: player:", err)
 		os.Exit(1)
 	}
 
-	world.SeedCrystalShards(database, s.World)  //nolint:errcheck
-	world.SeedStartingItems(database, s.World)  //nolint:errcheck
+	world.SeedCrystalShards(gdb, s.World)  //nolint:errcheck
+	world.SeedStartingItems(gdb, s.World)  //nolint:errcheck
 
 	bus := busd.Connect()
 	defer bus.Close()
@@ -225,7 +235,7 @@ func runGame(worldName string) {
 		}
 		fmt.Println("  type 'help' for commands. type '/lan' to start a multiplayer session.")
 
-		res := commands.Look(database, s, w, nil)
+		res := commands.Look(gdb, s, w, nil)
 		fmt.Println(res.Output)
 		if res.Event != nil {
 			bus.Publish(res.Event.Topic, res.Event.Payload)
@@ -265,7 +275,7 @@ func runGame(worldName string) {
 			continue
 		}
 
-		result := handler(database, s, w, args)
+		result := handler(gdb, s, w, args)
 		fmt.Println(result.Output)
 		if result.Event != nil {
 			bus.Publish(result.Event.Topic, result.Event.Payload)
@@ -286,15 +296,16 @@ func runGame(worldName string) {
 					lanSrv = server.New(map[string]*world.World{w.Name: w}, w.Name, nil)
 					commands.SetLANServer(lanSrv)
 					prompt = w.UIPrompt() + " "
-					newState, _ := player.LoadForWorld(database, result.SwitchWorld, w.StartRoom)
+					gdb = gamedb.NewSQLite(database)
+					newState, _ := player.LoadForWorld(gdb, result.SwitchWorld, w.StartRoom)
 					*s = *newState
 					if w.Room(s.RoomID) == nil {
 						s.RoomID = w.StartRoom
 						s.World = result.SwitchWorld
-						player.Save(database, s) //nolint:errcheck
+						player.Save(gdb, s) //nolint:errcheck
 					}
-					world.SeedCrystalShards(database, s.World)  //nolint:errcheck
-					world.SeedStartingItems(database, s.World)  //nolint:errcheck
+					world.SeedCrystalShards(gdb, s.World)  //nolint:errcheck
+					world.SeedStartingItems(gdb, s.World)  //nolint:errcheck
 					bus.Publish("mud.world.switch", map[string]any{"world": w.Name})
 					if banner := w.UIBanner(); banner != "" {
 						fmt.Println(banner)
@@ -302,7 +313,7 @@ func runGame(worldName string) {
 					if tagline := w.UI.Tagline; tagline != "" {
 						fmt.Printf("  %s\n", tagline)
 					}
-					lookResult := commands.Look(database, s, w, nil)
+					lookResult := commands.Look(gdb, s, w, nil)
 					fmt.Println(lookResult.Output)
 				}
 			}
@@ -345,6 +356,10 @@ func runUserAdd(args []string) {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	if err := pgdb.Migrate(ctx, pool); err != nil {
+		fmt.Fprintln(os.Stderr, "useradd: migrate:", err)
+		os.Exit(1)
+	}
 
 	row, err := pgq.New(pool).CreateAccount(ctx, pgq.CreateAccountParams{
 		Username:     *username,
@@ -377,6 +392,10 @@ func runUserDel(args []string) {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	if err := pgdb.Migrate(ctx, pool); err != nil {
+		fmt.Fprintln(os.Stderr, "userdel: migrate:", err)
+		os.Exit(1)
+	}
 
 	if err := pgq.New(pool).DeleteAccount(ctx, *username); err != nil {
 		fmt.Fprintln(os.Stderr, "userdel:", err)
@@ -410,6 +429,10 @@ func runUserMod(args []string) {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	if err := pgdb.Migrate(ctx, pool); err != nil {
+		fmt.Fprintln(os.Stderr, "usermod: migrate:", err)
+		os.Exit(1)
+	}
 
 	q := pgq.New(pool)
 
@@ -460,6 +483,10 @@ func runUserList() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	if err := pgdb.Migrate(ctx, pool); err != nil {
+		fmt.Fprintln(os.Stderr, "userlist: migrate:", err)
+		os.Exit(1)
+	}
 
 	accounts, err := pgq.New(pool).ListAccounts(ctx)
 	if err != nil {

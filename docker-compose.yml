@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: gl1tch_mud
+      POSTGRES_USER: gl1tch
+      POSTGRES_PASSWORD: gl1tch
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gl1tch -d gl1tch_mud"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  gl1tch-mud:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://gl1tch:gl1tch@postgres:5432/gl1tch_mud
+    ports:
+      - "8080:8080"
+    volumes:
+      - muddata:/root/.local/share/gl1tch-mud
+
+volumes:
+  pgdata:
+  muddata:
