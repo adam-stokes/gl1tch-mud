@@ -9,6 +9,26 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// migrate applies idempotent ALTER TABLE migrations for columns added after
+// the original schema was authored. SQLite has no IF NOT EXISTS for ADD COLUMN,
+// so each call probes pragma_table_info first.
+func migrate(db *sql.DB) {
+	addColumnIfMissing := func(table, col, ddl string) {
+		var name string
+		err := db.QueryRow(
+			`SELECT name FROM pragma_table_info(?) WHERE name=?`, table, col,
+		).Scan(&name)
+		if err == sql.ErrNoRows {
+			_, _ = db.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", table, ddl))
+		}
+	}
+	addColumnIfMissing("player", "class", "class TEXT NOT NULL DEFAULT ''")
+	addColumnIfMissing("quests", "giver_faction", "giver_faction TEXT NOT NULL DEFAULT ''")
+	addColumnIfMissing("quests", "min_rep", "min_rep INTEGER NOT NULL DEFAULT 0")
+	addColumnIfMissing("quests", "reward_rep_faction", "reward_rep_faction TEXT NOT NULL DEFAULT ''")
+	addColumnIfMissing("quests", "reward_rep_delta", "reward_rep_delta INTEGER NOT NULL DEFAULT 0")
+}
+
 // Open opens (or creates) the player database at ~/.local/share/gl1tch-mud/world.db.
 func Open() (*sql.DB, error) {
 	path, err := dbPath()
@@ -25,6 +45,7 @@ func Open() (*sql.DB, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("db: schema: %w", err)
 	}
+	migrate(db)
 	return db, nil
 }
 
@@ -47,6 +68,7 @@ func OpenForPlayer(playerID, worldName string) (*sql.DB, error) {
 	if _, err := database.Exec(schema); err != nil {
 		return nil, fmt.Errorf("db: schema: %w", err)
 	}
+	migrate(database)
 	return database, nil
 }
 
@@ -69,6 +91,7 @@ func OpenForWorld(worldName string) (*sql.DB, error) {
 	if _, err := database.Exec(schema); err != nil {
 		return nil, fmt.Errorf("db: schema: %w", err)
 	}
+	migrate(database)
 	return database, nil
 }
 

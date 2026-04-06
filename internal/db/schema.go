@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS player (
     room_id   TEXT    NOT NULL DEFAULT 'net-0',
     hp        INTEGER NOT NULL DEFAULT 100,
     max_hp    INTEGER NOT NULL DEFAULT 100,
-    world     TEXT    NOT NULL DEFAULT 'cyberspace'
+    world     TEXT    NOT NULL DEFAULT 'cyberspace',
+    class     TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS inventory (
@@ -103,9 +104,13 @@ CREATE TABLE IF NOT EXISTS quests (
     reward_item_id   TEXT,
     reward_item_name TEXT,
     reward_item_desc TEXT,
-    giver_npc_id     TEXT,
-    accepted_at      INTEGER NOT NULL,
-    next_quest_id    TEXT    NOT NULL DEFAULT ''
+    giver_npc_id       TEXT,
+    accepted_at        INTEGER NOT NULL,
+    next_quest_id      TEXT    NOT NULL DEFAULT '',
+    giver_faction      TEXT    NOT NULL DEFAULT '',
+    min_rep            INTEGER NOT NULL DEFAULT 0,
+    reward_rep_faction TEXT    NOT NULL DEFAULT '',
+    reward_rep_delta   INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS world_events (
