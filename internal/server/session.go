@@ -64,6 +64,7 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		return
 	}
 	s.state.PlayerID = s.playerID
+	player.LoadDefense(s.database, s.state)
 
 	// If the player's saved world differs or their room no longer exists in this
 	// world, reset them to the start room.
@@ -335,6 +336,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	s.worldName = targetName
 	s.state = newState
 	s.state.PlayerID = s.playerID
+	player.LoadDefense(newDB, newState)
 
 	// Tell the client to update title, theme, UI profile, and room grid.
 	_ = writeMsg(ctx, s.conn, ServerMsg{
