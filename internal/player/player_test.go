@@ -111,3 +111,101 @@ func TestRemoveItem(t *testing.T) {
 		t.Errorf("item should be removed, got %d", len(items))
 	}
 }
+
+func openArmorTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE inventory (
+			id        INTEGER PRIMARY KEY AUTOINCREMENT,
+			item_id   TEXT NOT NULL UNIQUE,
+			item_name TEXT NOT NULL,
+			item_desc TEXT NOT NULL DEFAULT ''
+		);
+		CREATE TABLE equipped_armor (
+			id        INTEGER PRIMARY KEY CHECK(id = 1),
+			item_id   TEXT    NOT NULL,
+			item_name TEXT    NOT NULL,
+			defense   INTEGER NOT NULL DEFAULT 0
+		);
+	`); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	return db
+}
+
+func TestEquipArmor(t *testing.T) {
+	db := openArmorTestDB(t)
+	defer db.Close()
+
+	if err := player.EquipArmor(db, "leather-armor", "Leather Armor", 3); err != nil {
+		t.Fatalf("EquipArmor: %v", err)
+	}
+
+	rec, err := player.GetEquippedArmor(db)
+	if err != nil {
+		t.Fatalf("GetEquippedArmor: %v", err)
+	}
+	if rec == nil {
+		t.Fatal("expected equipped armor record, got nil")
+	}
+	if rec.ItemID != "leather-armor" {
+		t.Errorf("item_id: got %q want %q", rec.ItemID, "leather-armor")
+	}
+	if rec.Defense != 3 {
+		t.Errorf("defense: got %d want 3", rec.Defense)
+	}
+}
+
+func TestEquipArmorReplaces(t *testing.T) {
+	db := openArmorTestDB(t)
+	defer db.Close()
+
+	player.EquipArmor(db, "leather-armor", "Leather Armor", 2) //nolint:errcheck
+	if err := player.EquipArmor(db, "iron-vest", "Iron Vest", 5); err != nil {
+		t.Fatalf("second EquipArmor: %v", err)
+	}
+
+	rec, _ := player.GetEquippedArmor(db)
+	if rec == nil || rec.ItemID != "iron-vest" {
+		t.Errorf("expected iron-vest to replace leather-armor, got %+v", rec)
+	}
+}
+
+func TestUnequipArmor(t *testing.T) {
+	db := openArmorTestDB(t)
+	defer db.Close()
+
+	player.EquipArmor(db, "leather-armor", "Leather Armor", 2) //nolint:errcheck
+	if err := player.UnequipArmor(db); err != nil {
+		t.Fatalf("UnequipArmor: %v", err)
+	}
+
+	rec, err := player.GetEquippedArmor(db)
+	if err != nil {
+		t.Fatalf("GetEquippedArmor after unequip: %v", err)
+	}
+	if rec != nil {
+		t.Errorf("expected nil after unequip, got %+v", rec)
+	}
+}
+
+func TestLoadDefense(t *testing.T) {
+	db := openArmorTestDB(t)
+	defer db.Close()
+
+	s := &player.State{}
+	player.LoadDefense(db, s)
+	if s.Defense != 0 {
+		t.Errorf("defense with no armor: got %d want 0", s.Defense)
+	}
+
+	player.EquipArmor(db, "leather-armor", "Leather Armor", 4) //nolint:errcheck
+	player.LoadDefense(db, s)
+	if s.Defense != 4 {
+		t.Errorf("defense after equip: got %d want 4", s.Defense)
+	}
+}

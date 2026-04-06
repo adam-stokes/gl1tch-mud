@@ -13,6 +13,7 @@ type State struct {
 	HP       int
 	MaxHP    int
 	World    string
+	Defense  int
 }
 
 // Load reads the player state from the database, seeding defaults on first run.
@@ -238,4 +239,51 @@ func MarkShardCollected(db *sql.DB, shardID string) error {
 		actionCnt, shardID,
 	)
 	return err
+}
+
+// EquippedArmorRecord holds data about the currently equipped armor.
+type EquippedArmorRecord struct {
+	ItemID   string
+	ItemName string
+	Defense  int
+}
+
+// EquipArmor upserts the equipped armor record (single-row table, id always 1).
+func EquipArmor(db *sql.DB, itemID, itemName string, defense int) error {
+	_, err := db.Exec(
+		`INSERT OR REPLACE INTO equipped_armor (id, item_id, item_name, defense) VALUES (1,?,?,?)`,
+		itemID, itemName, defense,
+	)
+	return err
+}
+
+// UnequipArmor removes the equipped armor record.
+func UnequipArmor(db *sql.DB) error {
+	_, err := db.Exec(`DELETE FROM equipped_armor WHERE id=1`)
+	return err
+}
+
+// GetEquippedArmor returns the current equipped armor, or nil if nothing is equipped.
+func GetEquippedArmor(db *sql.DB) (*EquippedArmorRecord, error) {
+	rec := &EquippedArmorRecord{}
+	err := db.QueryRow(`SELECT item_id, item_name, defense FROM equipped_armor WHERE id=1`).
+		Scan(&rec.ItemID, &rec.ItemName, &rec.Defense)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return rec, nil
+}
+
+// LoadDefense reads the equipped armor defense value into s.Defense.
+// Call this after LoadForWorld to populate the defense stat.
+func LoadDefense(db *sql.DB, s *State) {
+	rec, err := GetEquippedArmor(db)
+	if err != nil || rec == nil {
+		s.Defense = 0
+		return
+	}
+	s.Defense = rec.Defense
 }
