@@ -174,7 +174,13 @@ func Look(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 	// Check for low-stealth auto-detection
 	detection := checkStealthDetection(gdb, s, room)
 
-	output := room.Render(visited)
+	// Hide items that have been taken (shared) or that the player already
+	// carries (solo).
+	excluded := make(map[string]bool)
+	for _, id := range gdb.ListTakenRoomItems(context.Background(), s.RoomID) {
+		excluded[id] = true
+	}
+	output := room.RenderFiltered(visited, excluded)
 
 	// Show death pile if player died in this room.
 	pile, _ := player.GetDeathPile(gdb, s.RoomID)
@@ -347,9 +353,15 @@ func Take(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 	itemID := strings.Join(args, "-")
 	for _, item := range room.Items {
 		if strings.Contains(strings.ToLower(item.Name), target) || strings.EqualFold(item.ID, itemID) {
+			// Skip items already taken (shared world) or already carried (solo).
+			if gdb.IsRoomItemTaken(context.Background(), s.RoomID, item.ID) {
+				continue
+			}
 			if err := player.AddItem(gdb, item.ID, item.Name, item.Desc); err != nil {
 				return Result{Output: fmt.Sprintf("can't take %s — already carrying it.", item.Name)}
 			}
+			// Mark as taken so it disappears for everyone in shared worlds.
+			_ = gdb.TakeRoomItem(context.Background(), s.RoomID, item.ID)
 			// Remove the item from the room's item list.
 			for i, ri := range room.Items {
 				if ri.ID == item.ID {

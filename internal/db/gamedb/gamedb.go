@@ -3097,3 +3097,73 @@ func (g *GameDB) UpdateFactionMemberStation(ctx context.Context, npcID, statione
 		NpcID:         npcID,
 	})
 }
+
+// ─── Taken Room Items ──────────────────────────────────────────────────────
+//
+// In shared (Postgres) worlds, when a YAML-defined room item is picked up by
+// any player, it is recorded in shared_taken_room_items so it disappears for
+// everyone. In solo (SQLite) worlds we don't persist this — display-time
+// filtering against the player's own inventory handles it.
+
+// TakeRoomItem marks a YAML room item as taken. No-op for solo worlds.
+func (g *GameDB) TakeRoomItem(ctx context.Context, roomID, itemID string) error {
+	if g.pg != nil {
+		return g.pg.TakeSharedRoomItem(ctx, pgq.TakeSharedRoomItemParams{
+			WorldID: g.worldID,
+			RoomID:  roomID,
+			ItemID:  itemID,
+			TakenBy: g.pgUUID(),
+		})
+	}
+	return nil
+}
+
+// IsRoomItemTaken reports whether a YAML room item has been taken.
+// For shared worlds: checks shared_taken_room_items.
+// For solo worlds: checks the player's own inventory.
+func (g *GameDB) IsRoomItemTaken(ctx context.Context, roomID, itemID string) bool {
+	if g.pg != nil {
+		_, err := g.pg.IsSharedRoomItemTaken(ctx, pgq.IsSharedRoomItemTakenParams{
+			WorldID: g.worldID,
+			RoomID:  roomID,
+			ItemID:  itemID,
+		})
+		return err == nil
+	}
+	inv, err := g.ListInventory(ctx)
+	if err != nil {
+		return false
+	}
+	for _, it := range inv {
+		if it.ID == itemID {
+			return true
+		}
+	}
+	return false
+}
+
+// ListTakenRoomItems returns the IDs of YAML-defined room items that should
+// be hidden from this player in the given room. For shared worlds: every
+// item recorded in shared_taken_room_items. For solo worlds: every item the
+// player already carries (so the room can't show duplicates).
+func (g *GameDB) ListTakenRoomItems(ctx context.Context, roomID string) []string {
+	if g.pg != nil {
+		ids, err := g.pg.ListSharedTakenRoomItems(ctx, pgq.ListSharedTakenRoomItemsParams{
+			WorldID: g.worldID,
+			RoomID:  roomID,
+		})
+		if err != nil {
+			return nil
+		}
+		return ids
+	}
+	inv, err := g.ListInventory(ctx)
+	if err != nil {
+		return nil
+	}
+	ids := make([]string, 0, len(inv))
+	for _, it := range inv {
+		ids = append(ids, it.ID)
+	}
+	return ids
+}

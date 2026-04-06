@@ -285,6 +285,14 @@ type SharedSystemState struct {
 	AlertLevel     int32  `json:"alert_level"`
 }
 
+type SharedTakenRoomItem struct {
+	WorldID string             `json:"world_id"`
+	RoomID  string             `json:"room_id"`
+	ItemID  string             `json:"item_id"`
+	TakenBy pgtype.UUID        `json:"taken_by"`
+	TakenAt pgtype.Timestamptz `json:"taken_at"`
+}
+
 type SharedUnlockedRecipe struct {
 	AccountID  pgtype.UUID `json:"account_id"`
 	WorldID    string      `json:"world_id"`

@@ -564,7 +564,16 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 				Attackable: npc.Attack > 0,
 			})
 		}
+		// Hide items that have been taken (shared) or already carried (solo).
+		takenIDs := s.gdb.ListTakenRoomItems(ctx, s.state.RoomID)
+		taken := make(map[string]bool, len(takenIDs))
+		for _, id := range takenIDs {
+			taken[id] = true
+		}
 		for _, item := range room.Items {
+			if taken[item.ID] {
+				continue
+			}
 			roomItems = append(roomItems, RoomItemInfo{
 				ID:       item.ID,
 				Name:     item.Name,

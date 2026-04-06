@@ -549,6 +549,13 @@ func (r *Room) FindSystem(systemID string) *System {
 
 // Render returns a formatted description of the room.
 func (r *Room) Render(visitedBefore bool) string {
+	return r.RenderFiltered(visitedBefore, nil)
+}
+
+// RenderFiltered is like Render but hides any items whose IDs appear in excluded.
+// Used to filter out items already taken (shared worlds) or already in the
+// player's inventory (solo worlds).
+func (r *Room) RenderFiltered(visitedBefore bool, excluded map[string]bool) string {
 	const (
 		reset  = "\x1b[0m"
 		bold   = "\x1b[1m"
@@ -582,6 +589,9 @@ func (r *Room) Render(visitedBefore bool) string {
 
 	if len(r.Items) > 0 {
 		for _, item := range r.Items {
+			if excluded[item.ID] {
+				continue
+			}
 			var color string
 			switch item.SignalTier {
 			case "ghost", "zero-day":

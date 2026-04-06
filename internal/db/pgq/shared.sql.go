@@ -1748,6 +1748,24 @@ func (q *Queries) IsSharedRecruited(ctx context.Context, npcID string) (string, 
 	return npc_id, err
 }
 
+const isSharedRoomItemTaken = `-- name: IsSharedRoomItemTaken :one
+SELECT item_id FROM shared_taken_room_items
+WHERE world_id = $1 AND room_id = $2 AND item_id = $3
+`
+
+type IsSharedRoomItemTakenParams struct {
+	WorldID string `json:"world_id"`
+	RoomID  string `json:"room_id"`
+	ItemID  string `json:"item_id"`
+}
+
+func (q *Queries) IsSharedRoomItemTaken(ctx context.Context, arg IsSharedRoomItemTakenParams) (string, error) {
+	row := q.db.QueryRow(ctx, isSharedRoomItemTaken, arg.WorldID, arg.RoomID, arg.ItemID)
+	var item_id string
+	err := row.Scan(&item_id)
+	return item_id, err
+}
+
 const listSharedActiveEvents = `-- name: ListSharedActiveEvents :many
 SELECT id, type, title, description, target_room, faction,
        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
@@ -2275,6 +2293,36 @@ func (q *Queries) ListSharedSkills(ctx context.Context, arg ListSharedSkillsPara
 	return items, nil
 }
 
+const listSharedTakenRoomItems = `-- name: ListSharedTakenRoomItems :many
+SELECT item_id FROM shared_taken_room_items
+WHERE world_id = $1 AND room_id = $2
+`
+
+type ListSharedTakenRoomItemsParams struct {
+	WorldID string `json:"world_id"`
+	RoomID  string `json:"room_id"`
+}
+
+func (q *Queries) ListSharedTakenRoomItems(ctx context.Context, arg ListSharedTakenRoomItemsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listSharedTakenRoomItems, arg.WorldID, arg.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var item_id string
+		if err := rows.Scan(&item_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markSharedShardCollected = `-- name: MarkSharedShardCollected :exec
 UPDATE shared_crystal_shards SET collected = TRUE, collected_at = $1
 WHERE world_id = $2 AND shard_id = $3
@@ -2656,6 +2704,31 @@ func (q *Queries) StartSharedArena(ctx context.Context, arg StartSharedArenaPara
 		arg.GameType,
 		arg.Wave,
 		arg.Enemies,
+	)
+	return err
+}
+
+const takeSharedRoomItem = `-- name: TakeSharedRoomItem :exec
+
+INSERT INTO shared_taken_room_items (world_id, room_id, item_id, taken_by)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (world_id, room_id, item_id) DO NOTHING
+`
+
+type TakeSharedRoomItemParams struct {
+	WorldID string      `json:"world_id"`
+	RoomID  string      `json:"room_id"`
+	ItemID  string      `json:"item_id"`
+	TakenBy pgtype.UUID `json:"taken_by"`
+}
+
+// ===================== Taken Room Items =====================
+func (q *Queries) TakeSharedRoomItem(ctx context.Context, arg TakeSharedRoomItemParams) error {
+	_, err := q.db.Exec(ctx, takeSharedRoomItem,
+		arg.WorldID,
+		arg.RoomID,
+		arg.ItemID,
+		arg.TakenBy,
 	)
 	return err
 }

@@ -654,6 +654,21 @@ SELECT skill, bonus, installed_at
 FROM shared_player_augments
 WHERE account_id = $1 AND world_id = $2;
 
+-- ===================== Taken Room Items =====================
+
+-- name: TakeSharedRoomItem :exec
+INSERT INTO shared_taken_room_items (world_id, room_id, item_id, taken_by)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (world_id, room_id, item_id) DO NOTHING;
+
+-- name: IsSharedRoomItemTaken :one
+SELECT item_id FROM shared_taken_room_items
+WHERE world_id = $1 AND room_id = $2 AND item_id = $3;
+
+-- name: ListSharedTakenRoomItems :many
+SELECT item_id FROM shared_taken_room_items
+WHERE world_id = $1 AND room_id = $2;
+
 -- ===================== Item Mods =====================
 
 -- name: UpsertSharedItemMod :exec

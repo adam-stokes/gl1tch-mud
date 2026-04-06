@@ -299,6 +299,15 @@ CREATE TABLE shared_player_augments (
     PRIMARY KEY (account_id, world_id, skill)
 );
 
+CREATE TABLE shared_taken_room_items (
+    world_id TEXT NOT NULL,
+    room_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    taken_by UUID,
+    taken_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (world_id, room_id, item_id)
+);
+
 CREATE TABLE shared_item_mods (
     account_id UUID NOT NULL,
     world_id TEXT NOT NULL,
