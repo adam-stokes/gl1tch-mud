@@ -301,6 +301,123 @@ crafting_recipes:
       tags: [armor, wearable]
       stats: {damage_resist: 2}
 
+  - id: foundation
+    name: "Base Foundation"
+    type: ingredient
+    workbench: build
+    skill_req: 0
+    ingredients:
+      - id: scrap-iron
+        name: "Scrap Iron"
+        count: 5
+      - id: polymer-sheet
+        name: "Polymer Sheet"
+        count: 3
+    output:
+      id: foundation
+      name: "Base Foundation"
+      desc: "A solid concrete slab. Everything else is built on this."
+      tags: [structure]
+      stats: {defense: 0}
+
+  - id: base-walls
+    name: "Reinforced Walls"
+    type: ingredient
+    workbench: build
+    skill_req: 0
+    ingredients:
+      - id: scrap-iron
+        name: "Scrap Iron"
+        count: 4
+      - id: polymer-sheet
+        name: "Polymer Sheet"
+        count: 2
+    output:
+      id: base-walls
+      name: "Reinforced Walls"
+      desc: "Corrugated iron sheets bolted to a steel frame. Keeps raiders out."
+      tags: [structure]
+      stats: {defense: 3}
+
+  - id: base-roof
+    name: "Corrugated Roof"
+    type: ingredient
+    workbench: build
+    skill_req: 0
+    ingredients:
+      - id: polymer-sheet
+        name: "Polymer Sheet"
+        count: 3
+      - id: scrap-iron
+        name: "Scrap Iron"
+        count: 2
+    output:
+      id: base-roof
+      name: "Corrugated Roof"
+      desc: "Keeps the ashfall off your gear. Some weather protection."
+      tags: [structure]
+      stats: {defense: 1}
+
+  - id: chest
+    name: "Storage Locker"
+    type: ingredient
+    workbench: build
+    skill_req: 0
+    ingredients:
+      - id: scrap-iron
+        name: "Scrap Iron"
+        count: 3
+      - id: copper-wire
+        name: "Copper Wire"
+        count: 2
+    output:
+      id: chest
+      name: "Storage Locker"
+      desc: "A lockable metal cabinet. Use 'stash' and 'unstash' to manage contents."
+      tags: [structure]
+      stats: {defense: 0}
+
+  - id: base-generator
+    name: "Diesel Generator"
+    type: ingredient
+    workbench: build
+    skill_req: 0
+    ingredients:
+      - id: copper-wire
+        name: "Copper Wire"
+        count: 4
+      - id: pre-war-circuitry
+        name: "Pre-War Circuitry"
+        count: 2
+    output:
+      id: base-generator
+      name: "Diesel Generator"
+      desc: "Hums with salvaged fuel. Powers the turret."
+      tags: [structure]
+      stats: {defense: 2}
+
+  - id: base-turret
+    name: "Sentry Turret"
+    type: ingredient
+    workbench: build
+    skill_req: 0
+    ingredients:
+      - id: scrap-iron
+        name: "Scrap Iron"
+        count: 5
+      - id: copper-wire
+        name: "Copper Wire"
+        count: 3
+      - id: pre-war-circuitry
+        name: "Pre-War Circuitry"
+        count: 2
+    output:
+      id: base-turret
+      name: "Sentry Turret"
+      desc: "Tracks movement and returns fire. Highest single defense bonus."
+      tags: [structure]
+      stats: {defense: 5}
+
 rooms:
   - id: dusthaven-0
     name: "The Gate"
@@ -433,18 +550,14 @@ rooms:
     name: "The Base Plots"
     desc: |
       A cleared zone at the north edge of the settlement. Survey stakes mark
-      out plots in the cracked earth. A faded sign reads: REGISTERED SETTLERS
-      MAY CLAIM ONE PLOT. The area is quiet — potential waiting to be built on.
+      out plots in the cracked earth. Your plot is here. Use 'build' to start
+      construction, 'baseinfo' to check status, and 'stash'/'unstash' once
+      you've built a Storage Locker.
     biome: settlement
     exits:
       south: dusthaven-2
     npcs: []
-    items:
-      - id: plot-claim-form
-        name: "Plot Claim Form"
-        desc: "A bureaucratic relic. Base building coming in a future update."
-        readable: true
-        content: "This plot is available for settlement. Speak to the Settlers Council to register your claim."
+    items: []
 
   - id: barrens-0
     name: "The Ashfield"
