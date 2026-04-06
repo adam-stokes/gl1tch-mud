@@ -191,6 +191,11 @@ WHERE world_id = $1 AND room_id = $2;
 DELETE FROM shared_death_pile
 WHERE world_id = $1 AND room_id = $2;
 
+-- name: AnySharedDeathPile :one
+SELECT room_id, COUNT(*) as count FROM shared_death_pile
+WHERE world_id = $1
+GROUP BY room_id ORDER BY MAX(dropped_at) DESC LIMIT 1;
+
 -- ===================== Quests =====================
 
 -- name: AcceptSharedQuest :exec
@@ -554,6 +559,25 @@ WHERE world_id = $1 AND type = 'base-raid' AND target_room = $2 AND status = 'ac
 SELECT id FROM shared_world_events
 WHERE world_id = $1 AND type = 'base-raid' AND target_room = $2 AND status = 'active'
 AND (created_actions + expires_actions) <= $3;
+
+-- name: ListSharedActiveEvents :many
+SELECT id, type, title, description, target_room, faction,
+       payout_credits, payout_item_id, payout_item_name, payout_item_desc,
+       status, expires_actions, created_actions, created_at
+FROM shared_world_events WHERE world_id = $1 AND status = 'active';
+
+-- name: GetSharedEvent :one
+SELECT id, type, title, description, target_room, faction,
+       payout_credits, payout_item_id, payout_item_name, payout_item_desc,
+       status, expires_actions, created_actions, created_at
+FROM shared_world_events WHERE id = $1 AND world_id = $2;
+
+-- name: CompleteSharedEvent :exec
+UPDATE shared_world_events SET status = 'completed' WHERE id = $1 AND world_id = $2;
+
+-- name: ExpireSharedOldEvents :execresult
+UPDATE shared_world_events SET status = 'expired'
+WHERE world_id = $1 AND status = 'active' AND (created_actions + expires_actions) <= $2;
 
 -- name: ResolveSharedWorldEvent :exec
 UPDATE shared_world_events SET status = 'resolved'

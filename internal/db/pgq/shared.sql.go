@@ -134,6 +134,24 @@ func (q *Queries) AddSharedItem(ctx context.Context, arg AddSharedItemParams) er
 	return err
 }
 
+const anySharedDeathPile = `-- name: AnySharedDeathPile :one
+SELECT room_id, COUNT(*) as count FROM shared_death_pile
+WHERE world_id = $1
+GROUP BY room_id ORDER BY MAX(dropped_at) DESC LIMIT 1
+`
+
+type AnySharedDeathPileRow struct {
+	RoomID string `json:"room_id"`
+	Count  int64  `json:"count"`
+}
+
+func (q *Queries) AnySharedDeathPile(ctx context.Context, worldID string) (AnySharedDeathPileRow, error) {
+	row := q.db.QueryRow(ctx, anySharedDeathPile, worldID)
+	var i AnySharedDeathPileRow
+	err := row.Scan(&i.RoomID, &i.Count)
+	return i, err
+}
+
 const applySharedEnchant = `-- name: ApplySharedEnchant :exec
 
 INSERT INTO shared_enchants (account_id, world_id, item_id, enchant_id, level, applied_at)
@@ -195,6 +213,20 @@ type ClearSharedInventoryParams struct {
 
 func (q *Queries) ClearSharedInventory(ctx context.Context, arg ClearSharedInventoryParams) error {
 	_, err := q.db.Exec(ctx, clearSharedInventory, arg.AccountID, arg.WorldID)
+	return err
+}
+
+const completeSharedEvent = `-- name: CompleteSharedEvent :exec
+UPDATE shared_world_events SET status = 'completed' WHERE id = $1 AND world_id = $2
+`
+
+type CompleteSharedEventParams struct {
+	ID      string `json:"id"`
+	WorldID string `json:"world_id"`
+}
+
+func (q *Queries) CompleteSharedEvent(ctx context.Context, arg CompleteSharedEventParams) error {
+	_, err := q.db.Exec(ctx, completeSharedEvent, arg.ID, arg.WorldID)
 	return err
 }
 
@@ -492,6 +524,20 @@ func (q *Queries) DepleteSharedResource(ctx context.Context, arg DepleteSharedRe
 		arg.RespawnAt,
 	)
 	return err
+}
+
+const expireSharedOldEvents = `-- name: ExpireSharedOldEvents :execresult
+UPDATE shared_world_events SET status = 'expired'
+WHERE world_id = $1 AND status = 'active' AND (created_actions + expires_actions) <= $2
+`
+
+type ExpireSharedOldEventsParams struct {
+	WorldID        string `json:"world_id"`
+	CreatedActions int32  `json:"created_actions"`
+}
+
+func (q *Queries) ExpireSharedOldEvents(ctx context.Context, arg ExpireSharedOldEventsParams) (pgconn.CommandTag, error) {
+	return q.db.Exec(ctx, expireSharedOldEvents, arg.WorldID, arg.CreatedActions)
 }
 
 const failSharedQuest = `-- name: FailSharedQuest :exec
@@ -821,6 +867,57 @@ func (q *Queries) GetSharedEquippedArmor(ctx context.Context, arg GetSharedEquip
 	row := q.db.QueryRow(ctx, getSharedEquippedArmor, arg.AccountID, arg.WorldID)
 	var i GetSharedEquippedArmorRow
 	err := row.Scan(&i.ItemID, &i.ItemName, &i.Defense)
+	return i, err
+}
+
+const getSharedEvent = `-- name: GetSharedEvent :one
+SELECT id, type, title, description, target_room, faction,
+       payout_credits, payout_item_id, payout_item_name, payout_item_desc,
+       status, expires_actions, created_actions, created_at
+FROM shared_world_events WHERE id = $1 AND world_id = $2
+`
+
+type GetSharedEventParams struct {
+	ID      string `json:"id"`
+	WorldID string `json:"world_id"`
+}
+
+type GetSharedEventRow struct {
+	ID             string      `json:"id"`
+	Type           string      `json:"type"`
+	Title          string      `json:"title"`
+	Description    pgtype.Text `json:"description"`
+	TargetRoom     string      `json:"target_room"`
+	Faction        pgtype.Text `json:"faction"`
+	PayoutCredits  int32       `json:"payout_credits"`
+	PayoutItemID   pgtype.Text `json:"payout_item_id"`
+	PayoutItemName pgtype.Text `json:"payout_item_name"`
+	PayoutItemDesc pgtype.Text `json:"payout_item_desc"`
+	Status         string      `json:"status"`
+	ExpiresActions int32       `json:"expires_actions"`
+	CreatedActions int32       `json:"created_actions"`
+	CreatedAt      int32       `json:"created_at"`
+}
+
+func (q *Queries) GetSharedEvent(ctx context.Context, arg GetSharedEventParams) (GetSharedEventRow, error) {
+	row := q.db.QueryRow(ctx, getSharedEvent, arg.ID, arg.WorldID)
+	var i GetSharedEventRow
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Title,
+		&i.Description,
+		&i.TargetRoom,
+		&i.Faction,
+		&i.PayoutCredits,
+		&i.PayoutItemID,
+		&i.PayoutItemName,
+		&i.PayoutItemDesc,
+		&i.Status,
+		&i.ExpiresActions,
+		&i.CreatedActions,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -1649,6 +1746,65 @@ func (q *Queries) IsSharedRecruited(ctx context.Context, npcID string) (string, 
 	var npc_id string
 	err := row.Scan(&npc_id)
 	return npc_id, err
+}
+
+const listSharedActiveEvents = `-- name: ListSharedActiveEvents :many
+SELECT id, type, title, description, target_room, faction,
+       payout_credits, payout_item_id, payout_item_name, payout_item_desc,
+       status, expires_actions, created_actions, created_at
+FROM shared_world_events WHERE world_id = $1 AND status = 'active'
+`
+
+type ListSharedActiveEventsRow struct {
+	ID             string      `json:"id"`
+	Type           string      `json:"type"`
+	Title          string      `json:"title"`
+	Description    pgtype.Text `json:"description"`
+	TargetRoom     string      `json:"target_room"`
+	Faction        pgtype.Text `json:"faction"`
+	PayoutCredits  int32       `json:"payout_credits"`
+	PayoutItemID   pgtype.Text `json:"payout_item_id"`
+	PayoutItemName pgtype.Text `json:"payout_item_name"`
+	PayoutItemDesc pgtype.Text `json:"payout_item_desc"`
+	Status         string      `json:"status"`
+	ExpiresActions int32       `json:"expires_actions"`
+	CreatedActions int32       `json:"created_actions"`
+	CreatedAt      int32       `json:"created_at"`
+}
+
+func (q *Queries) ListSharedActiveEvents(ctx context.Context, worldID string) ([]ListSharedActiveEventsRow, error) {
+	rows, err := q.db.Query(ctx, listSharedActiveEvents, worldID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSharedActiveEventsRow{}
+	for rows.Next() {
+		var i ListSharedActiveEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Title,
+			&i.Description,
+			&i.TargetRoom,
+			&i.Faction,
+			&i.PayoutCredits,
+			&i.PayoutItemID,
+			&i.PayoutItemName,
+			&i.PayoutItemDesc,
+			&i.Status,
+			&i.ExpiresActions,
+			&i.CreatedActions,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSharedActiveQuestIDs = `-- name: ListSharedActiveQuestIDs :many

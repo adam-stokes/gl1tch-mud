@@ -130,7 +130,8 @@ var Registry = map[string]HandlerFunc{
 
 // Parse splits raw input into verb + args. Lowercases the verb.
 func Parse(input string) (verb string, args []string) {
-	parts := strings.Fields(strings.ToLower(strings.TrimSpace(input)))
+	clean := strings.TrimLeft(strings.TrimSpace(input), "/")
+	parts := strings.Fields(strings.ToLower(clean))
 	if len(parts) == 0 {
 		return "", nil
 	}

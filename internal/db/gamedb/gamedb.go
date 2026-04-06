@@ -723,7 +723,14 @@ func (g *GameDB) DeleteDeathPile(ctx context.Context, roomID string) error {
 // Returns ("", 0, nil) if none.
 func (g *GameDB) AnyDeathPile(ctx context.Context) (roomID string, count int, err error) {
 	if g.pg != nil {
-		return "", 0, nil
+		row, qerr := g.pg.AnySharedDeathPile(ctx, g.worldID)
+		if errors.Is(qerr, pgx.ErrNoRows) {
+			return "", 0, nil
+		}
+		if qerr != nil {
+			return "", 0, qerr
+		}
+		return row.RoomID, int(row.Count), nil
 	}
 	row, qerr := g.sqlite.AnyDeathPile(ctx)
 	if qerr == sql.ErrNoRows {
@@ -2674,35 +2681,30 @@ type WorldEvent struct {
 // ListActiveEvents returns all active world events.
 func (g *GameDB) ListActiveEvents(ctx context.Context) ([]WorldEvent, error) {
 	if g.pg != nil {
-		// PG doesn't have a dedicated "list active events" query. Use raw SQL via pgPool.
-		rows, err := g.pgPool.Query(ctx,
-			`SELECT id, type, title, description, target_room, faction,
-			        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
-			        status, expires_actions, created_actions, created_at
-			 FROM shared_world_events WHERE world_id=$1 AND status='active'`,
-			g.worldID,
-		)
+		rows, err := g.pg.ListSharedActiveEvents(ctx, g.worldID)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
-		var events []WorldEvent
-		for rows.Next() {
-			var e WorldEvent
-			var desc, faction, payItem, payName, payDesc pgtype.Text
-			if err := rows.Scan(&e.ID, &e.Type, &e.Title, &desc, &e.TargetRoom, &faction,
-				&e.PayoutCredits, &payItem, &payName, &payDesc,
-				&e.Status, &e.ExpiresActions, &e.CreatedActions, &e.CreatedAt); err != nil {
-				return nil, err
-			}
-			e.Description = desc.String
-			e.Faction = faction.String
-			e.PayoutItemID = payItem.String
-			e.PayoutItemName = payName.String
-			e.PayoutItemDesc = payDesc.String
-			events = append(events, e)
+		events := make([]WorldEvent, 0, len(rows))
+		for _, r := range rows {
+			events = append(events, WorldEvent{
+				ID:             r.ID,
+				Type:           r.Type,
+				Title:          r.Title,
+				Description:    r.Description.String,
+				TargetRoom:     r.TargetRoom,
+				Faction:        r.Faction.String,
+				PayoutCredits:  int(r.PayoutCredits),
+				PayoutItemID:   r.PayoutItemID.String,
+				PayoutItemName: r.PayoutItemName.String,
+				PayoutItemDesc: r.PayoutItemDesc.String,
+				Status:         r.Status,
+				ExpiresActions: int(r.ExpiresActions),
+				CreatedActions: int(r.CreatedActions),
+				CreatedAt:      int64(r.CreatedAt),
+			})
 		}
-		return events, rows.Err()
+		return events, nil
 	}
 	sqlRows, err := g.sqliteDB.Query(
 		`SELECT id, type, title, description, target_room, faction,
@@ -2720,25 +2722,29 @@ func (g *GameDB) ListActiveEvents(ctx context.Context) ([]WorldEvent, error) {
 // GetEvent returns a single world event by ID.
 func (g *GameDB) GetEvent(ctx context.Context, id string) (*WorldEvent, error) {
 	if g.pg != nil {
-		var e WorldEvent
-		var desc, faction, payItem, payName, payDesc pgtype.Text
-		err := g.pgPool.QueryRow(ctx,
-			`SELECT id, type, title, description, target_room, faction,
-			        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
-			        status, expires_actions, created_actions, created_at
-			 FROM shared_world_events WHERE id=$1 AND world_id=$2`, id, g.worldID,
-		).Scan(&e.ID, &e.Type, &e.Title, &desc, &e.TargetRoom, &faction,
-			&e.PayoutCredits, &payItem, &payName, &payDesc,
-			&e.Status, &e.ExpiresActions, &e.CreatedActions, &e.CreatedAt)
+		r, err := g.pg.GetSharedEvent(ctx, pgq.GetSharedEventParams{
+			ID:      id,
+			WorldID: g.worldID,
+		})
 		if err != nil {
 			return nil, normErr(err)
 		}
-		e.Description = desc.String
-		e.Faction = faction.String
-		e.PayoutItemID = payItem.String
-		e.PayoutItemName = payName.String
-		e.PayoutItemDesc = payDesc.String
-		return &e, nil
+		return &WorldEvent{
+			ID:             r.ID,
+			Type:           r.Type,
+			Title:          r.Title,
+			Description:    r.Description.String,
+			TargetRoom:     r.TargetRoom,
+			Faction:        r.Faction.String,
+			PayoutCredits:  int(r.PayoutCredits),
+			PayoutItemID:   r.PayoutItemID.String,
+			PayoutItemName: r.PayoutItemName.String,
+			PayoutItemDesc: r.PayoutItemDesc.String,
+			Status:         r.Status,
+			ExpiresActions: int(r.ExpiresActions),
+			CreatedActions: int(r.CreatedActions),
+			CreatedAt:      int64(r.CreatedAt),
+		}, nil
 	}
 	row := g.sqliteDB.QueryRow(
 		`SELECT id, type, title, description, target_room, faction,
@@ -2787,8 +2793,10 @@ func (g *GameDB) CreateEvent(ctx context.Context, e WorldEvent) error {
 // CompleteEvent sets an event status to 'completed'.
 func (g *GameDB) CompleteEvent(ctx context.Context, id string) error {
 	if g.pg != nil {
-		_, err := g.pgPool.Exec(ctx, `UPDATE shared_world_events SET status='completed' WHERE id=$1 AND world_id=$2`, id, g.worldID)
-		return err
+		return g.pg.CompleteSharedEvent(ctx, pgq.CompleteSharedEventParams{
+			ID:      id,
+			WorldID: g.worldID,
+		})
 	}
 	_, err := g.sqliteDB.Exec(`UPDATE world_events SET status='completed' WHERE id=?`, id)
 	return err
@@ -2797,11 +2805,10 @@ func (g *GameDB) CompleteEvent(ctx context.Context, id string) error {
 // ExpireOldEvents expires events whose lifetime has elapsed.
 func (g *GameDB) ExpireOldEvents(ctx context.Context, currentActions int) (int, error) {
 	if g.pg != nil {
-		tag, err := g.pgPool.Exec(ctx,
-			`UPDATE shared_world_events SET status='expired'
-			 WHERE world_id=$1 AND status='active' AND (created_actions + expires_actions) <= $2`,
-			g.worldID, currentActions,
-		)
+		tag, err := g.pg.ExpireSharedOldEvents(ctx, pgq.ExpireSharedOldEventsParams{
+			WorldID:        g.worldID,
+			CreatedActions: int32(currentActions),
+		})
 		if err != nil {
 			return 0, err
 		}
