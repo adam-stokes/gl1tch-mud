@@ -18,7 +18,7 @@ ui:
     border:  "#3a3000"
     error:   "#cc2200"
     success: "#7ab648"
-start_room: dusthaven-0
+start_room: wakeup-camp
 narrator_model: claude-haiku-4-5-20251001
 
 weather_table:
@@ -420,6 +420,65 @@ crafting_recipes:
       stats: {defense: 5}
 
 rooms:
+  - id: wakeup-camp
+    name: "WAKEUP CAMP"
+    desc: |
+      A ring of oil-drum fires under a sun-bleached billboard. Five drifters
+      have made this their meeting spot — each one looking for a particular
+      kind of recruit. Through the chain-link to the south, you can see the
+      gates of Dusthaven.
+    biome: settlement
+    exits:
+      south: dusthaven-0
+    npcs:
+      - id: old-cass
+        name: "Old Cass"
+        hp: 60
+        attack: 10
+        desc: "Retired gunslinger. Two fingers missing on the off hand. Drinks slow."
+        dialogue:
+          - trigger: always
+            text: "You wear it on you, kid. The walk. Try 'inventory' — see what you came in with. Then 'look' around. Then 'examine' that crate at my feet. Then try 'fan' on the bottle. Then get to the Gate. Marta's hiring."
+      - id: rust
+        name: "Rust"
+        hp: 50
+        attack: 6
+        desc: "One-eyed tinker hunched over a half-disassembled pipe rifle."
+        dialogue:
+          - trigger: always
+            text: "Hands first. Type 'inventory'. Then 'look'. Then 'examine' that crate — schematics inside. Try 'hotwire' on the dead radio. When you can do all four, get to the Gate."
+      - id: halftrack
+        name: "Halftrack"
+        hp: 45
+        attack: 5
+        desc: "One-legged trader with a satchel that bulges in suspicious places."
+        dialogue:
+          - trigger: always
+            text: "Lesson one: 'inventory'. Lesson two: 'look'. Lesson three: 'examine' the crate — there's product in it. Lesson four: 'barter' with me. Then go talk to Marta at the Gate."
+      - id: doc-vega
+        name: "Doc Vega"
+        hp: 50
+        attack: 5
+        desc: "Vault-issue lab coat, sleeves rolled, scalpel tucked behind the ear."
+        dialogue:
+          - trigger: always
+            text: "Triage check. 'inventory'. 'look'. 'examine' the crate — chems inside. 'stim' yourself. Then south to the Gate."
+      - id: mother-ash
+        name: "Mother Ash"
+        hp: 70
+        attack: 7
+        desc: "Ancient ghoul wrapped in tattered robes. Her eyes still see fine."
+        dialogue:
+          - trigger: "quest_not_active:ghoul-intro"
+            text: "Old bones, child. There's a glowing relic in the Collapsed Mall — pre-war, brittle, mine. Bring it back to me and I'll know you. The Settlers won't help you. We will."
+            quest_id: ghoul-intro
+          - trigger: always
+            text: "'inventory'. 'look'. 'examine' the crate. 'rad-feed' on the chunks. Then walk south. The world is older than the gate."
+    items:
+      - id: tutorial-crate
+        name: "Battered Crate"
+        desc: "A scrap crate with a faded stencil. Looks like it's been kicked open and shut a hundred times."
+
   - id: dusthaven-0
     name: "The Gate"
     desc: |
@@ -737,7 +796,10 @@ rooms:
         attack: 15
         desc: "Two soldiers moving in formation. Ironclad patches on their armor."
         loot_table_id: ruins-loot
-    items: []
+    items:
+      - id: glowing-relic
+        name: "Glowing Relic"
+        desc: "A pre-war ceramic shard, faintly luminescent, warm to the touch."
     resources:
       - id: mall-salvage
         type: harvest
@@ -848,6 +910,8 @@ quests:
     title: "Prove Yourself"
     description: "Marta wants you to scavenge 3 scrap metal from the wasteland to prove you're useful to the Settlers."
     giver_npc_id: settler-recruiter
+    giver_faction: settlers
+    min_rep: 0
     obj_type: retrieve
     obj_target: scrap-metal
     obj_count: 3
@@ -860,9 +924,26 @@ quests:
     title: "Defend the Gate"
     description: "Raiders hit the south fence last night. Kill 2 Ash Raider scouts to make them think twice."
     giver_npc_id: settler-recruiter
+    giver_faction: settlers
+    min_rep: 0
     obj_type: kill
     obj_target: raider-scout
     obj_count: 2
     reward_credits: 100
     reward_xp_skill: combat
     reward_xp_amount: 50
+
+  - id: ghoul-intro
+    title: "Old Bones"
+    description: "Mother Ash wants you to retrieve a glowing relic from the Collapsed Mall."
+    giver_npc_id: mother-ash
+    giver_faction: ghoul-collective
+    min_rep: 0
+    obj_type: retrieve
+    obj_target: glowing-relic
+    obj_count: 1
+    reward_credits: 50
+    reward_xp_skill: scavenging
+    reward_xp_amount: 25
+    reward_rep_faction: ghoul-collective
+    reward_rep_delta: 5
