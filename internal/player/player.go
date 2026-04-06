@@ -1,8 +1,11 @@
 package player
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // State holds the player's current state.
@@ -25,14 +28,18 @@ func Load(db *sql.DB) (*State, error) {
 // LoadForWorld reads the player state from the database, seeding with the given
 // world name and start room when no record exists yet.
 func LoadForWorld(db *sql.DB, worldName, startRoom string) (*State, error) {
-	s := &State{}
-	err := db.QueryRow(`SELECT name, room_id, hp, max_hp, world FROM player WHERE id = 1`).
-		Scan(&s.Name, &s.RoomID, &s.HP, &s.MaxHP, &s.World)
+	q := sqliteq.New(db)
+	ctx := context.Background()
+	row, err := q.GetPlayer(ctx)
 	if err == sql.ErrNoRows {
-		s = &State{Name: "hacker", RoomID: startRoom, HP: 100, MaxHP: 100, World: worldName}
-		_, err = db.Exec(`INSERT INTO player (id, name, room_id, hp, max_hp, world) VALUES (1,?,?,?,?,?)`,
-			s.Name, s.RoomID, s.HP, s.MaxHP, s.World)
-		if err != nil {
+		s := &State{Name: "hacker", RoomID: startRoom, HP: 100, MaxHP: 100, World: worldName}
+		if err := q.SeedPlayer(ctx, sqliteq.SeedPlayerParams{
+			Name:   s.Name,
+			RoomID: s.RoomID,
+			Hp:     int64(s.HP),
+			MaxHp:  int64(s.MaxHP),
+			World:  s.World,
+		}); err != nil {
 			return nil, fmt.Errorf("player: seed: %w", err)
 		}
 		return s, nil
@@ -40,38 +47,48 @@ func LoadForWorld(db *sql.DB, worldName, startRoom string) (*State, error) {
 	if err != nil {
 		return nil, fmt.Errorf("player: load: %w", err)
 	}
-	return s, nil
+	return &State{
+		Name:  row.Name,
+		RoomID: row.RoomID,
+		HP:    int(row.Hp),
+		MaxHP: int(row.MaxHp),
+		World: row.World,
+	}, nil
 }
 
 // Save persists the player state to the database.
 func Save(db *sql.DB, s *State) error {
-	_, err := db.Exec(`UPDATE player SET room_id=?, hp=?, max_hp=?, world=? WHERE id=1`,
-		s.RoomID, s.HP, s.MaxHP, s.World)
-	return err
+	q := sqliteq.New(db)
+	return q.SavePlayer(context.Background(), sqliteq.SavePlayerParams{
+		RoomID: s.RoomID,
+		Hp:     int64(s.HP),
+		MaxHp:  int64(s.MaxHP),
+		World:  s.World,
+	})
 }
 
 // Inventory returns the player's current inventory items.
 func Inventory(db *sql.DB) ([]InventoryItem, error) {
-	rows, err := db.Query(`SELECT item_id, item_name, item_desc FROM inventory`)
+	q := sqliteq.New(db)
+	rows, err := q.ListInventory(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var items []InventoryItem
-	for rows.Next() {
-		var it InventoryItem
-		if err := rows.Scan(&it.ID, &it.Name, &it.Desc); err != nil {
-			return nil, err
-		}
-		items = append(items, it)
+	items := make([]InventoryItem, len(rows))
+	for i, r := range rows {
+		items[i] = InventoryItem{ID: r.ItemID, Name: r.ItemName, Desc: r.ItemDesc}
 	}
-	return items, rows.Err()
+	return items, nil
 }
 
 // AddItem adds an item to inventory.
 func AddItem(db *sql.DB, id, name, desc string) error {
-	_, err := db.Exec(`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`, id, name, desc)
-	return err
+	q := sqliteq.New(db)
+	return q.AddItem(context.Background(), sqliteq.AddItemParams{
+		ItemID:   id,
+		ItemName: name,
+		ItemDesc: desc,
+	})
 }
 
 // InventoryItem is a carried item.
@@ -84,52 +101,67 @@ type InventoryItem struct {
 // NPCAlive reports whether an NPC in a room is still alive.
 // Returns true if no record exists (default alive).
 func NPCAlive(db *sql.DB, roomID, npcID string) bool {
-	var alive int
-	err := db.QueryRow(`SELECT alive FROM npc_state WHERE room_id=? AND npc_id=?`, roomID, npcID).Scan(&alive)
+	q := sqliteq.New(db)
+	row, err := q.GetNPCState(context.Background(), sqliteq.GetNPCStateParams{
+		RoomID: roomID,
+		NpcID:  npcID,
+	})
 	if err == sql.ErrNoRows {
 		return true
 	}
-	return alive == 1
+	return row.Alive == 1
 }
 
 // KillNPC marks an NPC as dead.
 func KillNPC(db *sql.DB, roomID, npcID string, finalHP int) error {
-	_, err := db.Exec(`INSERT OR REPLACE INTO npc_state (room_id, npc_id, hp, alive) VALUES (?,?,?,0)`,
-		roomID, npcID, finalHP)
-	return err
+	q := sqliteq.New(db)
+	return q.UpsertNPCDead(context.Background(), sqliteq.UpsertNPCDeadParams{
+		RoomID: roomID,
+		NpcID:  npcID,
+		Hp:     int64(finalHP),
+	})
 }
 
 // NPCCurrentHP returns an NPC's current HP (default from world if no record).
 func NPCCurrentHP(db *sql.DB, roomID, npcID string, defaultHP int) int {
-	var hp int
-	err := db.QueryRow(`SELECT hp FROM npc_state WHERE room_id=? AND npc_id=?`, roomID, npcID).Scan(&hp)
+	q := sqliteq.New(db)
+	row, err := q.GetNPCState(context.Background(), sqliteq.GetNPCStateParams{
+		RoomID: roomID,
+		NpcID:  npcID,
+	})
 	if err == sql.ErrNoRows {
 		return defaultHP
 	}
-	return hp
+	return int(row.Hp)
 }
 
 // SetNPCHP updates an NPC's HP without killing it.
 func SetNPCHP(db *sql.DB, roomID, npcID string, hp int) error {
-	_, err := db.Exec(`INSERT OR REPLACE INTO npc_state (room_id, npc_id, hp, alive) VALUES (?,?,?,1)`,
-		roomID, npcID, hp)
-	return err
+	q := sqliteq.New(db)
+	return q.UpsertNPCAlive(context.Background(), sqliteq.UpsertNPCAliveParams{
+		RoomID: roomID,
+		NpcID:  npcID,
+		Hp:     int64(hp),
+	})
 }
 
 // MarkVisited records that the player has visited a room.
 func MarkVisited(db *sql.DB, roomID string) {
-	db.Exec(`INSERT OR IGNORE INTO visited (room_id) VALUES (?)`, roomID) //nolint:errcheck
+	q := sqliteq.New(db)
+	q.MarkVisited(context.Background(), roomID) //nolint:errcheck
 }
 
 // HasVisited reports whether the player has previously visited a room.
 func HasVisited(db *sql.DB, roomID string) bool {
-	var id string
-	return db.QueryRow(`SELECT room_id FROM visited WHERE room_id=?`, roomID).Scan(&id) == nil
+	q := sqliteq.New(db)
+	_, err := q.HasVisited(context.Background(), roomID)
+	return err == nil
 }
 
 // RemoveItem removes an item from inventory by ID.
 func RemoveItem(db *sql.DB, itemID string) error {
-	res, err := db.Exec(`DELETE FROM inventory WHERE item_id=?`, itemID)
+	q := sqliteq.New(db)
+	res, err := q.RemoveItem(context.Background(), itemID)
 	if err != nil {
 		return err
 	}
@@ -158,15 +190,20 @@ func DumpToDeathPile(db *sql.DB, roomID string, actionCount int) error {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck
+	q := sqliteq.New(tx)
+	ctx := context.Background()
 	for _, it := range items {
-		if _, err := tx.Exec(
-			`INSERT INTO death_pile (room_id, item_id, item_name, item_desc, died_at) VALUES (?,?,?,?,?)`,
-			roomID, it.ID, it.Name, it.Desc, actionCount,
-		); err != nil {
+		if err := q.InsertDeathPile(ctx, sqliteq.InsertDeathPileParams{
+			RoomID:   roomID,
+			ItemID:   it.ID,
+			ItemName: it.Name,
+			ItemDesc: it.Desc,
+			DiedAt:   int64(actionCount),
+		}); err != nil {
 			return err
 		}
 	}
-	if _, err := tx.Exec(`DELETE FROM inventory`); err != nil {
+	if err := q.ClearInventory(ctx); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -174,20 +211,16 @@ func DumpToDeathPile(db *sql.DB, roomID string, actionCount int) error {
 
 // GetDeathPile returns death pile items for a given room.
 func GetDeathPile(db *sql.DB, roomID string) ([]InventoryItem, error) {
-	rows, err := db.Query(`SELECT item_id, item_name, item_desc FROM death_pile WHERE room_id=?`, roomID)
+	q := sqliteq.New(db)
+	rows, err := q.GetDeathPile(context.Background(), roomID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var items []InventoryItem
-	for rows.Next() {
-		var it InventoryItem
-		if err := rows.Scan(&it.ID, &it.Name, &it.Desc); err != nil {
-			return nil, err
-		}
-		items = append(items, it)
+	items := make([]InventoryItem, len(rows))
+	for i, r := range rows {
+		items[i] = InventoryItem{ID: r.ItemID, Name: r.ItemName, Desc: r.ItemDesc}
 	}
-	return items, rows.Err()
+	return items, nil
 }
 
 // ClaimDeathPile moves all death pile items for roomID back to inventory and deletes them.
@@ -204,15 +237,18 @@ func ClaimDeathPile(db *sql.DB, roomID string) error {
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck
+	q := sqliteq.New(tx)
+	ctx := context.Background()
 	for _, it := range items {
-		if _, err := tx.Exec(
-			`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
-			it.ID, it.Name, it.Desc,
-		); err != nil {
+		if err := q.AddItem(ctx, sqliteq.AddItemParams{
+			ItemID:   it.ID,
+			ItemName: it.Name,
+			ItemDesc: it.Desc,
+		}); err != nil {
 			return err
 		}
 	}
-	if _, err := tx.Exec(`DELETE FROM death_pile WHERE room_id=?`, roomID); err != nil {
+	if err := q.DeleteDeathPile(ctx, roomID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -221,24 +257,30 @@ func ClaimDeathPile(db *sql.DB, roomID string) error {
 // AnyDeathPile returns the room_id and item count of the most recent death pile.
 // Returns ("", 0, nil) if no pile exists.
 func AnyDeathPile(db *sql.DB) (roomID string, count int, err error) {
-	err = db.QueryRow(
-		`SELECT room_id, COUNT(*) FROM death_pile GROUP BY room_id ORDER BY MAX(died_at) DESC, MAX(id) DESC LIMIT 1`,
-	).Scan(&roomID, &count)
+	q := sqliteq.New(db)
+	row, err := q.AnyDeathPile(context.Background())
 	if err == sql.ErrNoRows {
 		return "", 0, nil
 	}
-	return
+	if err != nil {
+		return "", 0, err
+	}
+	return row.RoomID, int(row.Count), nil
 }
 
 // MarkShardCollected marks a Crystal Shard as collected.
 func MarkShardCollected(db *sql.DB, shardID string) error {
-	var actionCnt int
-	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&actionCnt) //nolint:errcheck
-	_, err := db.Exec(
-		`UPDATE crystal_shards SET collected=1, collected_at=? WHERE shard_id=?`,
-		actionCnt, shardID,
-	)
-	return err
+	q := sqliteq.New(db)
+	ctx := context.Background()
+	actionCnt, _ := q.GetActionCount(ctx) //nolint:errcheck
+	var cnt int64
+	if actionCnt.Valid {
+		cnt = actionCnt.Int64
+	}
+	return q.MarkShardCollected(ctx, sqliteq.MarkShardCollectedParams{
+		CollectedAt: cnt,
+		ShardID:     shardID,
+	})
 }
 
 // EquippedArmorRecord holds data about the currently equipped armor.
@@ -250,31 +292,35 @@ type EquippedArmorRecord struct {
 
 // EquipArmor upserts the equipped armor record (single-row table, id always 1).
 func EquipArmor(db *sql.DB, itemID, itemName string, defense int) error {
-	_, err := db.Exec(
-		`INSERT OR REPLACE INTO equipped_armor (id, item_id, item_name, defense) VALUES (1,?,?,?)`,
-		itemID, itemName, defense,
-	)
-	return err
+	q := sqliteq.New(db)
+	return q.EquipArmor(context.Background(), sqliteq.EquipArmorParams{
+		ItemID:   itemID,
+		ItemName: itemName,
+		Defense:  int64(defense),
+	})
 }
 
 // UnequipArmor removes the equipped armor record.
 func UnequipArmor(db *sql.DB) error {
-	_, err := db.Exec(`DELETE FROM equipped_armor WHERE id=1`)
-	return err
+	q := sqliteq.New(db)
+	return q.UnequipArmor(context.Background())
 }
 
 // GetEquippedArmor returns the current equipped armor, or nil if nothing is equipped.
 func GetEquippedArmor(db *sql.DB) (*EquippedArmorRecord, error) {
-	rec := &EquippedArmorRecord{}
-	err := db.QueryRow(`SELECT item_id, item_name, defense FROM equipped_armor WHERE id=1`).
-		Scan(&rec.ItemID, &rec.ItemName, &rec.Defense)
+	q := sqliteq.New(db)
+	row, err := q.GetEquippedArmor(context.Background())
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return rec, nil
+	return &EquippedArmorRecord{
+		ItemID:   row.ItemID,
+		ItemName: row.ItemName,
+		Defense:  int(row.Defense),
+	}, nil
 }
 
 // LoadDefense reads the equipped armor defense value into s.Defense.
