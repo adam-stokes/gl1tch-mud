@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // State holds the player's current state.
 type State struct {
 	PlayerID string // authenticated player ID (set by session, not DB)
+	Role     string // "admin" or "player"
 	Name     string
 	RoomID   string
 	HP       int
@@ -21,25 +23,18 @@ type State struct {
 
 // Load reads the player state from the database, seeding defaults on first run.
 // Uses cyberspace defaults for a fresh database.
-func Load(db *sql.DB) (*State, error) {
-	return LoadForWorld(db, "cyberspace", "net-0")
+func Load(gdb *gamedb.GameDB) (*State, error) {
+	return LoadForWorld(gdb, "cyberspace", "net-0")
 }
 
 // LoadForWorld reads the player state from the database, seeding with the given
 // world name and start room when no record exists yet.
-func LoadForWorld(db *sql.DB, worldName, startRoom string) (*State, error) {
-	q := sqliteq.New(db)
+func LoadForWorld(gdb *gamedb.GameDB, worldName, startRoom string) (*State, error) {
 	ctx := context.Background()
-	row, err := q.GetPlayer(ctx)
+	roomID, hp, maxHP, world, err := gdb.GetPlayer(ctx)
 	if err == sql.ErrNoRows {
 		s := &State{Name: "hacker", RoomID: startRoom, HP: 100, MaxHP: 100, World: worldName}
-		if err := q.SeedPlayer(ctx, sqliteq.SeedPlayerParams{
-			Name:   s.Name,
-			RoomID: s.RoomID,
-			Hp:     int64(s.HP),
-			MaxHp:  int64(s.MaxHP),
-			World:  s.World,
-		}); err != nil {
+		if err := gdb.SeedPlayer(ctx, s.Name, s.RoomID, s.HP, s.MaxHP, s.World); err != nil {
 			return nil, fmt.Errorf("player: seed: %w", err)
 		}
 		return s, nil
@@ -48,47 +43,17 @@ func LoadForWorld(db *sql.DB, worldName, startRoom string) (*State, error) {
 		return nil, fmt.Errorf("player: load: %w", err)
 	}
 	return &State{
-		Name:  row.Name,
-		RoomID: row.RoomID,
-		HP:    int(row.Hp),
-		MaxHP: int(row.MaxHp),
-		World: row.World,
+		Name:  "hacker",
+		RoomID: roomID,
+		HP:    hp,
+		MaxHP: maxHP,
+		World: world,
 	}, nil
 }
 
 // Save persists the player state to the database.
-func Save(db *sql.DB, s *State) error {
-	q := sqliteq.New(db)
-	return q.SavePlayer(context.Background(), sqliteq.SavePlayerParams{
-		RoomID: s.RoomID,
-		Hp:     int64(s.HP),
-		MaxHp:  int64(s.MaxHP),
-		World:  s.World,
-	})
-}
-
-// Inventory returns the player's current inventory items.
-func Inventory(db *sql.DB) ([]InventoryItem, error) {
-	q := sqliteq.New(db)
-	rows, err := q.ListInventory(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	items := make([]InventoryItem, len(rows))
-	for i, r := range rows {
-		items[i] = InventoryItem{ID: r.ItemID, Name: r.ItemName, Desc: r.ItemDesc}
-	}
-	return items, nil
-}
-
-// AddItem adds an item to inventory.
-func AddItem(db *sql.DB, id, name, desc string) error {
-	q := sqliteq.New(db)
-	return q.AddItem(context.Background(), sqliteq.AddItemParams{
-		ItemID:   id,
-		ItemName: name,
-		ItemDesc: desc,
-	})
+func Save(gdb *gamedb.GameDB, s *State) error {
+	return gdb.SavePlayer(context.Background(), s.RoomID, s.HP, s.MaxHP, s.World)
 }
 
 // InventoryItem is a carried item.
@@ -98,189 +63,93 @@ type InventoryItem struct {
 	Desc string
 }
 
+// Inventory returns the player's current inventory items.
+func Inventory(gdb *gamedb.GameDB) ([]InventoryItem, error) {
+	items, err := gdb.ListInventory(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	result := make([]InventoryItem, len(items))
+	for i, it := range items {
+		result[i] = InventoryItem{ID: it.ID, Name: it.Name, Desc: it.Desc}
+	}
+	return result, nil
+}
+
+// AddItem adds an item to inventory.
+func AddItem(gdb *gamedb.GameDB, id, name, desc string) error {
+	return gdb.AddItem(context.Background(), id, name, desc)
+}
+
 // NPCAlive reports whether an NPC in a room is still alive.
 // Returns true if no record exists (default alive).
-func NPCAlive(db *sql.DB, roomID, npcID string) bool {
-	q := sqliteq.New(db)
-	row, err := q.GetNPCState(context.Background(), sqliteq.GetNPCStateParams{
-		RoomID: roomID,
-		NpcID:  npcID,
-	})
-	if err == sql.ErrNoRows {
-		return true
-	}
-	return row.Alive == 1
+func NPCAlive(gdb *gamedb.GameDB, roomID, npcID string) bool {
+	return gdb.NPCAlive(context.Background(), roomID, npcID)
 }
 
 // KillNPC marks an NPC as dead.
-func KillNPC(db *sql.DB, roomID, npcID string, finalHP int) error {
-	q := sqliteq.New(db)
-	return q.UpsertNPCDead(context.Background(), sqliteq.UpsertNPCDeadParams{
-		RoomID: roomID,
-		NpcID:  npcID,
-		Hp:     int64(finalHP),
-	})
+func KillNPC(gdb *gamedb.GameDB, roomID, npcID string, finalHP int) error {
+	return gdb.KillNPC(context.Background(), roomID, npcID, finalHP)
 }
 
 // NPCCurrentHP returns an NPC's current HP (default from world if no record).
-func NPCCurrentHP(db *sql.DB, roomID, npcID string, defaultHP int) int {
-	q := sqliteq.New(db)
-	row, err := q.GetNPCState(context.Background(), sqliteq.GetNPCStateParams{
-		RoomID: roomID,
-		NpcID:  npcID,
-	})
-	if err == sql.ErrNoRows {
-		return defaultHP
-	}
-	return int(row.Hp)
+func NPCCurrentHP(gdb *gamedb.GameDB, roomID, npcID string, defaultHP int) int {
+	return gdb.NPCCurrentHP(context.Background(), roomID, npcID, defaultHP)
 }
 
 // SetNPCHP updates an NPC's HP without killing it.
-func SetNPCHP(db *sql.DB, roomID, npcID string, hp int) error {
-	q := sqliteq.New(db)
-	return q.UpsertNPCAlive(context.Background(), sqliteq.UpsertNPCAliveParams{
-		RoomID: roomID,
-		NpcID:  npcID,
-		Hp:     int64(hp),
-	})
+func SetNPCHP(gdb *gamedb.GameDB, roomID, npcID string, hp int) error {
+	return gdb.SetNPCHP(context.Background(), roomID, npcID, hp)
 }
 
 // MarkVisited records that the player has visited a room.
-func MarkVisited(db *sql.DB, roomID string) {
-	q := sqliteq.New(db)
-	q.MarkVisited(context.Background(), roomID) //nolint:errcheck
+func MarkVisited(gdb *gamedb.GameDB, roomID string) {
+	gdb.MarkVisited(context.Background(), roomID)
 }
 
 // HasVisited reports whether the player has previously visited a room.
-func HasVisited(db *sql.DB, roomID string) bool {
-	q := sqliteq.New(db)
-	_, err := q.HasVisited(context.Background(), roomID)
-	return err == nil
+func HasVisited(gdb *gamedb.GameDB, roomID string) bool {
+	return gdb.HasVisited(context.Background(), roomID)
 }
 
 // RemoveItem removes an item from inventory by ID.
-func RemoveItem(db *sql.DB, itemID string) error {
-	q := sqliteq.New(db)
-	res, err := q.RemoveItem(context.Background(), itemID)
-	if err != nil {
-		return err
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return fmt.Errorf("item %q not in inventory", itemID)
-	}
-	return nil
+func RemoveItem(gdb *gamedb.GameDB, itemID string) error {
+	return gdb.RemoveItem(context.Background(), itemID)
 }
 
 // DumpToDeathPile moves all inventory items to the death_pile table for roomID.
 // actionCount is the current player action counter (for expiry tracking).
-func DumpToDeathPile(db *sql.DB, roomID string, actionCount int) error {
-	items, err := Inventory(db)
-	if err != nil {
-		return err
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback() //nolint:errcheck
-	q := sqliteq.New(tx)
-	ctx := context.Background()
-	for _, it := range items {
-		if err := q.InsertDeathPile(ctx, sqliteq.InsertDeathPileParams{
-			RoomID:   roomID,
-			ItemID:   it.ID,
-			ItemName: it.Name,
-			ItemDesc: it.Desc,
-			DiedAt:   int64(actionCount),
-		}); err != nil {
-			return err
-		}
-	}
-	if err := q.ClearInventory(ctx); err != nil {
-		return err
-	}
-	return tx.Commit()
+func DumpToDeathPile(gdb *gamedb.GameDB, roomID string, actionCount int) error {
+	return gdb.DumpToDeathPile(context.Background(), roomID, actionCount)
 }
 
 // GetDeathPile returns death pile items for a given room.
-func GetDeathPile(db *sql.DB, roomID string) ([]InventoryItem, error) {
-	q := sqliteq.New(db)
-	rows, err := q.GetDeathPile(context.Background(), roomID)
+func GetDeathPile(gdb *gamedb.GameDB, roomID string) ([]InventoryItem, error) {
+	items, err := gdb.GetDeathPile(context.Background(), roomID)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]InventoryItem, len(rows))
-	for i, r := range rows {
-		items[i] = InventoryItem{ID: r.ItemID, Name: r.ItemName, Desc: r.ItemDesc}
+	result := make([]InventoryItem, len(items))
+	for i, it := range items {
+		result[i] = InventoryItem{ID: it.ID, Name: it.Name, Desc: it.Desc}
 	}
-	return items, nil
+	return result, nil
 }
 
 // ClaimDeathPile moves all death pile items for roomID back to inventory and deletes them.
-func ClaimDeathPile(db *sql.DB, roomID string) error {
-	items, err := GetDeathPile(db, roomID)
-	if err != nil {
-		return err
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback() //nolint:errcheck
-	q := sqliteq.New(tx)
-	ctx := context.Background()
-	for _, it := range items {
-		if err := q.AddItem(ctx, sqliteq.AddItemParams{
-			ItemID:   it.ID,
-			ItemName: it.Name,
-			ItemDesc: it.Desc,
-		}); err != nil {
-			return err
-		}
-	}
-	if err := q.DeleteDeathPile(ctx, roomID); err != nil {
-		return err
-	}
-	return tx.Commit()
+func ClaimDeathPile(gdb *gamedb.GameDB, roomID string) error {
+	return gdb.ClaimDeathPile(context.Background(), roomID)
 }
 
 // AnyDeathPile returns the room_id and item count of the most recent death pile.
 // Returns ("", 0, nil) if no pile exists.
-func AnyDeathPile(db *sql.DB) (roomID string, count int, err error) {
-	q := sqliteq.New(db)
-	row, err := q.AnyDeathPile(context.Background())
-	if err == sql.ErrNoRows {
-		return "", 0, nil
-	}
-	if err != nil {
-		return "", 0, err
-	}
-	return row.RoomID, int(row.Count), nil
+func AnyDeathPile(gdb *gamedb.GameDB) (roomID string, count int, err error) {
+	return gdb.AnyDeathPile(context.Background())
 }
 
 // MarkShardCollected marks a Crystal Shard as collected.
-func MarkShardCollected(db *sql.DB, shardID string) error {
-	q := sqliteq.New(db)
-	ctx := context.Background()
-	actionCnt, _ := q.GetActionCount(ctx) //nolint:errcheck
-	var cnt int64
-	if actionCnt.Valid {
-		cnt = actionCnt.Int64
-	}
-	return q.MarkShardCollected(ctx, sqliteq.MarkShardCollectedParams{
-		CollectedAt: cnt,
-		ShardID:     shardID,
-	})
+func MarkShardCollected(gdb *gamedb.GameDB, shardID string) error {
+	return gdb.MarkShardCollected(context.Background(), shardID)
 }
 
 // EquippedArmorRecord holds data about the currently equipped armor.
@@ -291,45 +160,47 @@ type EquippedArmorRecord struct {
 }
 
 // EquipArmor upserts the equipped armor record (single-row table, id always 1).
-func EquipArmor(db *sql.DB, itemID, itemName string, defense int) error {
-	q := sqliteq.New(db)
-	return q.EquipArmor(context.Background(), sqliteq.EquipArmorParams{
-		ItemID:   itemID,
-		ItemName: itemName,
-		Defense:  int64(defense),
-	})
+func EquipArmor(gdb *gamedb.GameDB, itemID, itemName string, defense int) error {
+	return gdb.EquipArmor(context.Background(), itemID, itemName, defense)
 }
 
 // UnequipArmor removes the equipped armor record.
-func UnequipArmor(db *sql.DB) error {
-	q := sqliteq.New(db)
-	return q.UnequipArmor(context.Background())
+func UnequipArmor(gdb *gamedb.GameDB) error {
+	return gdb.UnequipArmor(context.Background())
 }
 
 // GetEquippedArmor returns the current equipped armor, or nil if nothing is equipped.
-func GetEquippedArmor(db *sql.DB) (*EquippedArmorRecord, error) {
-	q := sqliteq.New(db)
-	row, err := q.GetEquippedArmor(context.Background())
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+func GetEquippedArmor(gdb *gamedb.GameDB) (*EquippedArmorRecord, error) {
+	rec, err := gdb.GetEquippedArmor(context.Background())
 	if err != nil {
 		return nil, err
 	}
+	if rec == nil {
+		return nil, nil
+	}
 	return &EquippedArmorRecord{
-		ItemID:   row.ItemID,
-		ItemName: row.ItemName,
-		Defense:  int(row.Defense),
+		ItemID:   rec.ItemID,
+		ItemName: rec.ItemName,
+		Defense:  rec.Defense,
 	}, nil
 }
 
 // LoadDefense reads the equipped armor defense value into s.Defense.
 // Call this after LoadForWorld to populate the defense stat.
-func LoadDefense(db *sql.DB, s *State) {
-	rec, err := GetEquippedArmor(db)
+func LoadDefense(gdb *gamedb.GameDB, s *State) {
+	rec, err := GetEquippedArmor(gdb)
 	if err != nil || rec == nil {
 		s.Defense = 0
 		return
 	}
 	s.Defense = rec.Defense
+}
+
+// ─── Escape-hatch helpers for packages that still need sqliteq directly ───
+
+// SQLiteQueries returns a sqliteq.Queries for the underlying SQLite DB.
+// This is an escape hatch for packages that haven't been updated yet.
+// Returns nil if the GameDB is backed by Postgres.
+func SQLiteQueries(gdb *gamedb.GameDB) *sqliteq.Queries {
+	return gdb.SQLite()
 }

@@ -139,6 +139,31 @@ func (r *SessionRegistry) OnlinePlayersInWorld(worldName string, excludeID strin
 	return result
 }
 
+// BroadcastToRoomInWorld sends msg to every session in the given world and room.
+func (r *SessionRegistry) BroadcastToRoomInWorld(worldName, roomID string, msg ServerMsg) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ctx := context.Background()
+	for _, s := range r.sessions {
+		if s.worldName == worldName && s.state != nil && s.state.RoomID == roomID {
+			_ = writeMsg(ctx, s.conn, msg)
+		}
+	}
+}
+
+// SendToPlayerByName sends msg to the session matching username. Returns true if found.
+func (r *SessionRegistry) SendToPlayerByName(username string, msg ServerMsg) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, s := range r.sessions {
+		if s.username == username {
+			_ = writeMsg(context.Background(), s.conn, msg)
+			return true
+		}
+	}
+	return false
+}
+
 // BroadcastToWorld sends msg to every session in the given world.
 func (r *SessionRegistry) BroadcastToWorld(worldName string, msg ServerMsg) {
 	r.mu.RLock()
@@ -165,6 +190,55 @@ func (r *SessionRegistry) SendToPlayer(playerID string, msg ServerMsg) {
 func (r *SessionRegistry) RegisterPendingRequest(requestID, playerID string) {
 	if r.onPendingRequest != nil {
 		r.onPendingRequest(requestID, playerID)
+	}
+}
+
+// KickPlayer closes the session for the player with the given username.
+func (r *SessionRegistry) KickPlayer(username string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, s := range r.sessions {
+		if s.username == username {
+			_ = writeMsg(context.Background(), s.conn, ServerMsg{
+				Type:    "error",
+				Payload: ErrorPayload{Message: "you have been kicked by an admin"},
+			})
+			s.conn.Close(websocket.StatusPolicyViolation, "kicked")
+			delete(r.sessions, id)
+			return
+		}
+	}
+}
+
+// TeleportPlayer moves the target player to the given room ID.
+func (r *SessionRegistry) TeleportPlayer(username, roomID string) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, s := range r.sessions {
+		if s.username == username && s.state != nil {
+			s.state.RoomID = roomID
+			return
+		}
+	}
+}
+
+// GiveItem adds an item to the target player's inventory by item ID.
+// It looks up the item in the player's world definition and adds it.
+func (r *SessionRegistry) GiveItem(username, itemID string) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, s := range r.sessions {
+		if s.username == username && s.gdb != nil && s.world != nil {
+			wi := s.world.FindItem(itemID)
+			name := itemID
+			desc := ""
+			if wi != nil {
+				name = wi.Name
+				desc = wi.Desc
+			}
+			_ = s.gdb.AddItem(context.Background(), itemID, name, desc)
+			return
+		}
 	}
 }
 

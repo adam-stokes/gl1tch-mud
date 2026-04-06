@@ -12,6 +12,7 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/espionage"
 	"github.com/adam-stokes/gl1tch-mud/internal/events"
@@ -35,6 +36,21 @@ type Event struct {
 	Payload map[string]any
 }
 
+// ChatMessage represents a chat message to be routed by the session layer.
+type ChatMessage struct {
+	Type   string // "say", "shout", "whisper"
+	Sender string
+	Target string // whisper target username, empty for say/shout
+	Body   string
+}
+
+// AdminAction is an action to be performed by the session layer on behalf of an admin.
+type AdminAction struct {
+	Type   string // "kick", "ban", "unban", "announce", "teleport", "give"
+	Target string // target username
+	Data   string // room ID for teleport, item ID for give, message for announce
+}
+
 // Result is returned by every command handler.
 type Result struct {
 	Output           string
@@ -43,10 +59,12 @@ type Result struct {
 	MoveRoom         string // non-empty: session moves player to this room ID
 	PendingRequestID string // non-empty: register this request_id → player in server
 	PendingPlayer    string
+	ChatMessages     []ChatMessage
+	AdminAction      *AdminAction // non-nil: session performs admin action
 }
 
 // HandlerFunc is a MUD command handler.
-type HandlerFunc func(db *sql.DB, s *player.State, w *world.World, args []string) Result
+type HandlerFunc func(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result
 
 // Registry maps verb → handler.
 var Registry = map[string]HandlerFunc{
@@ -123,14 +141,14 @@ func Parse(input string) (verb string, args []string) {
 
 // dirHandler returns a handler for a bare direction word (north, s, etc.)
 func dirHandler(dir string) HandlerFunc {
-	return func(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-		return Go(db, s, w, []string{dir})
+	return func(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+		return Go(gdb, s, w, []string{dir})
 	}
 }
 
 // inventoryIDs returns a list of item IDs from the player's inventory.
-func inventoryIDs(db *sql.DB) []string {
-	items, err := player.Inventory(db)
+func inventoryIDs(gdb *gamedb.GameDB) []string {
+	items, err := player.Inventory(gdb)
 	if err != nil {
 		return nil
 	}
@@ -142,25 +160,25 @@ func inventoryIDs(db *sql.DB) []string {
 }
 
 // Look describes the current room.
-func Look(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Look(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "you are nowhere. that's unsettling."}
 	}
-	visited := player.HasVisited(db, s.RoomID)
-	player.MarkVisited(db, s.RoomID)
+	visited := player.HasVisited(gdb, s.RoomID)
+	player.MarkVisited(gdb, s.RoomID)
 
 	// Expire stale world events
-	actionCnt := actionCount(db)
-	events.ExpireOld(db, actionCnt) //nolint:errcheck
+	actionCnt := actionCount(gdb)
+	events.ExpireOld(gdb, actionCnt) //nolint:errcheck
 
 	// Check for low-stealth auto-detection
-	detection := checkStealthDetection(db, s, room)
+	detection := checkStealthDetection(gdb, s, room)
 
 	output := room.Render(visited)
 
 	// Show death pile if player died in this room.
-	pile, _ := player.GetDeathPile(db, s.RoomID)
+	pile, _ := player.GetDeathPile(gdb, s.RoomID)
 	if len(pile) > 0 {
 		output += "\n[your death pile is here — use 'take death-pile' to recover your items]"
 	}
@@ -170,7 +188,7 @@ func Look(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	// Active world event warning for this room
-	activeEvs, _ := events.Active(db)
+	activeEvs, _ := events.Active(gdb)
 	for _, ev := range activeEvs {
 		if ev.TargetRoom == room.ID {
 			output += fmt.Sprintf("\n[EVENT] %s — %s", ev.Title, ev.Description)
@@ -192,14 +210,14 @@ func Look(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 // checkStealthDetection checks if the player is detected by NPCs due to low stealth.
 // Returns a detection message if detected, empty string otherwise.
-func checkStealthDetection(db *sql.DB, s *player.State, room *world.Room) string {
-	st := espionage.LoadStealth(db)
+func checkStealthDetection(gdb *gamedb.GameDB, s *player.State, room *world.Room) string {
+	st := espionage.LoadStealth(gdb)
 	if st.Level >= 30 {
 		return ""
 	}
 	// Check for any alive NPCs in the room
 	for _, npc := range room.NPCs {
-		if !player.NPCAlive(db, room.ID, npc.ID) {
+		if !player.NPCAlive(gdb, room.ID, npc.ID) {
 			continue
 		}
 		return fmt.Sprintf(
@@ -211,7 +229,7 @@ func checkStealthDetection(db *sql.DB, s *player.State, room *world.Room) string
 }
 
 // Go moves the player in a direction.
-func Go(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Go(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "go where? (north, south, east, west)"}
 	}
@@ -227,7 +245,7 @@ func Go(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	// Check for lock on this exit
 	lock := room.FindLock(dir)
-	if lock != nil && locking.IsLocked(db, lock.ID) {
+	if lock != nil && locking.IsLocked(gdb, lock.ID) {
 		return Result{Output: fmt.Sprintf(
 			"the passage to the %s is locked. (lock: %s, difficulty: %d)",
 			dir, lock.ID, lock.Difficulty,
@@ -235,19 +253,19 @@ func Go(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	s.RoomID = dest
-	if err := player.Save(db, s); err != nil {
+	if err := player.Save(gdb, s); err != nil {
 		return Result{Output: "system error: failed to save position."}
 	}
 
-	res := Look(db, s, w, nil)
+	res := Look(gdb, s, w, nil)
 
 	// Check stealth detection in new room
 	newRoom := w.Room(s.RoomID)
 	if newRoom != nil {
-		st := espionage.LoadStealth(db)
+		st := espionage.LoadStealth(gdb)
 		if st.Level < 30 {
 			for _, npc := range newRoom.NPCs {
-				if !player.NPCAlive(db, newRoom.ID, npc.ID) {
+				if !player.NPCAlive(gdb, newRoom.ID, npc.ID) {
 					continue
 				}
 				res.Output += fmt.Sprintf(
@@ -270,7 +288,7 @@ func Go(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Examine describes an item or NPC in the room.
-func Examine(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Examine(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "examine what?"}
 	}
@@ -281,10 +299,10 @@ func Examine(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 	for _, npc := range room.NPCs {
 		if strings.Contains(strings.ToLower(npc.Name), target) {
-			if !player.NPCAlive(db, s.RoomID, npc.ID) {
+			if !player.NPCAlive(gdb, s.RoomID, npc.ID) {
 				return Result{Output: fmt.Sprintf("%s is dead.", npc.Name)}
 			}
-			hp := player.NPCCurrentHP(db, s.RoomID, npc.ID, npc.HP)
+			hp := player.NPCCurrentHP(gdb, s.RoomID, npc.ID, npc.HP)
 			return Result{Output: fmt.Sprintf("%s\nHP: %d", npc.Desc, hp)}
 		}
 	}
@@ -301,7 +319,7 @@ func Examine(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 }
 
 // Take picks up an item from the room.
-func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Take(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "take what?"}
 	}
@@ -313,11 +331,11 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	// Special: claim death pile.
 	if strings.Join(args, "-") == "death-pile" {
-		pile, _ := player.GetDeathPile(db, s.RoomID)
+		pile, _ := player.GetDeathPile(gdb, s.RoomID)
 		if len(pile) == 0 {
 			return Result{Output: "there is no death pile here."}
 		}
-		if err := player.ClaimDeathPile(db, s.RoomID); err != nil {
+		if err := player.ClaimDeathPile(gdb, s.RoomID); err != nil {
 			return Result{Output: "failed to recover items — try again."}
 		}
 		names := make([]string, len(pile))
@@ -330,7 +348,7 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	itemID := strings.Join(args, "-")
 	for _, item := range room.Items {
 		if strings.Contains(strings.ToLower(item.Name), target) || strings.EqualFold(item.ID, itemID) {
-			if err := player.AddItem(db, item.ID, item.Name, item.Desc); err != nil {
+			if err := player.AddItem(gdb, item.ID, item.Name, item.Desc); err != nil {
 				return Result{Output: fmt.Sprintf("can't take %s — already carrying it.", item.Name)}
 			}
 			// Remove the item from the room's item list.
@@ -342,7 +360,7 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			}
 			out := fmt.Sprintf("you pick up %s.", item.Name)
 			// Quest retrieve check
-			readyQuests, _ := quests.CheckRetrieve(db, item.ID)
+			readyQuests, _ := quests.CheckRetrieve(gdb, item.ID)
 			for _, q := range readyQuests {
 				out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
 			}
@@ -363,14 +381,14 @@ func Take(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Attack initiates combat with an NPC.
-func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Attack(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "attack what?"}
 	}
 
 	// Arena intercept: if an active match exists, route to arena combat.
-	if match := arena.GetActive(db); match != nil {
-		res := arena.ProcessAttack(db, w, s)
+	if match := arena.GetActive(gdb); match != nil {
+		res := arena.ProcessAttack(gdb, w, s)
 		if res.Lost {
 			s.HP = s.MaxHP / 2
 			if s.HP < 1 {
@@ -393,13 +411,13 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		if !strings.Contains(strings.ToLower(npc.Name), target) {
 			continue
 		}
-		if !player.NPCAlive(db, s.RoomID, npc.ID) {
+		if !player.NPCAlive(gdb, s.RoomID, npc.ID) {
 			return Result{Output: fmt.Sprintf("%s is already dead.", npc.Name)}
 		}
 
 		// Simple combat round: player deals 10-20, NPC retaliates.
 		playerDmg := 15
-		npcHP := player.NPCCurrentHP(db, s.RoomID, npc.ID, npc.HP) - playerDmg
+		npcHP := player.NPCCurrentHP(gdb, s.RoomID, npc.ID, npc.HP) - playerDmg
 		dmg := npc.Attack - s.Defense
 		if dmg < 1 {
 			dmg = 1
@@ -411,7 +429,7 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 		var ev *Event
 		if npcHP <= 0 {
-			player.KillNPC(db, s.RoomID, npc.ID, 0) //nolint:errcheck
+			player.KillNPC(gdb, s.RoomID, npc.ID, 0) //nolint:errcheck
 			out.WriteString(fmt.Sprintf("\n%s is dead.", npc.Name))
 
 			// Roll loot
@@ -448,12 +466,12 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			}
 
 			// Quest kill check
-			readyQuests, _ := quests.CheckKill(db, npc.ID)
+			readyQuests, _ := quests.CheckKill(gdb, npc.ID)
 			for _, q := range readyQuests {
 				out.WriteString(fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID))
 			}
 		} else {
-			player.SetNPCHP(db, s.RoomID, npc.ID, npcHP) //nolint:errcheck
+			player.SetNPCHP(gdb, s.RoomID, npc.ID, npcHP) //nolint:errcheck
 			out.WriteString(fmt.Sprintf("\n%s retaliates for %d. your HP: %d/%d.", npc.Name, dmg, s.HP, s.MaxHP))
 			ev = &Event{
 				Topic: "mud.combat.started",
@@ -468,14 +486,14 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 		if s.HP <= 0 {
 			// Get action count for death pile timestamp.
-			actionCnt := actionCount(db)
+			actionCnt := actionCount(gdb)
 
 			deathRoom := s.RoomID
-			player.DumpToDeathPile(db, deathRoom, actionCnt) //nolint:errcheck
+			player.DumpToDeathPile(gdb, deathRoom, actionCnt) //nolint:errcheck
 
 			s.HP = s.MaxHP
 			s.RoomID = w.StartRoom
-			player.Save(db, s) //nolint:errcheck
+			player.Save(gdb, s) //nolint:errcheck
 
 			deathRoomName := deathRoom
 			if r := w.Room(deathRoom); r != nil {
@@ -497,7 +515,7 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 				},
 			}
 		} else {
-			player.Save(db, s) //nolint:errcheck
+			player.Save(gdb, s) //nolint:errcheck
 		}
 
 		return Result{Output: out.String(), Event: ev}
@@ -506,8 +524,8 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Inventory lists carried items.
-func Inventory(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	items, err := player.Inventory(db)
+func Inventory(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	items, err := player.Inventory(gdb)
 	if err != nil || len(items) == 0 {
 		return Result{Output: "you are carrying nothing."}
 	}
@@ -524,7 +542,7 @@ func Inventory(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 }
 
 // Help lists available commands.
-func Help(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Help(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	return Result{Output: `commands:
   look / l              — describe current room
   go <dir>              — move (north/south/east/west, or just: n/s/e/w)
@@ -569,7 +587,7 @@ func Help(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Read reads a readable item in the current room.
-func Read(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Read(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "read what?"}
 	}
@@ -590,8 +608,8 @@ func Read(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Skills prints the player's skill levels and XP.
-func Skills(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	all, err := skills.All(db)
+func Skills(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	all, err := skills.All(gdb)
 	if err != nil || len(all) == 0 {
 		return Result{Output: "no skills learned yet. use hack, pick, etc. to gain XP."}
 	}
@@ -604,7 +622,7 @@ func Skills(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Hack attempts to compromise a hackable system in the current room using multi-phase logic.
-func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Hack(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "hack what? (hack <system-id>)"}
 	}
@@ -614,7 +632,7 @@ func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: "no hackable systems here."}
 	}
 
-	hackSkill := skills.Level(db, "hacking")
+	hackSkill := skills.Level(gdb, "hacking")
 
 	// Check for exploit fragment items in the room targeting this system.
 	exploitBonus := 0
@@ -624,7 +642,7 @@ func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 
-	phases, bounty, err := hacking.HackMulti(db, room, systemID, hackSkill, exploitBonus)
+	phases, bounty, err := hacking.HackMulti(gdb, room, systemID, hackSkill, exploitBonus)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("hack failed: %v", err)}
 	}
@@ -660,7 +678,7 @@ func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	allSuccess := len(phases) == 3 && phases[2].Success
 	if allSuccess {
 		// Award XP
-		awardRes, err := skills.Award(db, "hacking", 20)
+		awardRes, err := skills.Award(gdb, "hacking", 20)
 		if err == nil && awardRes.LeveledUp {
 			out.WriteString("\n" + awardRes.LevelUpMsg)
 		}
@@ -672,7 +690,7 @@ func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			},
 		}
 		// Quest hack check
-		readyQuests, _ := quests.CheckHack(db, systemID)
+		readyQuests, _ := quests.CheckHack(gdb, systemID)
 		for _, q := range readyQuests {
 			out.WriteString(fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID))
 		}
@@ -693,7 +711,7 @@ func Hack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Pick attempts to pick a lock in the current room.
-func Pick(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Pick(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "pick what? (pick <lock-id>)"}
 	}
@@ -715,19 +733,19 @@ func Pick(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("no lock %q here.", lockID)}
 	}
 
-	if !locking.IsLocked(db, lockID) {
+	if !locking.IsLocked(gdb, lockID) {
 		return Result{Output: fmt.Sprintf("lock %q is already open.", lockID)}
 	}
 
-	pickSkill := skills.Level(db, "lockpicking")
-	res := locking.Pick(db, lockID, foundLock.Difficulty, pickSkill)
+	pickSkill := skills.Level(gdb, "lockpicking")
+	res := locking.Pick(gdb, lockID, foundLock.Difficulty, pickSkill)
 
 	var ev *Event
 	var out strings.Builder
 	out.WriteString(res.Message)
 
 	if res.Success {
-		awardRes, err := skills.Award(db, "lockpicking", 15)
+		awardRes, err := skills.Award(gdb, "lockpicking", 15)
 		if err == nil && awardRes.LeveledUp {
 			out.WriteString("\n" + awardRes.LevelUpMsg)
 		}
@@ -745,7 +763,7 @@ func Pick(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Unlock uses a key item to unlock a lock without a skill roll.
-func Unlock(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Unlock(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "unlock what? (unlock <lock-id>)"}
 	}
@@ -766,12 +784,12 @@ func Unlock(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: fmt.Sprintf("no lock %q here.", lockID)}
 	}
 
-	if !locking.IsLocked(db, lockID) {
+	if !locking.IsLocked(gdb, lockID) {
 		return Result{Output: fmt.Sprintf("lock %q is already open.", lockID)}
 	}
 
-	invIDs := inventoryIDs(db)
-	ok, msg := locking.UnlockWithKey(db, foundLock, invIDs)
+	invIDs := inventoryIDs(gdb)
+	ok, msg := locking.UnlockWithKey(gdb, foundLock, invIDs)
 	if !ok {
 		if msg != "" {
 			return Result{Output: msg}
@@ -782,7 +800,7 @@ func Unlock(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Offers lists what an NPC in the current room will trade.
-func Offers(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Offers(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "offers <npc-id> — list what an NPC will trade"}
 	}
@@ -796,11 +814,11 @@ func Offers(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if npc == nil {
 		return Result{Output: fmt.Sprintf("no NPC %q here.", npcID)}
 	}
-	if !player.NPCAlive(db, s.RoomID, npcID) {
+	if !player.NPCAlive(gdb, s.RoomID, npcID) {
 		return Result{Output: fmt.Sprintf("%s is dead.", npc.Name)}
 	}
 
-	offers := trading.ListOffers(w, npc, db)
+	offers := trading.ListOffers(w, npc, gdb)
 	if len(offers) == 0 {
 		return Result{Output: fmt.Sprintf("%s has nothing to offer.", npc.Name)}
 	}
@@ -829,7 +847,7 @@ func Offers(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Trade executes a specific trade with an NPC in the current room.
-func Trade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Trade(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "trade <trade-id> — execute a trade with an NPC in the room"}
 	}
@@ -855,12 +873,12 @@ func Trade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if npc == nil {
 		return Result{Output: fmt.Sprintf("no trade %q available in this room.", tradeID)}
 	}
-	if !player.NPCAlive(db, s.RoomID, npc.ID) {
+	if !player.NPCAlive(gdb, s.RoomID, npc.ID) {
 		return Result{Output: fmt.Sprintf("%s is dead.", npc.Name)}
 	}
 
-	invIDs := inventoryIDs(db)
-	res := trading.Execute(db, npc, tradeID, invIDs)
+	invIDs := inventoryIDs(gdb)
+	res := trading.Execute(gdb, npc, tradeID, invIDs)
 
 	var ev *Event
 	if res.OK {
@@ -899,13 +917,13 @@ func Trade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Craft attempts to craft an item using a recipe.
-func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Craft(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "craft <recipe-id> [slotID=itemID ...] — craft or assemble an item"}
 	}
 	recipeID := args[0]
-	hackSkill := skills.Level(db, "hacking")
-	invIDs := inventoryIDs(db)
+	hackSkill := skills.Level(gdb, "hacking")
+	invIDs := inventoryIDs(gdb)
 	room := w.Room(s.RoomID)
 
 	// Parse optional slot assignments from args[1:]: "barrel=item-uuid-abc grip=item-uuid-def"
@@ -920,11 +938,11 @@ func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 
-	res := crafting.Craft(db, w, room, recipeID, invIDs, hackSkill, slots)
+	res := crafting.Craft(gdb, w, room, recipeID, invIDs, hackSkill, slots)
 
 	// Persist any player flag unlocked by the output item
 	if res.UnlocksFlag != "" {
-		crafting.SetPlayerFlag(db, res.UnlocksFlag) //nolint:errcheck
+		crafting.SetPlayerFlag(gdb, res.UnlocksFlag) //nolint:errcheck
 	}
 
 	var ev *Event
@@ -940,9 +958,9 @@ func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		recipe := w.FindRecipe(recipeID)
 		var craftReadyQuests []quests.Quest
 		if recipe != nil && recipe.Type == world.RecipeTypeAssembly {
-			craftReadyQuests, _ = quests.CheckAssemble(db, res.OutputItem.ID)
+			craftReadyQuests, _ = quests.CheckAssemble(gdb, res.OutputItem.ID)
 		} else {
-			craftReadyQuests, _ = quests.CheckCraft(db, res.OutputItem.ID)
+			craftReadyQuests, _ = quests.CheckCraft(gdb, res.OutputItem.ID)
 		}
 		for _, rq := range craftReadyQuests {
 			res.Message += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", rq.Title, rq.ID)
@@ -961,8 +979,8 @@ func Craft(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Hide attempts to increase player stealth.
-func Hide(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	st, aboveThreshold := espionage.Hide(db)
+func Hide(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	st, aboveThreshold := espionage.Hide(gdb)
 	msg := fmt.Sprintf("you melt into the shadows. stealth: %d/100.", st.Level)
 	if aboveThreshold {
 		msg += " you are practically invisible."
@@ -971,19 +989,19 @@ func Hide(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Disguise equips a disguise item from the player's inventory.
-func Disguise(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Disguise(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "disguise <item-id> — wear a disguise item"}
 	}
 	itemID := args[0]
-	invIDs := inventoryIDs(db)
-	_, ok, msg := espionage.Disguise(db, w, itemID, invIDs)
+	invIDs := inventoryIDs(gdb)
+	_, ok, msg := espionage.Disguise(gdb, w, itemID, invIDs)
 	_ = ok
 	return Result{Output: msg}
 }
 
 // Talk initiates dialogue with an NPC.
-func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Talk(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "talk <npc-id>"}
 	}
@@ -1012,7 +1030,7 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if npc == nil {
 		return Result{Output: fmt.Sprintf("no NPC %q here.", npcID)}
 	}
-	if !player.NPCAlive(db, s.RoomID, npc.ID) {
+	if !player.NPCAlive(gdb, s.RoomID, npc.ID) {
 		return Result{Output: fmt.Sprintf("%s is dead. talking to corpses is inefficient.", npc.Name)}
 	}
 
@@ -1021,19 +1039,19 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	// Build player context
-	invIDs := inventoryIDs(db)
-	st := espionage.LoadStealth(db)
-	rep := buildReputationMap(db)
-	sk := buildSkillMap(db)
+	invIDs := inventoryIDs(gdb)
+	st := espionage.LoadStealth(gdb)
+	rep := buildReputationMap(gdb)
+	sk := buildSkillMap(gdb)
 
-	gq := sqliteq.New(db)
+	gq := sqliteq.New(gdb.SQLiteDB())
 	gctx := context.Background()
 	shardCount64, _ := gq.CountCollectedShards(gctx)
 	totalShards64, _ := gq.CountTotalShards(gctx)
 	shardCount := int(shardCount64)
 	totalShards := int(totalShards64)
 
-	activeQuestIDs, _ := quests.ActiveIDs(db)
+	activeQuestIDs, _ := quests.ActiveIDs(gdb)
 	ctx := espionage.PlayerContext{
 		InventoryIDs:       invIDs,
 		Reputation:         rep,
@@ -1044,7 +1062,7 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	text := espionage.EvalDialogue(npc.Dialogue, ctx)
-	espionage.RecordMemory(db, npc.ID, "talked") //nolint:errcheck
+	espionage.RecordMemory(gdb, npc.ID, "talked") //nolint:errcheck
 
 	// Find matched line for event and quest auto-accept
 	matchedTrigger := "none"
@@ -1079,7 +1097,7 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 				RewardItemDesc: wq.RewardItemDesc,
 				GiverNPCID:     npc.ID,
 			}
-			if err := quests.Accept(db, q); err == nil {
+			if err := quests.Accept(gdb, q); err == nil {
 				output += fmt.Sprintf("\n[QUEST ACCEPTED] %s", wq.Title)
 				if wq.Description != "" {
 					output += "\n" + wq.Description
@@ -1088,7 +1106,7 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 
-	stealthState := espionage.LoadStealth(db)
+	stealthState := espionage.LoadStealth(gdb)
 
 	return Result{
 		Output: output,
@@ -1108,7 +1126,7 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Explore explores an unmapped direction, optionally generating a new room via Ollama.
-func Explore(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Explore(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "explore <direction>"}
 	}
@@ -1120,11 +1138,11 @@ func Explore(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 
 	// If exit exists, just go there
 	if _, ok := room.Exits[dir]; ok {
-		return Go(db, s, w, []string{dir})
+		return Go(gdb, s, w, []string{dir})
 	}
 
 	// Attempt generation
-	gen := generation.New(db)
+	gen := generation.New(gdb)
 	res := gen.Generate(context.Background(), w, room, dir)
 
 	if res.Error != nil {
@@ -1136,7 +1154,7 @@ func Explore(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 
 	// Move player into generated room
 	s.RoomID = res.Room.ID
-	player.Save(db, s) //nolint:errcheck
+	player.Save(gdb, s) //nolint:errcheck
 
 	fromCache := ""
 	if res.FromCache {
@@ -1162,7 +1180,7 @@ func Explore(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 }
 
 // Search searches a container item in the current room.
-func Search(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Search(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "You are nowhere."}
@@ -1186,7 +1204,7 @@ func Search(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Install installs a neural augment from the current room.
-func Install(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Install(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "You are nowhere."}
@@ -1200,7 +1218,7 @@ func Install(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 			if !item.IsAugment {
 				return Result{Output: "That's not an installable augment."}
 			}
-			if err := augments.Install(db, item.AugmentSkill, item.AugmentBonus); err != nil {
+			if err := augments.Install(gdb, item.AugmentSkill, item.AugmentBonus); err != nil {
 				if err.Error() == "max augments reached" {
 					return Result{Output: "Neural capacity full. You cannot install more augments."}
 				}
@@ -1214,7 +1232,7 @@ func Install(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 }
 
 // Mod applies a mod item to a target item in the current room.
-func Mod(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Mod(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "You are nowhere."}
@@ -1251,7 +1269,7 @@ func Mod(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if !modItem.IsMod {
 		return Result{Output: fmt.Sprintf("The %s is not a mod.", modItem.Name)}
 	}
-	if err := mods.Apply(db, targetItem.ID, modItem.ID); err != nil {
+	if err := mods.Apply(gdb, targetItem.ID, modItem.ID); err != nil {
 		return Result{Output: fmt.Sprintf("Mod failed: %v", err)}
 	}
 	room.Items = append(room.Items[:modIdx], room.Items[modIdx+1:]...)
@@ -1259,7 +1277,7 @@ func Mod(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 }
 
 // Blueprint decodes a blueprint item to unlock a crafting recipe.
-func Blueprint(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Blueprint(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "You are nowhere."}
@@ -1273,7 +1291,7 @@ func Blueprint(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 			if !item.IsBlueprint || item.UnlocksRecipe == "" {
 				return Result{Output: "That's not a readable blueprint."}
 			}
-			if err := crafting.UnlockRecipe(db, item.UnlocksRecipe); err != nil {
+			if err := crafting.UnlockRecipe(gdb, item.UnlocksRecipe); err != nil {
 				return Result{Output: fmt.Sprintf("Blueprint decode failed: %v", err)}
 			}
 			room.Items = append(room.Items[:i], room.Items[i+1:]...)
@@ -1284,8 +1302,8 @@ func Blueprint(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 }
 
 // buildReputationMap returns a map of all faction reputations.
-func buildReputationMap(db *sql.DB) map[string]int {
-	q := sqliteq.New(db)
+func buildReputationMap(gdb *gamedb.GameDB) map[string]int {
+	q := sqliteq.New(gdb.SQLiteDB())
 	rows, err := q.ListReputations(context.Background())
 	if err != nil {
 		return map[string]int{}
@@ -1298,8 +1316,8 @@ func buildReputationMap(db *sql.DB) map[string]int {
 }
 
 // buildSkillMap returns a map of all skill levels.
-func buildSkillMap(db *sql.DB) map[string]int {
-	all, err := skills.All(db)
+func buildSkillMap(gdb *gamedb.GameDB) map[string]int {
+	all, err := skills.All(gdb)
 	if err != nil {
 		return map[string]int{}
 	}
@@ -1311,8 +1329,8 @@ func buildSkillMap(db *sql.DB) map[string]int {
 }
 
 // actionCount returns the player's current action count.
-func actionCount(db *sql.DB) int {
-	q := sqliteq.New(db)
+func actionCount(gdb *gamedb.GameDB) int {
+	q := sqliteq.New(gdb.SQLiteDB())
 	c, err := q.GetActionCountGeneral(context.Background())
 	if err != nil || !c.Valid {
 		return 0
@@ -1321,18 +1339,18 @@ func actionCount(db *sql.DB) int {
 }
 
 // Credits shows the player's current credit balance.
-func Credits(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	bal := credits.Get(db)
+func Credits(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	bal := credits.Get(gdb)
 	return Result{Output: fmt.Sprintf("credits: %d ¢", bal)}
 }
 
 // Quests lists active quests or completes one.
-func Quests(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Quests(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) >= 2 && args[0] == "complete" {
-		return questComplete(db, w, args[1])
+		return questComplete(gdb, w, args[1])
 	}
 
-	active, err := quests.Active(db)
+	active, err := quests.Active(gdb)
 	if err != nil {
 		return Result{Output: "error loading quests."}
 	}
@@ -1354,8 +1372,8 @@ func Quests(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-func questComplete(db *sql.DB, w *world.World, id string) Result {
-	q, err := quests.Get(db, id)
+func questComplete(gdb *gamedb.GameDB, w *world.World, id string) Result {
+	q, err := quests.Get(gdb, id)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("no quest %q found.", id)}
 	}
@@ -1369,7 +1387,7 @@ func questComplete(db *sql.DB, w *world.World, id string) Result {
 		)}
 	}
 
-	if err := quests.Complete(db, id); err != nil {
+	if err := quests.Complete(gdb, id); err != nil {
 		return Result{Output: "error completing quest."}
 	}
 
@@ -1378,12 +1396,12 @@ func questComplete(db *sql.DB, w *world.World, id string) Result {
 	out.WriteString("rewards:\n")
 
 	if q.RewardCredits > 0 {
-		credits.Add(db, q.RewardCredits) //nolint:errcheck
+		credits.Add(gdb, q.RewardCredits) //nolint:errcheck
 		out.WriteString(fmt.Sprintf("  + %d credits\n", q.RewardCredits))
 	}
 
 	if q.RewardXPSkill != "" && q.RewardXPAmount > 0 {
-		awardRes, err := skills.Award(db, q.RewardXPSkill, q.RewardXPAmount)
+		awardRes, err := skills.Award(gdb, q.RewardXPSkill, q.RewardXPAmount)
 		if err == nil {
 			out.WriteString(fmt.Sprintf("  + %d %s XP\n", q.RewardXPAmount, q.RewardXPSkill))
 			if awardRes.LeveledUp {
@@ -1401,7 +1419,7 @@ func questComplete(db *sql.DB, w *world.World, id string) Result {
 		if desc == "" {
 			desc = "quest reward"
 		}
-		if err := player.AddItem(db, q.RewardItemID, name, desc); err == nil {
+		if err := player.AddItem(gdb, q.RewardItemID, name, desc); err == nil {
 			out.WriteString(fmt.Sprintf("  + item: %s\n", name))
 		}
 		// Mark crystal shard collected if this quest rewards one.
@@ -1410,7 +1428,7 @@ func questComplete(db *sql.DB, w *world.World, id string) Result {
 			"mountain-shard": true, "cave-shard": true,
 		}
 		if shardIDs[q.RewardItemID] {
-			player.MarkShardCollected(db, q.RewardItemID) //nolint:errcheck
+			player.MarkShardCollected(gdb, q.RewardItemID) //nolint:errcheck
 		}
 	}
 
@@ -1435,7 +1453,7 @@ func questComplete(db *sql.DB, w *world.World, id string) Result {
 				GiverNPCID:     wq.GiverNPCID,
 				NextQuestID:    wq.NextQuestID,
 			}
-			if err := quests.Accept(db, nextQ); err == nil {
+			if err := quests.Accept(gdb, nextQ); err == nil {
 				out.WriteString(fmt.Sprintf("\n[NEW QUEST] %s\n%s", wq.Title, wq.Description))
 			}
 		}
@@ -1445,27 +1463,27 @@ func questComplete(db *sql.DB, w *world.World, id string) Result {
 }
 
 // Events lists active world events or joins one.
-func Events(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Events(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) >= 2 && args[0] == "join" {
-		return eventJoin(db, args[1])
+		return eventJoin(gdb, args[1])
 	}
 	if len(args) >= 2 && args[0] == "complete" {
-		return eventComplete(db, args[1])
+		return eventComplete(gdb, args[1])
 	}
 
-	active, err := events.Active(db)
+	active, err := events.Active(gdb)
 	if err != nil {
 		return Result{Output: "error loading events."}
 	}
 
 	// Seed events if none active
 	if len(active) == 0 {
-		e1, _ := events.SeedRandom(db, w)
+		e1, _ := events.SeedRandom(gdb, w)
 		if e1 != nil {
 			active = append(active, *e1)
 		}
 		// Seed a second event
-		e2, _ := events.SeedRandom(db, w)
+		e2, _ := events.SeedRandom(gdb, w)
 		if e2 != nil {
 			active = append(active, *e2)
 		}
@@ -1487,8 +1505,8 @@ func Events(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-func eventJoin(db *sql.DB, id string) Result {
-	ev, err := events.Get(db, id)
+func eventJoin(gdb *gamedb.GameDB, id string) Result {
+	ev, err := events.Get(gdb, id)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("no event %q found.", id)}
 	}
@@ -1501,21 +1519,21 @@ func eventJoin(db *sql.DB, id string) Result {
 	)}
 }
 
-func eventComplete(db *sql.DB, id string) Result {
-	ev, err := events.Get(db, id)
+func eventComplete(gdb *gamedb.GameDB, id string) Result {
+	ev, err := events.Get(gdb, id)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("no event %q found.", id)}
 	}
 	if ev.Status != "active" {
 		return Result{Output: fmt.Sprintf("event %q is already %s.", id, ev.Status)}
 	}
-	if err := events.Complete(db, id); err != nil {
+	if err := events.Complete(gdb, id); err != nil {
 		return Result{Output: "error completing event."}
 	}
 	var out strings.Builder
 	out.WriteString(fmt.Sprintf("[EVENT COMPLETE] %s\n", ev.Title))
 	if ev.PayoutCredits > 0 {
-		credits.Add(db, ev.PayoutCredits) //nolint:errcheck
+		credits.Add(gdb, ev.PayoutCredits) //nolint:errcheck
 		out.WriteString(fmt.Sprintf("  + %d credits\n", ev.PayoutCredits))
 	}
 	if ev.PayoutItemID != "" {
@@ -1523,14 +1541,14 @@ func eventComplete(db *sql.DB, id string) Result {
 		if name == "" {
 			name = ev.PayoutItemID
 		}
-		player.AddItem(db, ev.PayoutItemID, name, ev.PayoutItemDesc) //nolint:errcheck
+		player.AddItem(gdb, ev.PayoutItemID, name, ev.PayoutItemDesc) //nolint:errcheck
 		out.WriteString(fmt.Sprintf("  + item: %s\n", name))
 	}
 	return Result{Output: strings.TrimRight(out.String(), "\n")}
 }
 
 // Faction shows faction status or creates a faction.
-func Faction(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Faction(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) >= 1 && args[0] == "create" {
 		name := ""
 		agenda := ""
@@ -1543,20 +1561,20 @@ func Faction(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 		if name == "" {
 			return Result{Output: "usage: faction create <name> [agenda]"}
 		}
-		return factionCreate(db, s, w, name, agenda)
+		return factionCreate(gdb, s, w, name, agenda)
 	}
 
-	exists, err := factions.Exists(db)
+	exists, err := factions.Exists(gdb)
 	if err != nil || !exists {
 		return Result{Output: "you have no faction. use 'faction create <name> [agenda]' to start one."}
 	}
 
-	f, err := factions.Get(db)
+	f, err := factions.Get(gdb)
 	if err != nil {
 		return Result{Output: "error loading faction."}
 	}
-	count, _ := factions.MemberCount(db)
-	bal := credits.Get(db)
+	count, _ := factions.MemberCount(gdb)
+	bal := credits.Get(gdb)
 	hideoutInfo := f.HideoutRoomID
 	if hideoutInfo == "" {
 		hideoutInfo = "(none set)"
@@ -1573,12 +1591,12 @@ func Faction(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-func factionCreate(db *sql.DB, s *player.State, w *world.World, name, agenda string) Result {
-	exists, _ := factions.Exists(db)
+func factionCreate(gdb *gamedb.GameDB, s *player.State, w *world.World, name, agenda string) Result {
+	exists, _ := factions.Exists(gdb)
 	if exists {
 		return Result{Output: "you already have a faction."}
 	}
-	f, err := factions.Create(db, name, agenda)
+	f, err := factions.Create(gdb, name, agenda)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("failed to create faction: %v", err)}
 	}
@@ -1586,7 +1604,7 @@ func factionCreate(db *sql.DB, s *player.State, w *world.World, name, agenda str
 	// Generate and add hideout room
 	room := hideout.GenerateHideout(name)
 	w.AddRoom(&room)
-	if err := factions.SetHideout(db, room.ID); err != nil {
+	if err := factions.SetHideout(gdb, room.ID); err != nil {
 		return Result{Output: fmt.Sprintf("faction created but hideout failed: %v", err)}
 	}
 
@@ -1607,18 +1625,18 @@ func factionCreate(db *sql.DB, s *player.State, w *world.World, name, agenda str
 }
 
 // Recruit recruits an NPC in the current room into the player's faction.
-func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Recruit(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "recruit <npc-id> — recruit an NPC into your faction"}
 	}
 	npcID := args[0]
 
-	exists, _ := factions.Exists(db)
+	exists, _ := factions.Exists(gdb)
 	if !exists {
 		return Result{Output: "you need a faction first. use 'faction create <name>'."}
 	}
 
-	f, err := factions.Get(db)
+	f, err := factions.Get(gdb)
 	if err != nil {
 		return Result{Output: "error loading faction."}
 	}
@@ -1638,12 +1656,12 @@ func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	if npc == nil {
 		return Result{Output: fmt.Sprintf("no NPC %q here.", npcID)}
 	}
-	if !player.NPCAlive(db, s.RoomID, npc.ID) {
+	if !player.NPCAlive(gdb, s.RoomID, npc.ID) {
 		return Result{Output: fmt.Sprintf("%s is dead. you can't recruit a corpse.", npc.Name)}
 	}
 
 	// Check reputation with any faction (any rep >= 3)
-	rq := sqliteq.New(db)
+	rq := sqliteq.New(gdb.SQLiteDB())
 	highRepFactions, err := rq.ListHighRepFactions(context.Background())
 	if err != nil {
 		return Result{Output: "error checking reputation."}
@@ -1653,13 +1671,13 @@ func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	// Cost 200 credits
-	if _, err := credits.Deduct(db, 200); err != nil {
+	if _, err := credits.Deduct(gdb, 200); err != nil {
 		return Result{Output: "you need 200 credits to recruit."}
 	}
 
-	if err := factions.Recruit(db, npc.ID, npc.Name, npc.Desc, "associate"); err != nil {
+	if err := factions.Recruit(gdb, npc.ID, npc.Name, npc.Desc, "associate"); err != nil {
 		// Refund on error
-		credits.Add(db, 200) //nolint:errcheck
+		credits.Add(gdb, 200) //nolint:errcheck
 		return Result{Output: fmt.Sprintf("recruit failed: %v", err)}
 	}
 
@@ -1689,12 +1707,12 @@ func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 }
 
 // Hideout teleports the player to their faction hideout.
-func Hideout(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	exists, _ := factions.Exists(db)
+func Hideout(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	exists, _ := factions.Exists(gdb)
 	if !exists {
 		return Result{Output: "you have no faction hideout. create a faction first."}
 	}
-	f, err := factions.Get(db)
+	f, err := factions.Get(gdb)
 	if err != nil {
 		return Result{Output: "error loading faction."}
 	}
@@ -1708,27 +1726,27 @@ func Hideout(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	s.RoomID = f.HideoutRoomID
-	player.Save(db, s) //nolint:errcheck
+	player.Save(gdb, s) //nolint:errcheck
 
 	var out strings.Builder
 	out.WriteString(room.Render(true))
 
 	// Apply hideout upgrade bonuses
-	if has, _ := hideout.HasUpgrade(db, "med-bay"); has {
+	if has, _ := hideout.HasUpgrade(gdb, "med-bay"); has {
 		s.HP = s.MaxHP
-		player.Save(db, s) //nolint:errcheck
+		player.Save(gdb, s) //nolint:errcheck
 		out.WriteString("\n[med-bay] wounds patched. HP restored to full.")
 	}
-	if has, _ := hideout.HasUpgrade(db, "signal-jammer"); has {
-		st := espionage.LoadStealth(db)
+	if has, _ := hideout.HasUpgrade(gdb, "signal-jammer"); has {
+		st := espionage.LoadStealth(gdb)
 		if st.Level < 80 {
 			st.Level = 80
-			espionage.SaveStealth(db, st) //nolint:errcheck
+			espionage.SaveStealth(gdb, st) //nolint:errcheck
 		}
 		out.WriteString("\n[signal-jammer] stealth reset to 80.")
 	}
-	if has, _ := hideout.HasUpgrade(db, "training-deck"); has {
-		awardRes, err := skills.Award(db, "hacking", 50)
+	if has, _ := hideout.HasUpgrade(gdb, "training-deck"); has {
+		awardRes, err := skills.Award(gdb, "hacking", 50)
 		if err == nil {
 			out.WriteString(fmt.Sprintf("\n[training-deck] +50 hacking XP."))
 			if awardRes.LeveledUp {
@@ -1738,7 +1756,7 @@ func Hideout(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	// Show installed upgrades
-	installed, _ := hideout.Installed(db)
+	installed, _ := hideout.Installed(gdb)
 	if len(installed) > 0 {
 		out.WriteString("\ninstalled upgrades: " + strings.Join(installed, ", "))
 	}
@@ -1747,31 +1765,31 @@ func Hideout(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 }
 
 // Upgrade lists or purchases hideout upgrades.
-func Upgrade(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Upgrade(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "upgrade list — show upgrades\nupgrade buy <id> — purchase an upgrade"}
 	}
 	switch args[0] {
 	case "list":
-		return upgradeList(db)
+		return upgradeList(gdb)
 	case "buy":
 		if len(args) < 2 {
 			return Result{Output: "upgrade buy <id>"}
 		}
-		return upgradeBuy(db, args[1])
+		return upgradeBuy(gdb, args[1])
 	default:
 		return Result{Output: "upgrade list | upgrade buy <id>"}
 	}
 }
 
-func upgradeList(db *sql.DB) Result {
-	installed, _ := hideout.Installed(db)
+func upgradeList(gdb *gamedb.GameDB) Result {
+	installed, _ := hideout.Installed(gdb)
 	installedSet := make(map[string]bool, len(installed))
 	for _, id := range installed {
 		installedSet[id] = true
 	}
-	bal := credits.Get(db)
-	hackLevel := skills.Level(db, "hacking")
+	bal := credits.Get(gdb)
+	hackLevel := skills.Level(gdb, "hacking")
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("hideout upgrades (balance: %d ¢, hacking level: %d):\n", bal, hackLevel))
@@ -1788,18 +1806,18 @@ func upgradeList(db *sql.DB) Result {
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-func upgradeBuy(db *sql.DB, id string) Result {
+func upgradeBuy(gdb *gamedb.GameDB, id string) Result {
 	u, err := hideout.FindUpgrade(id)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("unknown upgrade %q. use 'upgrade list' to see options.", id)}
 	}
 
-	has, _ := hideout.HasUpgrade(db, id)
+	has, _ := hideout.HasUpgrade(gdb, id)
 	if has {
 		return Result{Output: fmt.Sprintf("%s is already installed.", u.Name)}
 	}
 
-	hackLevel := skills.Level(db, "hacking")
+	hackLevel := skills.Level(gdb, "hacking")
 	if hackLevel < u.SkillReq {
 		return Result{Output: fmt.Sprintf(
 			"%s requires hacking level %d (you have %d).",
@@ -1807,16 +1825,16 @@ func upgradeBuy(db *sql.DB, id string) Result {
 		)}
 	}
 
-	if _, err := credits.Deduct(db, u.Cost); err != nil {
-		bal := credits.Get(db)
+	if _, err := credits.Deduct(gdb, u.Cost); err != nil {
+		bal := credits.Get(gdb)
 		return Result{Output: fmt.Sprintf(
 			"not enough credits. %s costs %d ¢, you have %d ¢.",
 			u.Name, u.Cost, bal,
 		)}
 	}
 
-	if err := hideout.Install(db, id); err != nil {
-		credits.Add(db, u.Cost) //nolint:errcheck
+	if err := hideout.Install(gdb, id); err != nil {
+		credits.Add(gdb, u.Cost) //nolint:errcheck
 		return Result{Output: fmt.Sprintf("install failed: %v", err)}
 	}
 
@@ -1838,14 +1856,14 @@ func upgradeBuy(db *sql.DB, id string) Result {
 }
 
 // Wear equips an armor item from the player's inventory.
-func Wear(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Wear(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "wear <item-id> — put on an armor item"}
 	}
 	itemID := args[0]
 
 	// Check inventory
-	items, err := player.Inventory(db)
+	items, err := player.Inventory(gdb)
 	if err != nil {
 		return Result{Output: "inventory error."}
 	}
@@ -1877,35 +1895,35 @@ func Wear(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	// If armor already equipped, return it to inventory first
-	current, _ := player.GetEquippedArmor(db)
+	current, _ := player.GetEquippedArmor(gdb)
 	if current != nil {
-		player.AddItem(db, current.ItemID, current.ItemName, "") //nolint:errcheck
+		player.AddItem(gdb, current.ItemID, current.ItemName, "") //nolint:errcheck
 	}
 
 	// Remove new armor from inventory and equip it
-	player.RemoveItem(db, itemID)                              //nolint:errcheck
+	player.RemoveItem(gdb, itemID)                              //nolint:errcheck
 	defense := item.Stats["damage_resist"]
-	player.EquipArmor(db, itemID, item.Name, defense)         //nolint:errcheck
+	player.EquipArmor(gdb, itemID, item.Name, defense)         //nolint:errcheck
 	s.Defense = defense
 
 	return Result{Output: fmt.Sprintf("you put on the %s. [DEF +%d]", item.Name, defense)}
 }
 
 // Unwear removes the currently equipped armor and returns it to inventory.
-func Unwear(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	current, err := player.GetEquippedArmor(db)
+func Unwear(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	current, err := player.GetEquippedArmor(gdb)
 	if err != nil || current == nil {
 		return Result{Output: "you're not wearing any armor."}
 	}
-	player.UnequipArmor(db)                                   //nolint:errcheck
-	player.AddItem(db, current.ItemID, current.ItemName, "")  //nolint:errcheck
+	player.UnequipArmor(gdb)                                   //nolint:errcheck
+	player.AddItem(gdb, current.ItemID, current.ItemName, "")  //nolint:errcheck
 	s.Defense = 0
 	return Result{Output: fmt.Sprintf("you remove the %s.", current.ItemName)}
 }
 
 // Equipment shows the currently equipped armor.
-func Equipment(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	rec, err := player.GetEquippedArmor(db)
+func Equipment(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	rec, err := player.GetEquippedArmor(gdb)
 	if err != nil || rec == nil {
 		return Result{Output: "ARMOR: nothing equipped."}
 	}
@@ -1913,17 +1931,17 @@ func Equipment(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 }
 
 // BaseInfo shows the status of the player's permanent base at dusthaven-4.
-func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func BaseInfo(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	const baseRoom = "dusthaven-4"
 
-	bq := sqliteq.New(db)
+	bq := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	builds, err := bq.ListBuildsInRoom(ctx, baseRoom)
 	if err != nil || len(builds) == 0 {
 		return Result{Output: "BASE STATUS — The Base Plots\nNo structures built. Head to dusthaven-4 and use 'build' to start."}
 	}
 
-	defense := base.DefenseScore(db, w)
+	defense := base.DefenseScore(gdb, w)
 
 	var sb strings.Builder
 	sb.WriteString("BASE STATUS — The Base Plots\n")
@@ -1941,7 +1959,7 @@ func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result
 	chestCount, _ := bq.CountChestItemsInRoom(ctx, baseRoom)
 	fmt.Fprintf(&sb, "  CHEST ITEMS: %d\n", chestCount)
 
-	current := actionCount(db)
+	current := actionCount(gdb)
 	nextRaid := 30 - (current % 30)
 	if nextRaid == 30 {
 		nextRaid = 0
@@ -1953,13 +1971,13 @@ func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result
 
 // Arena starts, shows status, or quits an arena match.
 // Use at barrens-3 for TDM, ruins-3 for Tower Defense.
-func Arena(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+func Arena(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	// arena quit
 	if len(args) > 0 && args[0] == "quit" {
-		if arena.GetActive(db) == nil {
+		if arena.GetActive(gdb) == nil {
 			return Result{Output: "no active arena match."}
 		}
-		msg := arena.Quit(db)
+		msg := arena.Quit(gdb)
 		s.HP = s.MaxHP / 2
 		if s.HP < 1 {
 			s.HP = 1
@@ -1968,7 +1986,7 @@ func Arena(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	// Active match: show status
-	if m := arena.GetActive(db); m != nil {
+	if m := arena.GetActive(gdb); m != nil {
 		alive := 0
 		for _, e := range m.Enemies {
 			if e.Alive {
@@ -1984,12 +2002,12 @@ func Arena(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	// No active match: start one based on room
 	switch s.RoomID {
 	case "barrens-3":
-		if err := arena.StartTDM(db); err != nil {
+		if err := arena.StartTDM(gdb); err != nil {
 			return Result{Output: fmt.Sprintf("failed to start match: %v", err)}
 		}
 		return Result{Output: "COMBAT ZONE — TDM\n5 Ash Raiders. Kill them all.\nReward: 200 caps.\nType 'attack' to engage. 'arena quit' to forfeit."}
 	case "ruins-3":
-		if err := arena.StartTowerDefense(db, w); err != nil {
+		if err := arena.StartTowerDefense(gdb, w); err != nil {
 			return Result{Output: fmt.Sprintf("failed to start match: %v", err)}
 		}
 		return Result{Output: "TOWER DEFENSE\n3 waves incoming. Your base turrets will fire at the start of each wave.\nReward: 300 caps + pre-war-circuitry.\nType 'attack' to engage. 'arena quit' to forfeit."}

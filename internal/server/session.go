@@ -15,10 +15,13 @@ import (
 
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
+	"github.com/adam-stokes/gl1tch-mud/internal/chat"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/pgq"
 	"github.com/adam-stokes/gl1tch-mud/internal/factions"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/quests"
@@ -33,6 +36,7 @@ type ClientSession struct {
 	role         string // "admin" or "player"
 	conn         *websocket.Conn
 	database     *sql.DB
+	gdb          *gamedb.GameDB
 	state        *player.State
 	world        *world.World
 	worldName    string
@@ -55,13 +59,14 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		return
 	}
 	defer s.database.Close()
+	s.gdb = gamedb.NewSQLite(s.database)
 	defer func() {
 		if s.state != nil {
-			_ = player.Save(s.database, s.state)
+			_ = player.Save(s.gdb, s.state)
 		}
 	}()
 
-	s.state, err = player.Load(s.database)
+	s.state, err = player.Load(s.gdb)
 	if err != nil {
 		_ = writeMsg(ctx, s.conn, ServerMsg{
 			Type:    "error",
@@ -70,9 +75,10 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		return
 	}
 	s.state.PlayerID = s.username
-	player.LoadDefense(s.database, s.state)
+	s.state.Role = s.role
+	player.LoadDefense(s.gdb, s.state)
 	if s.worldName == "mudout" {
-		if report := base.ResolvePendingRaids(s.database, s.world); report != "" {
+		if report := base.ResolvePendingRaids(s.gdb, s.world); report != "" {
 			_ = writeMsg(ctx, s.conn, ServerMsg{
 				Type:    "output.token",
 				Payload: OutputTokenPayload{Token: report + "\r\n\r\n"},
@@ -86,13 +92,13 @@ func (s *ClientSession) Handle(ctx context.Context) {
 	if s.state.World != s.worldName || s.world.Room(s.state.RoomID) == nil {
 		s.state.RoomID = s.world.StartRoom
 		s.state.World = s.worldName
-		_ = player.Save(s.database, s.state)
-		world.SeedCrystalShards(s.database, s.worldName)  //nolint:errcheck
-		world.SeedStartingItems(s.database, s.worldName)  //nolint:errcheck
+		_ = player.Save(s.gdb, s.state)
+		world.SeedCrystalShards(s.gdb, s.worldName)  //nolint:errcheck
+		world.SeedStartingItems(s.gdb, s.worldName)  //nolint:errcheck
 	}
 
 	// Send welcome look.
-	res := commands.Look(s.database, s.state, s.world, nil)
+	res := commands.Look(s.gdb, s.state, s.world, nil)
 	_ = writeMsg(ctx, s.conn, ServerMsg{
 		Type:    "output.token",
 		Payload: OutputTokenPayload{Token: res.Output + "\r\n"},
@@ -176,22 +182,60 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 
 	verb, args := commands.Parse(input)
 
-	// ── say: alias for chat broadcast ────────────────────────────────────────
+	// ── say: broadcast to room ───────────────────────────────────────────────
 	if verb == "say" {
-		text := strings.Join(args, " ")
-		if text != "" {
-			s.registry.BroadcastToWorld(s.worldName, ServerMsg{
-				Type:    "chat.message",
-				Payload: ChatMessagePayload{From: s.username, Text: text},
+		result := chat.Say(s.username, args)
+		if result.Output != "" {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: result.Output + "\r\n"},
 			})
-			if strings.Contains(strings.ToLower(text), "glitch") {
-				s.registry.PublishEvent("mud.chat.mention", map[string]any{
-					"from":  s.username,
-					"text":  text,
-					"world": s.worldName,
-				})
-			}
 		}
+		s.routeChatMessages(ctx, result)
+		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		return
+	}
+
+	// ── shout: broadcast to world ────────────────────────────────────────────
+	if verb == "shout" {
+		result := chat.Shout(s.username, args)
+		if result.Output != "" {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: result.Output + "\r\n"},
+			})
+		}
+		s.routeChatMessages(ctx, result)
+		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		return
+	}
+
+	// ── whisper/tell: private message to a player ────────────────────────────
+	if verb == "whisper" || verb == "tell" {
+		result := chat.Whisper(s.username, args)
+		if result.Output != "" {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: result.Output + "\r\n"},
+			})
+		}
+		s.routeChatMessages(ctx, result)
+		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		return
+	}
+
+	// ── who: list connected players (uses registry, handled in session) ─────
+	if verb == "who" {
+		players := s.registry.OnlinePlayersInWorld(s.worldName, "")
+		var b strings.Builder
+		b.WriteString(fmt.Sprintf("online in %s (%d):\r\n", s.worldName, len(players)))
+		for _, p := range players {
+			b.WriteString(fmt.Sprintf("  %s — %s\r\n", p.Name, p.RoomID))
+		}
+		_ = writeMsg(ctx, s.conn, ServerMsg{
+			Type:    "output.token",
+			Payload: OutputTokenPayload{Token: b.String()},
+		})
 		_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
 		return
 	}
@@ -242,7 +286,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 			return
 		}
 		s.state.RoomID = roomID
-		res := commands.Look(s.database, s.state, s.world, nil)
+		res := commands.Look(s.gdb, s.state, s.world, nil)
 		_ = writeMsg(ctx, s.conn, ServerMsg{
 			Type:    "output.token",
 			Payload: OutputTokenPayload{Token: fmt.Sprintf("* jacking into %s's node... *\r\n\r\n", targetID)},
@@ -266,7 +310,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		return
 	}
 
-	result := handler(s.database, s.state, s.world, args)
+	result := handler(s.gdb, s.state, s.world, args)
 	_ = writeMsg(ctx, s.conn, ServerMsg{
 		Type:    "output.token",
 		Payload: OutputTokenPayload{Token: result.Output + "\r\n"},
@@ -278,7 +322,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		// Also forward to gamification if this event maps to a game action.
 		if action, ok := busd.MapMudEvent(result.Event.Topic, result.Event.Payload); ok {
 			faction := "unaffiliated"
-			if pf, err := factions.Get(s.database); err == nil && pf != nil {
+			if pf, err := factions.Get(s.gdb); err == nil && pf != nil {
 				faction = pf.FactionID
 			}
 			s.registry.PublishEvent("game.action", map[string]any{
@@ -295,13 +339,19 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		}
 	}
 
+	s.routeChatMessages(ctx, result)
+
+	if result.AdminAction != nil {
+		s.handleAdminAction(ctx, result.AdminAction)
+	}
+
 	if result.PendingRequestID != "" {
 		s.registry.RegisterPendingRequest(result.PendingRequestID, result.PendingPlayer)
 	}
 
 	if result.MoveRoom != "" {
 		s.state.RoomID = result.MoveRoom
-		_ = player.Save(s.database, s.state)
+		_ = player.Save(s.gdb, s.state)
 	}
 
 	if result.SwitchWorld != "" {
@@ -316,9 +366,79 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	}
 
 	if s.worldName == "mudout" {
-		base.MaybeSpawnRaid(s.database)
+		base.MaybeSpawnRaid(s.gdb)
 	}
 	s.sendStateUpdate(ctx)
+}
+
+// routeChatMessages dispatches ChatMessages from a command result to the
+// appropriate recipients (room, world, or individual player).
+func (s *ClientSession) routeChatMessages(ctx context.Context, result commands.Result) {
+	for _, cm := range result.ChatMessages {
+		switch cm.Type {
+		case "say":
+			s.registry.BroadcastToRoomInWorld(s.worldName, s.state.RoomID, ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: cm.Sender, Text: cm.Body},
+			})
+			// Trigger glitch mention if applicable.
+			if strings.Contains(strings.ToLower(cm.Body), "glitch") {
+				s.registry.PublishEvent("mud.chat.mention", map[string]any{
+					"from":  s.username,
+					"text":  cm.Body,
+					"world": s.worldName,
+				})
+			}
+		case "shout":
+			s.registry.BroadcastToWorld(s.worldName, ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: "[SHOUT] " + cm.Sender, Text: cm.Body},
+			})
+			if strings.Contains(strings.ToLower(cm.Body), "glitch") {
+				s.registry.PublishEvent("mud.chat.mention", map[string]any{
+					"from":  s.username,
+					"text":  cm.Body,
+					"world": s.worldName,
+				})
+			}
+		case "whisper":
+			if !s.registry.SendToPlayerByName(cm.Target, ServerMsg{
+				Type:    "chat.message",
+				Payload: ChatMessagePayload{From: "[from " + cm.Sender + "]", Text: cm.Body},
+			}) {
+				_ = writeMsg(ctx, s.conn, ServerMsg{
+					Type:    "output.token",
+					Payload: OutputTokenPayload{Token: fmt.Sprintf("player %q is not online.\r\n", cm.Target)},
+				})
+			}
+		}
+	}
+}
+
+// handleAdminAction performs a session-level admin action (kick, ban, etc.).
+func (s *ClientSession) handleAdminAction(ctx context.Context, action *commands.AdminAction) {
+	switch action.Type {
+	case "kick":
+		s.registry.KickPlayer(action.Target)
+	case "ban":
+		if s.pgPool != nil {
+			_ = pgq.New(s.pgPool).SetBanned(ctx, pgq.SetBannedParams{Banned: true, Username: action.Target})
+		}
+		s.registry.KickPlayer(action.Target)
+	case "unban":
+		if s.pgPool != nil {
+			_ = pgq.New(s.pgPool).SetBanned(ctx, pgq.SetBannedParams{Banned: false, Username: action.Target})
+		}
+	case "announce":
+		s.registry.Broadcast(ServerMsg{
+			Type:    "chat.message",
+			Payload: ChatMessagePayload{From: "[ANNOUNCE]", Text: action.Data},
+		})
+	case "teleport":
+		s.registry.TeleportPlayer(action.Target, action.Data)
+	case "give":
+		s.registry.GiveItem(action.Target, action.Data)
+	}
 }
 
 // switchWorld performs a live world switch for the session: saves current state,
@@ -326,7 +446,7 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 // the client with a world_meta message so the UI title updates immediately.
 func (s *ClientSession) switchWorld(ctx context.Context, targetName string) error {
 	if s.state != nil && s.database != nil {
-		_ = player.Save(s.database, s.state)
+		_ = player.Save(s.gdb, s.state)
 		s.database.Close()
 	}
 
@@ -341,7 +461,8 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 		return fmt.Errorf("load world: %w", err)
 	}
 
-	newState, err := player.LoadForWorld(newDB, targetName, newWorld.StartRoom)
+	newGDB := gamedb.NewSQLite(newDB)
+	newState, err := player.LoadForWorld(newGDB, targetName, newWorld.StartRoom)
 	if err != nil {
 		newDB.Close()
 		return fmt.Errorf("load player: %w", err)
@@ -349,19 +470,21 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	if newState.World != targetName || newWorld.Room(newState.RoomID) == nil {
 		newState.RoomID = newWorld.StartRoom
 		newState.World = targetName
-		_ = player.Save(newDB, newState)
-		world.SeedCrystalShards(newDB, targetName)  //nolint:errcheck
-		world.SeedStartingItems(newDB, targetName)  //nolint:errcheck
+		_ = player.Save(newGDB, newState)
+		world.SeedCrystalShards(newGDB, targetName)  //nolint:errcheck
+		world.SeedStartingItems(newGDB, targetName)  //nolint:errcheck
 	}
 
 	s.database = newDB
+	s.gdb = newGDB
 	s.world = newWorld
 	s.worldName = targetName
 	s.state = newState
 	s.state.PlayerID = s.username
-	player.LoadDefense(newDB, newState)
+	s.state.Role = s.role
+	player.LoadDefense(s.gdb, newState)
 	if targetName == "mudout" {
-		if report := base.ResolvePendingRaids(s.database, s.world); report != "" {
+		if report := base.ResolvePendingRaids(s.gdb, s.world); report != "" {
 			_ = writeMsg(ctx, s.conn, ServerMsg{
 				Type:    "output.token",
 				Payload: OutputTokenPayload{Token: report + "\r\n\r\n"},
@@ -388,7 +511,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	})
 
 	// Send the first look in the new world.
-	res := commands.Look(newDB, newState, newWorld, nil)
+	res := commands.Look(s.gdb, newState, newWorld, nil)
 	_ = writeMsg(ctx, s.conn, ServerMsg{
 		Type:    "output.token",
 		Payload: OutputTokenPayload{Token: res.Output + "\r\n"},
@@ -400,7 +523,7 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 
 // sendStateUpdate builds and sends a state.update message with current player state.
 func (s *ClientSession) sendStateUpdate(ctx context.Context) {
-	if s.state == nil || s.database == nil {
+	if s.state == nil || s.gdb == nil {
 		return
 	}
 
@@ -442,7 +565,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	}
 
 	// Active quests for kids quest tracker.
-	activeQuests, _ := quests.Active(s.database)
+	activeQuests, _ := quests.Active(s.gdb)
 	questInfos := make([]QuestInfo, 0, len(activeQuests))
 	for _, q := range activeQuests {
 		questInfos = append(questInfos, QuestInfo{
@@ -455,7 +578,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	}
 
 	// Skills for kids skills modal.
-	allSkills, _ := skills.All(s.database)
+	allSkills, _ := skills.All(s.gdb)
 	skillInfos := make([]SkillInfo, 0, len(allSkills))
 	for name, lv := range allSkills {
 		skillInfos = append(skillInfos, SkillInfo{Name: name, Level: lv[0], XP: lv[1]})
@@ -463,7 +586,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	sort.Slice(skillInfos, func(i, j int) bool { return skillInfos[i].Name < skillInfos[j].Name })
 
 	// Inventory with signal tier.
-	invItems, _ := player.Inventory(s.database)
+	invItems, _ := player.Inventory(s.gdb)
 	hudInv := make([]InvItem, 0, len(invItems))
 	for _, it := range invItems {
 		tier := ""
@@ -488,7 +611,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 	}
 
 	// Crafting recipes — filter out gun recipes until player has unlocked them.
-	gunUnlocked := crafting.IsPlayerFlagSet(s.database, "gun_recipes_unlocked")
+	gunUnlocked := crafting.IsPlayerFlagSet(s.gdb, "gun_recipes_unlocked")
 	var visibleRecipes []world.CraftingRecipe
 	for _, r := range s.world.CraftingRecipes {
 		if !gunUnlocked {
@@ -537,7 +660,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 
 	// Equipped armor for wasteland HUD
 	var equippedArmorInfo *EquippedArmorInfo
-	if rec, err := player.GetEquippedArmor(s.database); err == nil && rec != nil {
+	if rec, err := player.GetEquippedArmor(s.gdb); err == nil && rec != nil {
 		equippedArmorInfo = &EquippedArmorInfo{
 			ItemID:   rec.ItemID,
 			ItemName: rec.ItemName,
@@ -552,7 +675,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		RoomName:      roomName,
 		Exits:         exits,
 		Inventory:     hudInv,
-		Credits:       credits.Get(s.database),
+		Credits:       credits.Get(s.gdb),
 		Recipes:       recipes,
 		RoomNPCs:      roomNPCs,
 		RoomItems:     roomItems,
