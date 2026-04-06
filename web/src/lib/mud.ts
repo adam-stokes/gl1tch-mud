@@ -1552,8 +1552,8 @@ export function buildWsUrl(protocol: string, host: string, worldName: string): s
 export function initMUD() {
   const loginScreen = document.getElementById('login-screen')!;
   const hudScreen   = document.getElementById('hud-screen')!;
-  const nameInput   = document.getElementById('player-name') as HTMLInputElement;
-  const passInput   = document.getElementById('passphrase') as HTMLInputElement;
+  const nameInput   = document.getElementById('username-input') as HTMLInputElement;
+  const passInput   = document.getElementById('password-input') as HTMLInputElement;
   const connectBtn  = document.getElementById('connect-btn') as HTMLButtonElement;
   const errorDiv    = document.getElementById('login-error')!;
 
@@ -1589,12 +1589,21 @@ export function initMUD() {
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
   passInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
 
-  const savedID   = localStorage.getItem('glitch-mud-player');
-  const savedPass = localStorage.getItem('glitch-mud-pass');
-  if (savedID) {
-    nameInput.value = savedID;
-    if (savedPass) passInput.value = savedPass;
+  // Auto-reconnect with stored token
+  const storedToken = localStorage.getItem('gl1tch-token');
+  const storedUser  = localStorage.getItem('gl1tch-username');
+  if (storedToken && storedUser) {
+    nameInput.value = storedUser;
     setTimeout(() => connect(), 50);
+  } else {
+    // Legacy: migrate old saved credentials
+    const savedID = localStorage.getItem('glitch-mud-player');
+    if (savedID) {
+      nameInput.value = savedID;
+      const savedPass = localStorage.getItem('glitch-mud-pass');
+      if (savedPass) passInput.value = savedPass;
+      setTimeout(() => connect(), 50);
+    }
   }
 
   function showError(msg: string) {
@@ -1604,11 +1613,15 @@ export function initMUD() {
   function connect() {
     const playerID   = nameInput.value.trim();
     const passphrase = passInput.value;
+    const hasToken   = !!localStorage.getItem('gl1tch-token');
 
-    if (!playerID) { showError('enter a handle to connect'); return; }
-    if (!/^[a-zA-Z0-9-]{2,20}$/.test(playerID)) {
-      showError('handle must be 2-20 alphanumeric characters or hyphens');
-      return;
+    // Skip validation when resuming with token
+    if (!hasToken) {
+      if (!playerID) { showError('enter a username to connect'); return; }
+      if (!/^[a-zA-Z0-9_-]{2,20}$/.test(playerID)) {
+        showError('username must be 2-20 alphanumeric characters, hyphens, or underscores');
+        return;
+      }
     }
 
     showError('');
@@ -1619,7 +1632,17 @@ export function initMUD() {
     ws = new WebSocket(buildWsUrl(proto, location.host, _worldName));
 
     ws.onopen = () => {
-      ws!.send(JSON.stringify({ type: 'auth', payload: { playerID, passphrase } }));
+      const token = localStorage.getItem('gl1tch-token');
+      if (token) {
+        // Resume existing session with token
+        ws!.send(JSON.stringify({ type: 'resume', payload: { token } }));
+      } else if (passphrase) {
+        // New-style login with username/password
+        ws!.send(JSON.stringify({ type: 'login', payload: { username: playerID, password: passphrase } }));
+      } else {
+        // Legacy auth fallback (no password = old playerID mode)
+        ws!.send(JSON.stringify({ type: 'auth', payload: { playerID, passphrase: '' } }));
+      }
     };
     ws.onmessage = (evt) => {
       const msg: ServerMsg = JSON.parse(evt.data as string);
@@ -1629,13 +1652,17 @@ export function initMUD() {
       connectBtn.disabled = false;
       connectBtn.textContent = 'connect';
       showError('connection failed — is the server running?');
-      localStorage.removeItem('glitch-mud-player');
-      localStorage.removeItem('glitch-mud-pass');
     };
     ws.onclose = () => {
       inputEnabled = false;
       appendOutput('\n\x1b[31m[disconnected from server]\x1b[0m\n');
       setInputEnabled(false);
+      // Auto-reconnect if we have a stored token
+      const reconnectToken = localStorage.getItem('gl1tch-token');
+      if (reconnectToken) {
+        appendOutput('\x1b[33m[reconnecting...]\x1b[0m\n');
+        setTimeout(() => connect(), 2000);
+      }
     };
   }
 
@@ -1660,22 +1687,38 @@ export function initMUD() {
         break;
       }
       case 'auth.ok':
-        _myPlayerID = nameInput.value.trim();
+        // Store token and username from server response
+        if (msg.payload?.token) {
+          localStorage.setItem('gl1tch-token', msg.payload.token);
+        }
+        if (msg.payload?.username) {
+          localStorage.setItem('gl1tch-username', msg.payload.username);
+          _myPlayerID = msg.payload.username;
+        } else {
+          _myPlayerID = nameInput.value.trim();
+        }
         _teleportFn = (targetID: string) => {
           if (inputEnabled) sendCommand(`goto ${targetID}`);
           else { cmdInput.value = `goto ${targetID}`; cmdInput.focus(); }
         };
         _dispatchCmd = (cmd: string) => { if (inputEnabled) sendCommand(cmd); };
-        localStorage.setItem('glitch-mud-player', _myPlayerID);
-        localStorage.setItem('glitch-mud-pass', passInput.value);
+        // Clean up legacy storage
+        localStorage.removeItem('glitch-mud-player');
+        localStorage.removeItem('glitch-mud-pass');
         showHUD();
         break;
       case 'auth.fail':
         connectBtn.disabled = false;
         connectBtn.textContent = 'connect';
         showError(msg.payload?.reason ?? 'authentication failed');
+        // Clear stored token so we don't keep retrying resume
+        localStorage.removeItem('gl1tch-token');
+        localStorage.removeItem('gl1tch-username');
         localStorage.removeItem('glitch-mud-player');
         localStorage.removeItem('glitch-mud-pass');
+        // Show login screen in case we were auto-reconnecting
+        loginScreen.style.display = '';
+        hudScreen.classList.remove('active');
         break;
       case 'output.token':
         appendOutput(msg.payload?.token ?? '');
