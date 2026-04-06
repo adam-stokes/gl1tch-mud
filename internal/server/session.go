@@ -294,6 +294,11 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		s.registry.RegisterPendingRequest(result.PendingRequestID, result.PendingPlayer)
 	}
 
+	if result.MoveRoom != "" {
+		s.state.RoomID = result.MoveRoom
+		_ = player.Save(s.database, s.state)
+	}
+
 	if result.SwitchWorld != "" {
 		if err := s.switchWorld(ctx, result.SwitchWorld); err != nil {
 			_ = writeMsg(ctx, s.conn, ServerMsg{
