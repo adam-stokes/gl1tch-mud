@@ -12,6 +12,7 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/espionage"
 	"github.com/adam-stokes/gl1tch-mud/internal/events"
 	"github.com/adam-stokes/gl1tch-mud/internal/factions"
@@ -150,9 +151,8 @@ func Look(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	player.MarkVisited(db, s.RoomID)
 
 	// Expire stale world events
-	var actionCnt int
-	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&actionCnt) //nolint:errcheck
-	events.ExpireOld(db, actionCnt)                                             //nolint:errcheck
+	actionCnt := actionCount(db)
+	events.ExpireOld(db, actionCnt) //nolint:errcheck
 
 	// Check for low-stealth auto-detection
 	detection := checkStealthDetection(db, s, room)
@@ -468,8 +468,7 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 		if s.HP <= 0 {
 			// Get action count for death pile timestamp.
-			var actionCnt int
-			db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&actionCnt) //nolint:errcheck
+			actionCnt := actionCount(db)
 
 			deathRoom := s.RoomID
 			player.DumpToDeathPile(db, deathRoom, actionCnt) //nolint:errcheck
@@ -1027,9 +1026,12 @@ func Talk(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	rep := buildReputationMap(db)
 	sk := buildSkillMap(db)
 
-	var shardCount, totalShards int
-	db.QueryRow(`SELECT COUNT(*) FROM crystal_shards WHERE collected=1`).Scan(&shardCount)   //nolint:errcheck
-	db.QueryRow(`SELECT COUNT(*) FROM crystal_shards`).Scan(&totalShards)                    //nolint:errcheck
+	gq := sqliteq.New(db)
+	gctx := context.Background()
+	shardCount64, _ := gq.CountCollectedShards(gctx)
+	totalShards64, _ := gq.CountTotalShards(gctx)
+	shardCount := int(shardCount64)
+	totalShards := int(totalShards64)
 
 	activeQuestIDs, _ := quests.ActiveIDs(db)
 	ctx := espionage.PlayerContext{
@@ -1283,18 +1285,14 @@ func Blueprint(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 
 // buildReputationMap returns a map of all faction reputations.
 func buildReputationMap(db *sql.DB) map[string]int {
-	rows, err := db.Query(`SELECT faction, value FROM player_reputation`)
+	q := sqliteq.New(db)
+	rows, err := q.ListReputations(context.Background())
 	if err != nil {
 		return map[string]int{}
 	}
-	defer rows.Close()
-	rep := make(map[string]int)
-	for rows.Next() {
-		var faction string
-		var value int
-		if rows.Scan(&faction, &value) == nil {
-			rep[faction] = value
-		}
+	rep := make(map[string]int, len(rows))
+	for _, r := range rows {
+		rep[r.Faction] = int(r.Value)
 	}
 	return rep
 }
@@ -1314,9 +1312,12 @@ func buildSkillMap(db *sql.DB) map[string]int {
 
 // actionCount returns the player's current action count.
 func actionCount(db *sql.DB) int {
-	var c int
-	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&c) //nolint:errcheck
-	return c
+	q := sqliteq.New(db)
+	c, err := q.GetActionCountGeneral(context.Background())
+	if err != nil || !c.Valid {
+		return 0
+	}
+	return int(c.Int64)
 }
 
 // Credits shows the player's current credit balance.
@@ -1642,14 +1643,12 @@ func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	// Check reputation with any faction (any rep >= 3)
-	rows, err := db.Query(`SELECT faction, value FROM player_reputation WHERE value >= 3`)
+	rq := sqliteq.New(db)
+	highRepFactions, err := rq.ListHighRepFactions(context.Background())
 	if err != nil {
 		return Result{Output: "error checking reputation."}
 	}
-	defer rows.Close()
-	hasRep := rows.Next()
-	rows.Close()
-	if !hasRep {
+	if len(highRepFactions) == 0 {
 		return Result{Output: "you lack the standing to recruit anyone. build reputation with a faction first (rep >= 3)."}
 	}
 
@@ -1666,7 +1665,10 @@ func Recruit(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 
 	// Station them at hideout if set
 	if f.HideoutRoomID != "" {
-		db.Exec(`UPDATE faction_members SET stationed_room=? WHERE npc_id=?`, f.HideoutRoomID, npc.ID) //nolint:errcheck
+		rq.UpdateFactionMemberStation(context.Background(), sqliteq.UpdateFactionMemberStationParams{ //nolint:errcheck
+			StationedRoom: sql.NullString{String: f.HideoutRoomID, Valid: true},
+			NpcID:         npc.ID,
+		})
 	}
 
 	return Result{
@@ -1914,21 +1916,10 @@ func Equipment(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	const baseRoom = "dusthaven-4"
 
-	rows, err := db.Query(`SELECT build_id, name FROM builds WHERE room_id=? ORDER BY placed_at`, baseRoom)
-	if err != nil {
-		return Result{Output: "BASE STATUS — The Base Plots\nNo structures built. Head to dusthaven-4 and use 'build' to start."}
-	}
-	defer rows.Close()
-
-	type buildRow struct{ id, name string }
-	var built []buildRow
-	for rows.Next() {
-		var b buildRow
-		rows.Scan(&b.id, &b.name) //nolint:errcheck
-		built = append(built, b)
-	}
-
-	if len(built) == 0 {
+	bq := sqliteq.New(db)
+	ctx := context.Background()
+	builds, err := bq.ListBuildsInRoom(ctx, baseRoom)
+	if err != nil || len(builds) == 0 {
 		return Result{Output: "BASE STATUS — The Base Plots\nNo structures built. Head to dusthaven-4 and use 'build' to start."}
 	}
 
@@ -1937,22 +1928,20 @@ func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result
 	var sb strings.Builder
 	sb.WriteString("BASE STATUS — The Base Plots\n")
 	sb.WriteString(strings.Repeat("─", 35) + "\n")
-	for _, b := range built {
+	for _, b := range builds {
 		def := 0
-		if r := w.FindRecipe(b.id); r != nil {
+		if r := w.FindRecipe(b.BuildID); r != nil {
 			def = r.Output.Stats["defense"]
 		}
-		fmt.Fprintf(&sb, "  %-18s %-20s [DEF %2d]\n", b.id, b.name, def)
+		fmt.Fprintf(&sb, "  %-18s %-20s [DEF %2d]\n", b.BuildID, b.Name, def)
 	}
 	sb.WriteString(strings.Repeat("─", 35) + "\n")
 	fmt.Fprintf(&sb, "  DEFENSE SCORE: %d / 11 max\n", defense)
 
-	var chestCount int
-	db.QueryRow(`SELECT COUNT(*) FROM chests WHERE room_id=?`, baseRoom).Scan(&chestCount) //nolint:errcheck
+	chestCount, _ := bq.CountChestItemsInRoom(ctx, baseRoom)
 	fmt.Fprintf(&sb, "  CHEST ITEMS: %d\n", chestCount)
 
-	var current int
-	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&current) //nolint:errcheck
+	current := actionCount(db)
 	nextRaid := 30 - (current % 30)
 	if nextRaid == 30 {
 		nextRaid = 0

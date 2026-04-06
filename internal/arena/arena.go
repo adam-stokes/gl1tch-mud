@@ -2,6 +2,7 @@
 package arena
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -57,15 +59,20 @@ func StartTDM(db *sql.DB) error {
 	enemies := makeTDMEnemies()
 	enemyJSON, _ := json.Marshal(enemies)
 	id := fmt.Sprintf("arena-%d", time.Now().UnixNano())
-	_, err := db.Exec(
-		`INSERT OR REPLACE INTO arena_sessions
-		 (id, game_type, phase, wave, enemies_json, reward_credits,
-		  reward_item_id, reward_item_name, reward_item_desc, status, started_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		id, "tdm", "fight", 0, string(enemyJSON), 200,
-		"", "", "", "active", time.Now().Unix(),
-	)
-	return err
+	q := sqliteq.New(db)
+	return q.InsertArenaSession(context.Background(), sqliteq.InsertArenaSessionParams{
+		ID:             id,
+		GameType:       "tdm",
+		Phase:          "fight",
+		Wave:           0,
+		EnemiesJson:    string(enemyJSON),
+		RewardCredits:  200,
+		RewardItemID:   "",
+		RewardItemName: "",
+		RewardItemDesc: "",
+		Status:         "active",
+		StartedAt:      time.Now().Unix(),
+	})
 }
 
 // StartTowerDefense creates a new active tower-defense match with wave 0.
@@ -76,33 +83,41 @@ func StartTowerDefense(db *sql.DB, w *world.World) error {
 	enemies = applyTurretDamage(enemies, defScore)
 	enemyJSON, _ := json.Marshal(enemies)
 	id := fmt.Sprintf("arena-%d", time.Now().UnixNano())
-	_, err := db.Exec(
-		`INSERT OR REPLACE INTO arena_sessions
-		 (id, game_type, phase, wave, enemies_json, reward_credits,
-		  reward_item_id, reward_item_name, reward_item_desc, status, started_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		id, "tower-defense", "wave", 0, string(enemyJSON), 300,
-		"pre-war-circuitry", "Pre-War Circuitry", "High-density pre-war circuit board.",
-		"active", time.Now().Unix(),
-	)
-	return err
+	q := sqliteq.New(db)
+	return q.InsertArenaSession(context.Background(), sqliteq.InsertArenaSessionParams{
+		ID:             id,
+		GameType:       "tower-defense",
+		Phase:          "wave",
+		Wave:           0,
+		EnemiesJson:    string(enemyJSON),
+		RewardCredits:  300,
+		RewardItemID:   "pre-war-circuitry",
+		RewardItemName: "Pre-War Circuitry",
+		RewardItemDesc: "High-density pre-war circuit board.",
+		Status:         "active",
+		StartedAt:      time.Now().Unix(),
+	})
 }
 
 // GetActive returns the current active match, or nil if none exists.
 func GetActive(db *sql.DB) *Match {
-	var m Match
-	var enemyJSON string
-	err := db.QueryRow(
-		`SELECT id, game_type, phase, wave, enemies_json, reward_credits,
-		        reward_item_id, reward_item_name, reward_item_desc, status, started_at
-		 FROM arena_sessions WHERE status='active' LIMIT 1`,
-	).Scan(&m.ID, &m.GameType, &m.Phase, &m.Wave, &enemyJSON,
-		&m.RewardCredits, &m.RewardItemID, &m.RewardItemName, &m.RewardItemDesc,
-		&m.Status, &m.StartedAt)
+	q := sqliteq.New(db)
+	row, err := q.GetActiveArenaSession(context.Background())
 	if err != nil {
 		return nil
 	}
-	json.Unmarshal([]byte(enemyJSON), &m.Enemies) //nolint:errcheck
+	var m Match
+	m.ID = row.ID
+	m.GameType = row.GameType
+	m.Phase = row.Phase
+	m.Wave = int(row.Wave)
+	m.RewardCredits = int(row.RewardCredits)
+	m.RewardItemID = row.RewardItemID
+	m.RewardItemName = row.RewardItemName
+	m.RewardItemDesc = row.RewardItemDesc
+	m.Status = row.Status
+	m.StartedAt = row.StartedAt
+	json.Unmarshal([]byte(row.EnemiesJson), &m.Enemies) //nolint:errcheck
 	return &m
 }
 
@@ -122,7 +137,8 @@ func ProcessAttack(db *sql.DB, w *world.World, s *player.State) AttackResult {
 
 // Quit forfeits the active match and marks it lost.
 func Quit(db *sql.DB) string {
-	db.Exec(`UPDATE arena_sessions SET status='lost' WHERE status='active'`) //nolint:errcheck
+	q := sqliteq.New(db)
+	q.QuitArenaSession(context.Background()) //nolint:errcheck
 	return "you forfeit the match."
 }
 
@@ -199,10 +215,14 @@ func firstAliveIdx(enemies []Enemy) int {
 
 func saveMatch(db *sql.DB, m *Match) {
 	enemyJSON, _ := json.Marshal(m.Enemies)
-	db.Exec( //nolint:errcheck
-		`UPDATE arena_sessions SET phase=?, wave=?, enemies_json=?, status=? WHERE id=?`,
-		m.Phase, m.Wave, string(enemyJSON), m.Status, m.ID,
-	)
+	q := sqliteq.New(db)
+	q.UpdateArenaSession(context.Background(), sqliteq.UpdateArenaSessionParams{ //nolint:errcheck
+		Phase:       m.Phase,
+		Wave:        int64(m.Wave),
+		EnemiesJson: string(enemyJSON),
+		Status:      m.Status,
+		ID:          m.ID,
+	})
 }
 
 func processTDMAttack(db *sql.DB, m *Match, s *player.State, out *strings.Builder) AttackResult {

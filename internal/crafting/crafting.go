@@ -2,12 +2,14 @@
 package crafting
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -56,10 +58,12 @@ func Craft(db *sql.DB, w *world.World, room *world.Room, recipeID string, invent
 
 // craftIngredient is the existing ingredient-list crafting path, unchanged in behaviour.
 func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int) Result {
+	q := sqliteq.New(db)
+	ctx := context.Background()
+
 	// Blueprint/unlock check
 	if len(recipe.TierThresholds) > 0 {
-		var count int
-		_ = db.QueryRow(`SELECT COUNT(*) FROM unlocked_recipes WHERE recipe_id = ?`, recipe.ID).Scan(&count)
+		count, _ := q.CountUnlockedRecipe(ctx, recipe.ID)
 		if count == 0 {
 			return Result{Message: "You need a blueprint to craft this."}
 		}
@@ -103,7 +107,7 @@ func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world
 	// Consume ingredients
 	for _, ing := range recipe.Ingredients {
 		for i := 0; i < ing.Count; i++ {
-			db.Exec(`DELETE FROM inventory WHERE item_id=? LIMIT 1`, ing.ID) //nolint:errcheck
+			q.DeleteOneInventoryItem(ctx, ing.ID) //nolint:errcheck
 		}
 	}
 
@@ -123,10 +127,11 @@ func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world
 		}
 	}
 
-	db.Exec( //nolint:errcheck
-		`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
-		out.ID, out.Name, out.Desc,
-	)
+	q.InsertInventoryItemCraft(ctx, sqliteq.InsertInventoryItemCraftParams{ //nolint:errcheck
+		ItemID:   out.ID,
+		ItemName: out.Name,
+		ItemDesc: out.Desc,
+	})
 
 	return Result{
 		OK:          true,
@@ -138,6 +143,9 @@ func craftIngredient(db *sql.DB, w *world.World, room *world.Room, recipe *world
 
 // craftAssemble is the slot-based assembly path.
 func craftAssemble(db *sql.DB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
+	q := sqliteq.New(db)
+	ctx := context.Background()
+
 	// Skill gate
 	if recipe.SkillReq > 0 && hackingSkill < recipe.SkillReq {
 		return Result{
@@ -188,7 +196,7 @@ func craftAssemble(db *sql.DB, w *world.World, room *world.Room, recipe *world.C
 
 	// Consume all slot items from inventory
 	for _, itemID := range slots {
-		db.Exec(`DELETE FROM inventory WHERE item_id=? LIMIT 1`, itemID) //nolint:errcheck
+		q.DeleteOneInventoryItem(ctx, itemID) //nolint:errcheck
 	}
 
 	// Build output: start from base output, accumulate stats from slot item StatMods
@@ -210,10 +218,11 @@ func craftAssemble(db *sql.DB, w *world.World, room *world.Room, recipe *world.C
 		}
 	}
 
-	db.Exec( //nolint:errcheck
-		`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
-		out.ID, out.Name, out.Desc,
-	)
+	q.InsertInventoryItemCraft(ctx, sqliteq.InsertInventoryItemCraftParams{ //nolint:errcheck
+		ItemID:   out.ID,
+		ItemName: out.Name,
+		ItemDesc: out.Desc,
+	})
 
 	return Result{
 		OK:          true,
@@ -248,27 +257,29 @@ func hasTag(tags []string, target string) bool {
 
 // UnlockRecipe records that the given recipe has been unlocked via a blueprint.
 func UnlockRecipe(db *sql.DB, recipeID string) error {
-	_, err := db.Exec(`INSERT OR IGNORE INTO unlocked_recipes (recipe_id, unlocked_at) VALUES (?, ?)`,
-		recipeID, time.Now().Unix())
-	return err
+	q := sqliteq.New(db)
+	return q.UnlockRecipe(context.Background(), sqliteq.UnlockRecipeParams{
+		RecipeID:   recipeID,
+		UnlockedAt: sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
+	})
 }
 
 // IsUnlocked reports whether the given recipe has been unlocked.
 func IsUnlocked(db *sql.DB, recipeID string) (bool, error) {
-	var count int
-	err := db.QueryRow(`SELECT COUNT(*) FROM unlocked_recipes WHERE recipe_id = ?`, recipeID).Scan(&count)
+	q := sqliteq.New(db)
+	count, err := q.IsRecipeUnlocked(context.Background(), recipeID)
 	return count > 0, err
 }
 
 // SetPlayerFlag sets a boolean flag in the player_flags table.
 func SetPlayerFlag(db *sql.DB, flag string) error {
-	_, err := db.Exec(`INSERT OR IGNORE INTO player_flags (flag) VALUES (?)`, flag)
-	return err
+	q := sqliteq.New(db)
+	return q.SetPlayerFlag(context.Background(), flag)
 }
 
 // IsPlayerFlagSet returns true if the flag exists in player_flags.
 func IsPlayerFlagSet(db *sql.DB, flag string) bool {
-	var count int
-	_ = db.QueryRow(`SELECT COUNT(*) FROM player_flags WHERE flag = ?`, flag).Scan(&count)
+	q := sqliteq.New(db)
+	count, _ := q.CountPlayerFlag(context.Background(), flag)
 	return count > 0
 }

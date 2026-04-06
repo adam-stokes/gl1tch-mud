@@ -2,12 +2,14 @@
 package base
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/rand"
 	"strings"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -15,22 +17,23 @@ const baseRoomID = "dusthaven-4"
 
 // actionCount reads the player's action count from player_actions.
 func actionCount(db *sql.DB) int {
-	var c int
-	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&c) //nolint:errcheck
-	return c
+	q := sqliteq.New(db)
+	c, err := q.GetActionCountBase(context.Background())
+	if err != nil || !c.Valid {
+		return 0
+	}
+	return int(c.Int64)
 }
 
 // DefenseScore sums the defense stats of all structures built in dusthaven-4.
 func DefenseScore(db *sql.DB, w *world.World) int {
-	rows, err := db.Query(`SELECT build_id FROM builds WHERE room_id=?`, baseRoomID)
+	q := sqliteq.New(db)
+	buildIDs, err := q.ListBuildIDsInRoom(context.Background(), baseRoomID)
 	if err != nil {
 		return 0
 	}
-	defer rows.Close()
 	score := 0
-	for rows.Next() {
-		var buildID string
-		rows.Scan(&buildID) //nolint:errcheck
+	for _, buildID := range buildIDs {
 		if r := w.FindRecipe(buildID); r != nil {
 			score += r.Output.Stats["defense"]
 		}
@@ -47,34 +50,36 @@ func MaybeSpawnRaid(db *sql.DB) {
 		return
 	}
 
-	var structCount int
-	db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=?`, baseRoomID).Scan(&structCount) //nolint:errcheck
+	q := sqliteq.New(db)
+	ctx := context.Background()
+
+	structCount, _ := q.CountBuildsInRoom(ctx, baseRoomID)
 	if structCount == 0 {
 		return
 	}
 
-	var activeRaids int
-	db.QueryRow(
-		`SELECT COUNT(*) FROM world_events WHERE type='base-raid' AND target_room=? AND status='active'`,
-		baseRoomID,
-	).Scan(&activeRaids) //nolint:errcheck
+	activeRaids, _ := q.CountActiveBaseRaids(ctx, baseRoomID)
 	if activeRaids > 0 {
 		return
 	}
 
 	id := fmt.Sprintf("base-raid-%d", time.Now().UnixNano())
-	db.Exec( //nolint:errcheck
-		`INSERT INTO world_events
-		 (id, type, title, description, target_room, faction,
-		  payout_credits, payout_item_id, payout_item_name, payout_item_desc,
-		  status, expires_actions, created_actions, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		id, "base-raid", "Ash Raider Attack",
-		"Ash Raiders are moving on your base.",
-		baseRoomID, "ash-raiders",
-		0, "", "", "",
-		"active", 30, current, time.Now().Unix(),
-	)
+	q.InsertWorldEvent(ctx, sqliteq.InsertWorldEventParams{ //nolint:errcheck
+		ID:             id,
+		Type:           "base-raid",
+		Title:          "Ash Raider Attack",
+		Description:    sql.NullString{String: "Ash Raiders are moving on your base.", Valid: true},
+		TargetRoom:     baseRoomID,
+		Faction:        sql.NullString{String: "ash-raiders", Valid: true},
+		PayoutCredits:  0,
+		PayoutItemID:   sql.NullString{},
+		PayoutItemName: sql.NullString{},
+		PayoutItemDesc: sql.NullString{},
+		Status:         "active",
+		ExpiresActions: 30,
+		CreatedActions: int64(current),
+		CreatedAt:      time.Now().Unix(),
+	})
 }
 
 // ResolvePendingRaids checks for expired base-raid events, resolves them,
@@ -82,25 +87,14 @@ func MaybeSpawnRaid(db *sql.DB) {
 func ResolvePendingRaids(db *sql.DB, w *world.World) string {
 	current := actionCount(db)
 
-	rows, err := db.Query(
-		`SELECT id FROM world_events
-		 WHERE type='base-raid' AND target_room=? AND status='active'
-		 AND (created_actions + expires_actions) <= ?`,
-		baseRoomID, current,
-	)
-	if err != nil {
-		return ""
-	}
+	q := sqliteq.New(db)
+	ctx := context.Background()
 
-	var raidIDs []string
-	for rows.Next() {
-		var id string
-		rows.Scan(&id) //nolint:errcheck
-		raidIDs = append(raidIDs, id)
-	}
-	rows.Close()
-
-	if len(raidIDs) == 0 {
+	raidIDs, err := q.ListExpiredBaseRaids(ctx, sqliteq.ListExpiredBaseRaidsParams{
+		TargetRoom:     baseRoomID,
+		CreatedActions: int64(current),
+	})
+	if err != nil || len(raidIDs) == 0 {
 		return ""
 	}
 
@@ -130,7 +124,7 @@ func ResolvePendingRaids(db *sql.DB, w *world.World) string {
 			}
 		}
 		reports = append(reports, report)
-		db.Exec(`UPDATE world_events SET status='resolved' WHERE id=?`, id) //nolint:errcheck
+		q.ResolveWorldEvent(ctx, id) //nolint:errcheck
 	}
 
 	return strings.Join(reports, "\n\n")
@@ -139,24 +133,24 @@ func ResolvePendingRaids(db *sql.DB, w *world.World) string {
 // loseChestItems deletes up to max random items from the base chest and
 // returns the names of lost items.
 func loseChestItems(db *sql.DB, max int) []string {
-	rows, err := db.Query(
-		`SELECT item_id, item_name FROM chests WHERE room_id=? ORDER BY RANDOM() LIMIT ?`,
-		baseRoomID, max,
-	)
+	q := sqliteq.New(db)
+	ctx := context.Background()
+
+	items, err := q.ListRandomChestItems(ctx, sqliteq.ListRandomChestItemsParams{
+		RoomID: baseRoomID,
+		Limit:  int64(max),
+	})
 	if err != nil {
 		return nil
 	}
-	var ids, names []string
-	for rows.Next() {
-		var id, name string
-		rows.Scan(&id, &name) //nolint:errcheck
-		ids = append(ids, id)
-		names = append(names, name)
-	}
-	rows.Close()
 
-	for _, id := range ids {
-		db.Exec(`DELETE FROM chests WHERE room_id=? AND item_id=?`, baseRoomID, id) //nolint:errcheck
+	var names []string
+	for _, item := range items {
+		names = append(names, item.ItemName)
+		q.DeleteChestItemBase(ctx, sqliteq.DeleteChestItemBaseParams{ //nolint:errcheck
+			RoomID: baseRoomID,
+			ItemID: item.ItemID,
+		})
 	}
 	return names
 }

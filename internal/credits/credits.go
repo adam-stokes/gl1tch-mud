@@ -1,22 +1,27 @@
 // Package credits manages the player's credit wallet backed by SQLite.
 package credits
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
+)
 
 // Get returns the current credit balance. Returns 0 on any error.
 func Get(db *sql.DB) int {
-	var c int
-	db.QueryRow(`SELECT credits FROM player_credits WHERE id=1`).Scan(&c) //nolint:errcheck
-	return c
+	q := sqliteq.New(db)
+	c, err := q.GetCredits(context.Background())
+	if err != nil {
+		return 0
+	}
+	return int(c)
 }
 
 // Add adds amount credits (may be negative) and returns the new balance.
 func Add(db *sql.DB, amount int) (int, error) {
-	_, err := db.Exec(
-		`INSERT INTO player_credits (id, credits) VALUES (1, ?)
-		 ON CONFLICT(id) DO UPDATE SET credits = credits + excluded.credits`,
-		amount,
-	)
+	q := sqliteq.New(db)
+	err := q.UpsertCredits(context.Background(), int64(amount))
 	if err != nil {
 		return 0, err
 	}

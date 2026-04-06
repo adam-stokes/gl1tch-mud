@@ -2,8 +2,11 @@
 package skills
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // xpThresholds maps level → minimum XP needed to reach that level.
@@ -25,12 +28,15 @@ func LevelForXP(xp int) int {
 
 // Load returns the level and XP for the given skill. Returns 0,0 if not found.
 func Load(db *sql.DB, skill string) (level, xp int, err error) {
-	err = db.QueryRow(`SELECT level, xp FROM player_skills WHERE skill = ?`, skill).
-		Scan(&level, &xp)
+	q := sqliteq.New(db)
+	row, err := q.LoadSkill(context.Background(), skill)
 	if err == sql.ErrNoRows {
 		return 0, 0, nil
 	}
-	return level, xp, err
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(row.Level), int(row.Xp), nil
 }
 
 // Level returns the current skill level. Returns 0 if not found or on error.
@@ -65,11 +71,12 @@ func Award(db *sql.DB, skill string, xpAmount int) (*AwardResult, error) {
 	newXP := oldXP + xpAmount
 	newLevel := LevelForXP(newXP)
 
-	_, err = db.Exec(
-		`INSERT INTO player_skills (skill, level, xp) VALUES (?, ?, ?)
-		 ON CONFLICT(skill) DO UPDATE SET level=excluded.level, xp=excluded.xp`,
-		skill, newLevel, newXP,
-	)
+	q := sqliteq.New(db)
+	err = q.UpsertSkill(context.Background(), sqliteq.UpsertSkillParams{
+		Skill: skill,
+		Level: int64(newLevel),
+		Xp:    int64(newXP),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("skills: upsert %s: %w", skill, err)
 	}
@@ -89,20 +96,15 @@ func Award(db *sql.DB, skill string, xpAmount int) (*AwardResult, error) {
 
 // All returns a map of all skills with their level and XP.
 func All(db *sql.DB) (map[string][2]int, error) {
-	rows, err := db.Query(`SELECT skill, level, xp FROM player_skills`)
+	q := sqliteq.New(db)
+	rows, err := q.ListAllSkills(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	result := make(map[string][2]int)
-	for rows.Next() {
-		var skill string
-		var level, xp int
-		if err := rows.Scan(&skill, &level, &xp); err != nil {
-			return nil, err
-		}
-		result[skill] = [2]int{level, xp}
+	for _, row := range rows {
+		result[row.Skill] = [2]int{int(row.Level), int(row.Xp)}
 	}
-	return result, rows.Err()
+	return result, nil
 }

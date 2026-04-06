@@ -2,32 +2,34 @@
 package hacking
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/rand"
 	"time"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
 // Result is the outcome of a hack attempt.
 type Result struct {
-	Success    bool
+	Success       bool
 	AlreadyHacked bool
-	NoSystem   bool
-	AlertLevel int
-	RewardItem string // item ID if reward delivered
-	RewardText string
-	Message    string
+	NoSystem      bool
+	AlertLevel    int
+	RewardItem    string // item ID if reward delivered
+	RewardText    string
+	Message       string
 }
 
 // isHacked reports whether a system in a room was already successfully hacked this session.
 func isHacked(db *sql.DB, roomID, systemID string) bool {
-	var hacked int
-	err := db.QueryRow(
-		`SELECT hacked FROM system_state WHERE room_id=? AND system_id=?`,
-		roomID, systemID,
-	).Scan(&hacked)
+	q := sqliteq.New(db)
+	hacked, err := q.GetSystemHacked(context.Background(), sqliteq.GetSystemHackedParams{
+		RoomID:   roomID,
+		SystemID: systemID,
+	})
 	if err != nil {
 		return false
 	}
@@ -36,31 +38,33 @@ func isHacked(db *sql.DB, roomID, systemID string) bool {
 
 // alertLevel returns the current alert level for a system.
 func alertLevel(db *sql.DB, roomID, systemID string) int {
-	var alert int
-	db.QueryRow( //nolint:errcheck
-		`SELECT alert FROM system_state WHERE room_id=? AND system_id=?`,
-		roomID, systemID,
-	).Scan(&alert)
-	return alert
+	q := sqliteq.New(db)
+	alert, err := q.GetSystemAlert(context.Background(), sqliteq.GetSystemAlertParams{
+		RoomID:   roomID,
+		SystemID: systemID,
+	})
+	if err != nil {
+		return 0
+	}
+	return int(alert)
 }
 
 // markHacked marks a system as successfully hacked.
 func markHacked(db *sql.DB, roomID, systemID string) error {
-	_, err := db.Exec(
-		`INSERT INTO system_state (room_id, system_id, hacked, alert) VALUES (?,?,1,0)
-		 ON CONFLICT(room_id, system_id) DO UPDATE SET hacked=1`,
-		roomID, systemID,
-	)
-	return err
+	q := sqliteq.New(db)
+	return q.MarkSystemHacked(context.Background(), sqliteq.MarkSystemHackedParams{
+		RoomID:   roomID,
+		SystemID: systemID,
+	})
 }
 
 // incrementAlert increments the alert level and returns the new value.
 func incrementAlert(db *sql.DB, roomID, systemID string) (int, error) {
-	_, err := db.Exec(
-		`INSERT INTO system_state (room_id, system_id, alert, hacked) VALUES (?,?,1,0)
-		 ON CONFLICT(room_id, system_id) DO UPDATE SET alert=alert+1`,
-		roomID, systemID,
-	)
+	q := sqliteq.New(db)
+	err := q.IncrementSystemAlert(context.Background(), sqliteq.IncrementSystemAlertParams{
+		RoomID:   roomID,
+		SystemID: systemID,
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -146,9 +150,18 @@ func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, 
 		return nil, false, fmt.Errorf("system %q not found in room %q", systemID, room.ID)
 	}
 
+	q := sqliteq.New(db)
+	ctx := context.Background()
+
 	// Load current alert level.
 	var alert int
-	_ = db.QueryRow(`SELECT alert FROM system_state WHERE room_id = ? AND system_id = ?`, room.ID, systemID).Scan(&alert)
+	alertVal, err := q.GetSystemAlertForHackMulti(ctx, sqliteq.GetSystemAlertForHackMultiParams{
+		RoomID:   room.ID,
+		SystemID: systemID,
+	})
+	if err == nil {
+		alert = int(alertVal)
+	}
 
 	var results []PhaseResult
 	bounty := false
@@ -161,8 +174,11 @@ func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, 
 		br.Message = fmt.Sprintf("Breach successful. Roll: %d.", breachRoll)
 	} else {
 		alert++
-		_, _ = db.Exec(`INSERT INTO system_state (room_id, system_id, intrusion, alert) VALUES (?, ?, 0, ?)
-            ON CONFLICT(room_id, system_id) DO UPDATE SET alert = ?`, room.ID, systemID, alert, alert)
+		q.UpsertSystemAlert(ctx, sqliteq.UpsertSystemAlertParams{ //nolint:errcheck
+			RoomID:   room.ID,
+			SystemID: systemID,
+			Alert:    int64(alert),
+		})
 		br.Message = fmt.Sprintf("Breach failed. Roll: %d. Alert level: %d.", breachRoll, alert)
 	}
 	results = append(results, br)
@@ -178,8 +194,11 @@ func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, 
 		er.Message = fmt.Sprintf("Exploit delivered. Roll: %d.", exploitRoll)
 	} else {
 		alert++
-		_, _ = db.Exec(`INSERT INTO system_state (room_id, system_id, intrusion, alert) VALUES (?, ?, 0, ?)
-            ON CONFLICT(room_id, system_id) DO UPDATE SET alert = ?`, room.ID, systemID, alert, alert)
+		q.UpsertSystemAlert(ctx, sqliteq.UpsertSystemAlertParams{ //nolint:errcheck
+			RoomID:   room.ID,
+			SystemID: systemID,
+			Alert:    int64(alert),
+		})
 		er.Message = fmt.Sprintf("Exploit failed. Roll: %d. Alert level: %d.", exploitRoll, alert)
 	}
 	results = append(results, er)
@@ -195,8 +214,11 @@ func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, 
 		xr.Message = fmt.Sprintf("Exfil clean. Roll: %d.", exfilRoll)
 	} else {
 		bounty = true
-		_, _ = db.Exec(`INSERT OR REPLACE INTO bounties (room_id, npc_id, created_at) VALUES (?, ?, ?)`,
-			room.ID, "bounty-hunter-"+systemID, time.Now().Unix())
+		q.InsertBounty(ctx, sqliteq.InsertBountyParams{ //nolint:errcheck
+			RoomID:    room.ID,
+			NpcID:     sql.NullString{String: "bounty-hunter-" + systemID, Valid: true},
+			CreatedAt: sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
+		})
 		xr.Message = fmt.Sprintf("Exfil dirty — you left traces. Roll: %d. Expect company.", exfilRoll)
 	}
 	results = append(results, xr)
@@ -206,21 +228,28 @@ func HackMulti(db *sql.DB, room *world.Room, systemID string, hackingSkill int, 
 // SetVulnWindow sets a temporary vulnerability window for a system.
 // The window expires after currentAction+3 actions have elapsed.
 func SetVulnWindow(db *sql.DB, systemID string, bonus int, currentAction int) error {
-	_, err := db.Exec(`INSERT OR REPLACE INTO vuln_windows (system_id, bonus, expires_action) VALUES (?, ?, ?)`,
-		systemID, bonus, currentAction+3)
-	return err
+	q := sqliteq.New(db)
+	return q.SetVulnWindow(context.Background(), sqliteq.SetVulnWindowParams{
+		SystemID:      systemID,
+		Bonus:         sql.NullInt64{Int64: int64(bonus), Valid: true},
+		ExpiresAction: sql.NullInt64{Int64: int64(currentAction + 3), Valid: true},
+	})
 }
 
 // VulnBonus returns the current vulnerability bonus for a system, or 0 if expired/absent.
 func VulnBonus(db *sql.DB, systemID string, currentAction int) (int, error) {
-	var bonus, expires int
-	err := db.QueryRow(`SELECT bonus, expires_action FROM vuln_windows WHERE system_id = ?`, systemID).Scan(&bonus, &expires)
+	q := sqliteq.New(db)
+	ctx := context.Background()
+	row, err := q.GetVulnWindow(ctx, systemID)
 	if err != nil {
 		return 0, nil
 	}
-	if currentAction > expires {
-		_, _ = db.Exec(`DELETE FROM vuln_windows WHERE system_id = ?`, systemID)
+	if !row.Bonus.Valid || !row.ExpiresAction.Valid {
 		return 0, nil
 	}
-	return bonus, nil
+	if int64(currentAction) > row.ExpiresAction.Int64 {
+		q.DeleteVulnWindow(ctx, systemID) //nolint:errcheck
+		return 0, nil
+	}
+	return int(row.Bonus.Int64), nil
 }

@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/rand"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/enchanting"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -33,8 +35,10 @@ func itemCategory(itemID string) string {
 
 // Enchant enchants an item using the enchanting table.
 func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	var cnt int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='enchanting-table'`, s.RoomID).Scan(&cnt); err != nil {
+	q := sqliteq.New(db)
+	ctx := context.Background()
+	cnt, err := q.CountEnchantingTable(ctx, s.RoomID)
+	if err != nil {
 		return Result{Output: "unable to check for enchanting table."}
 	}
 	if cnt == 0 {
@@ -92,7 +96,7 @@ func Enchant(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	if err := enchanting.Apply(db, itemID, chosenID, enchantLevel, current); err != nil {
 		return Result{Output: "enchantment failed — try again."}
 	}
-	if _, err := db.Exec(`UPDATE enchanting_xp SET xp=xp-? WHERE id=1`, xpCost); err != nil {
+	if err := q.DeductEnchantingXP(ctx, int64(xpCost)); err != nil {
 		return Result{Output: "enchantment applied but XP deduction failed."}
 	}
 

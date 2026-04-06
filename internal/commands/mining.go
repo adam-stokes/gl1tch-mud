@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/rand"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/enchanting"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/quests"
@@ -23,25 +25,30 @@ func init() {
 
 // bumpActions increments the player action counter.
 func bumpActions(db *sql.DB) {
-	db.Exec(`INSERT INTO player_actions (id,count) VALUES (1,1) ON CONFLICT(id) DO UPDATE SET count=count+1`) //nolint:errcheck
+	q := sqliteq.New(db)
+	q.BumpActions(context.Background()) //nolint:errcheck
 }
 
 // isResourceDepleted checks if a resource in a room is currently depleted.
 func isResourceDepleted(db *sql.DB, roomID, resourceID string, respawnActions int) bool {
-	var depleted, depletedAt int
-	err := db.QueryRow(
-		`SELECT depleted, depleted_at_action FROM room_resources WHERE room_id=? AND resource_id=?`,
-		roomID, resourceID,
-	).Scan(&depleted, &depletedAt)
+	q := sqliteq.New(db)
+	ctx := context.Background()
+	row, err := q.GetResourceState(ctx, sqliteq.GetResourceStateParams{
+		RoomID:     roomID,
+		ResourceID: resourceID,
+	})
 	if err != nil {
 		return false // no record = not depleted
 	}
-	if depleted == 0 {
+	if row.Depleted == 0 {
 		return false
 	}
 	current := actionCount(db)
-	if current >= depletedAt+respawnActions {
-		db.Exec(`UPDATE room_resources SET depleted=0 WHERE room_id=? AND resource_id=?`, roomID, resourceID) //nolint:errcheck
+	if current >= int(row.DepletedAtAction)+respawnActions {
+		q.ClearResourceDepletion(ctx, sqliteq.ClearResourceDepletionParams{ //nolint:errcheck
+			RoomID:     roomID,
+			ResourceID: resourceID,
+		})
 		return false
 	}
 	return true
@@ -50,11 +57,12 @@ func isResourceDepleted(db *sql.DB, roomID, resourceID string, respawnActions in
 // depleteResource marks a resource as depleted.
 func depleteResource(db *sql.DB, roomID, resourceID string) {
 	current := actionCount(db)
-	db.Exec( //nolint:errcheck
-		`INSERT INTO room_resources (room_id, resource_id, depleted, depleted_at_action) VALUES (?,?,1,?)
-		 ON CONFLICT(room_id, resource_id) DO UPDATE SET depleted=1, depleted_at_action=excluded.depleted_at_action`,
-		roomID, resourceID, current,
-	)
+	q := sqliteq.New(db)
+	q.DepleteResource(context.Background(), sqliteq.DepleteResourceParams{ //nolint:errcheck
+		RoomID:           roomID,
+		ResourceID:       resourceID,
+		DepletedAtAction: int64(current),
+	})
 }
 
 // rollYield rolls loot from a resource's yields list, applying weather + fortune enchant bonuses.
@@ -187,17 +195,13 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 
 	current := actionCount(db)
-	rows, _ := db.Query(
-		`SELECT seed_id FROM crops WHERE room_id=? AND ready_at_action<=? AND harvested=0`,
-		s.RoomID, current,
-	)
-	if rows != nil {
-		defer rows.Close()
-		for rows.Next() {
-			var seedID string
-			rows.Scan(&seedID) //nolint:errcheck
-			harvestResources = append(harvestResources, world.Resource{ID: seedID + "-crop", Type: "harvest"})
-		}
+	q := sqliteq.New(db)
+	seedIDs, _ := q.ListReadyCrops(context.Background(), sqliteq.ListReadyCropsParams{
+		RoomID:        s.RoomID,
+		ReadyAtAction: int64(current),
+	})
+	for _, seedID := range seedIDs {
+		harvestResources = append(harvestResources, world.Resource{ID: seedID + "-crop", Type: "harvest"})
 	}
 
 	if len(args) == 0 {
@@ -220,14 +224,19 @@ func Harvest(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 
 	if strings.HasSuffix(target, "-crop") {
 		seedID := strings.TrimSuffix(target, "-crop")
-		var cropCount int
-		db.QueryRow(`SELECT COUNT(*) FROM crops WHERE room_id=? AND seed_id=? AND ready_at_action<=? AND harvested=0`,
-			s.RoomID, seedID, current).Scan(&cropCount) //nolint:errcheck
+		cropCount, _ := q.CountReadyCrops(context.Background(), sqliteq.CountReadyCropsParams{
+			RoomID:        s.RoomID,
+			SeedID:        seedID,
+			ReadyAtAction: int64(current),
+		})
 		if cropCount == 0 {
 			return Result{Output: "no ready crops of that type here."}
 		}
-		db.Exec(`UPDATE crops SET harvested=1 WHERE room_id=? AND seed_id=? AND ready_at_action<=? AND harvested=0`, //nolint:errcheck
-			s.RoomID, seedID, current)
+		q.HarvestCrops(context.Background(), sqliteq.HarvestCropsParams{ //nolint:errcheck
+			RoomID:        s.RoomID,
+			SeedID:        seedID,
+			ReadyAtAction: int64(current),
+		})
 		player.AddItem(db, seedID+"-harvest", strings.Title(seedID), "A freshly harvested crop.") //nolint:errcheck
 		return Result{Output: fmt.Sprintf("you harvest the %s.", seedID)}
 	}
@@ -346,8 +355,11 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		}
 	}
 	if !hasFurnace {
-		var cnt int
-		db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='furnace'`, s.RoomID).Scan(&cnt) //nolint:errcheck
+		q := sqliteq.New(db)
+		cnt, _ := q.CountBuildsByType(context.Background(), sqliteq.CountBuildsByTypeParams{
+			RoomID:  s.RoomID,
+			BuildID: "furnace",
+		})
 		hasFurnace = cnt > 0
 	}
 	if !hasFurnace {
@@ -405,8 +417,8 @@ func Smelt(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	out := fmt.Sprintf("you feed the furnace with %s and smelt the %s.\nyou receive: 1x %s.", fuel, itemID, result[1])
 	readyQuests, _ := quests.CheckSmelt(db, result[0])
-	for _, q := range readyQuests {
-		out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", q.Title, q.ID)
+	for _, rq := range readyQuests {
+		out += fmt.Sprintf("\nquest ready: [%s] — type 'quest complete %s'", rq.Title, rq.ID)
 	}
 	return Result{Output: out}
 }
@@ -424,8 +436,11 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 	canPlant := room.Biome == "meadow"
 	if !canPlant {
-		var cnt int
-		db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='garden-plot'`, s.RoomID).Scan(&cnt) //nolint:errcheck
+		q := sqliteq.New(db)
+		cnt, _ := q.CountBuildsByType(context.Background(), sqliteq.CountBuildsByTypeParams{
+			RoomID:  s.RoomID,
+			BuildID: "garden-plot",
+		})
 		canPlant = cnt > 0
 	}
 	if !canPlant {
@@ -458,15 +473,11 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	current := actionCount(db)
 
 	// Find the lowest available slot (0-3) not occupied by an active crop.
+	q := sqliteq.New(db)
+	usedSlotsList, _ := q.ListActiveCropSlots(context.Background(), s.RoomID)
 	usedSlots := map[int]bool{}
-	slotRows, _ := db.Query(`SELECT slot FROM crops WHERE room_id=? AND harvested=0`, s.RoomID)
-	if slotRows != nil {
-		defer slotRows.Close()
-		for slotRows.Next() {
-			var used int
-			slotRows.Scan(&used) //nolint:errcheck
-			usedSlots[used] = true
-		}
+	for _, used := range usedSlotsList {
+		usedSlots[int(used)] = true
 	}
 	slot := -1
 	for i := 0; i < 4; i++ {
@@ -480,10 +491,13 @@ func Plant(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	player.RemoveItem(db, seedID) //nolint:errcheck
-	db.Exec( //nolint:errcheck
-		`INSERT INTO crops (room_id, slot, seed_id, planted_at_action, ready_at_action) VALUES (?,?,?,?,?)`,
-		s.RoomID, slot, seedID, current, current+growActions,
-	)
+	q.InsertCrop(context.Background(), sqliteq.InsertCropParams{ //nolint:errcheck
+		RoomID:          s.RoomID,
+		Slot:            int64(slot),
+		SeedID:          seedID,
+		PlantedAtAction: int64(current),
+		ReadyAtAction:   int64(current + growActions),
+	})
 	bumpActions(db)
 
 	return Result{Output: fmt.Sprintf(

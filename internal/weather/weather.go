@@ -2,9 +2,12 @@
 package weather
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/rand"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // TickInterval is the number of player actions between possible weather changes.
@@ -13,8 +16,8 @@ const TickInterval = 50
 // Current returns the current weather condition for biome.
 // Returns "clear" if no record exists.
 func Current(db *sql.DB, biome string) (string, error) {
-	var cond string
-	err := db.QueryRow(`SELECT condition FROM weather_state WHERE biome=?`, biome).Scan(&cond)
+	q := sqliteq.New(db)
+	cond, err := q.GetWeatherCondition(context.Background(), biome)
 	if err == sql.ErrNoRows {
 		return "clear", nil
 	}
@@ -28,24 +31,28 @@ func Current(db *sql.DB, biome string) (string, error) {
 // and if so rolls a new condition from possible. Returns the current (possibly new) condition.
 // When err is non-nil the returned condition string was not persisted and should be discarded.
 func Tick(db *sql.DB, biome string, currentAction int, possible []string) (string, error) {
-	var expires int
-	var cond string
-	err := db.QueryRow(`SELECT condition, expires_action FROM weather_state WHERE biome=?`, biome).
-		Scan(&cond, &expires)
+	q := sqliteq.New(db)
+	ctx := context.Background()
+
+	row, err := q.GetWeatherState(ctx, biome)
 	if err != nil && err != sql.ErrNoRows {
 		return "clear", err
 	}
+
+	cond := row.Condition
+	expires := int(row.ExpiresAction)
+
 	if err == sql.ErrNoRows || currentAction >= expires {
 		if len(possible) == 0 {
 			possible = []string{"clear"}
 		}
 		cond = possible[rand.Intn(len(possible))]
 		newExpires := currentAction + TickInterval
-		_, err = db.Exec(
-			`INSERT INTO weather_state (biome, condition, expires_action) VALUES (?,?,?)
-			 ON CONFLICT(biome) DO UPDATE SET condition=excluded.condition, expires_action=excluded.expires_action`,
-			biome, cond, newExpires,
-		)
+		err = q.UpsertWeatherState(ctx, sqliteq.UpsertWeatherStateParams{
+			Biome:         biome,
+			Condition:     cond,
+			ExpiresAction: int64(newExpires),
+		})
 		if err != nil {
 			return cond, err
 		}

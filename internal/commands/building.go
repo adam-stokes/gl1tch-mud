@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -82,10 +84,14 @@ func Build(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 
 	current := actionCount(db)
-	db.Exec( //nolint:errcheck
-		`INSERT INTO builds (room_id, build_id, name, desc, placed_at) VALUES (?,?,?,?,?)`,
-		s.RoomID, recipe.ID, recipe.Name, recipe.Output.Desc, current,
-	)
+	q := sqliteq.New(db)
+	q.InsertBuild(context.Background(), sqliteq.InsertBuildParams{ //nolint:errcheck
+		RoomID:   s.RoomID,
+		BuildID:  recipe.ID,
+		Name:     recipe.Name,
+		Desc:     recipe.Output.Desc,
+		PlacedAt: int64(current),
+	})
 	bumpActions(db)
 
 	unlocks := buildUnlockMessage(recipe.ID)
@@ -114,8 +120,8 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		return Result{Output: "stash <item-id> — store an item in the room's chest"}
 	}
 
-	var cnt int
-	db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='chest'`, s.RoomID).Scan(&cnt) //nolint:errcheck
+	q := sqliteq.New(db)
+	cnt, _ := q.CountChestInRoom(context.Background(), s.RoomID)
 	if cnt == 0 {
 		return Result{Output: "there is no chest here. build one first."}
 	}
@@ -142,13 +148,17 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	if _, err := tx.Exec(`DELETE FROM inventory WHERE item_id=?`, found.ID); err != nil {
+	tq := sqliteq.New(tx)
+	ctx := context.Background()
+	if err := tq.DeleteInventoryItem(ctx, found.ID); err != nil {
 		return Result{Output: fmt.Sprintf("could not remove %s.", found.Name)}
 	}
-	if _, err := tx.Exec(
-		`INSERT OR IGNORE INTO chests (room_id, item_id, item_name, item_desc) VALUES (?,?,?,?)`,
-		s.RoomID, found.ID, found.Name, found.Desc,
-	); err != nil {
+	if err := tq.InsertChestItem(ctx, sqliteq.InsertChestItemParams{
+		RoomID:   s.RoomID,
+		ItemID:   found.ID,
+		ItemName: found.Name,
+		ItemDesc: found.Desc,
+	}); err != nil {
 		return Result{Output: "could not store item in chest."}
 	}
 	if err := tx.Commit(); err != nil {
@@ -159,37 +169,31 @@ func Stash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 
 // Unstash retrieves an item from the chest in the current room.
 func Unstash(db *sql.DB, s *player.State, w *world.World, args []string) Result {
-	var cnt int
-	db.QueryRow(`SELECT COUNT(*) FROM builds WHERE room_id=? AND build_id='chest'`, s.RoomID).Scan(&cnt) //nolint:errcheck
+	q := sqliteq.New(db)
+	ctx := context.Background()
+	cnt, _ := q.CountChestInRoom(ctx, s.RoomID)
 	if cnt == 0 {
 		return Result{Output: "there is no chest here."}
 	}
 
 	if len(args) == 0 {
-		rows, err := db.Query(`SELECT item_id, item_name FROM chests WHERE room_id=?`, s.RoomID)
-		if err != nil || rows == nil {
+		items, err := q.ListChestItems(ctx, s.RoomID)
+		if err != nil || len(items) == 0 {
 			return Result{Output: "the chest is empty."}
 		}
-		defer rows.Close()
 		var b strings.Builder
 		b.WriteString("chest contents:\n")
-		found := false
-		for rows.Next() {
-			var id, name string
-			rows.Scan(&id, &name) //nolint:errcheck
-			fmt.Fprintf(&b, "  %s (%s)\n", name, id)
-			found = true
-		}
-		if !found {
-			return Result{Output: "the chest is empty."}
+		for _, item := range items {
+			fmt.Fprintf(&b, "  %s (%s)\n", item.ItemName, item.ItemID)
 		}
 		return Result{Output: strings.TrimRight(b.String(), "\n")}
 	}
 
 	itemID := strings.ToLower(args[0])
-	var name, desc string
-	err := db.QueryRow(`SELECT item_name, item_desc FROM chests WHERE room_id=? AND item_id=?`, s.RoomID, itemID).
-		Scan(&name, &desc)
+	chestItem, err := q.GetChestItem(ctx, sqliteq.GetChestItemParams{
+		RoomID: s.RoomID,
+		ItemID: itemID,
+	})
 	if err != nil {
 		return Result{Output: fmt.Sprintf("no %q in the chest.", itemID)}
 	}
@@ -200,17 +204,22 @@ func Unstash(db *sql.DB, s *player.State, w *world.World, args []string) Result 
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	if _, err := tx.Exec(`DELETE FROM chests WHERE room_id=? AND item_id=?`, s.RoomID, itemID); err != nil {
+	tq := sqliteq.New(tx)
+	if err := tq.DeleteChestItem(ctx, sqliteq.DeleteChestItemParams{
+		RoomID: s.RoomID,
+		ItemID: itemID,
+	}); err != nil {
 		return Result{Output: "could not retrieve item."}
 	}
-	if _, err := tx.Exec(
-		`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
-		itemID, name, desc,
-	); err != nil {
+	if err := tq.InsertInventoryItem(ctx, sqliteq.InsertInventoryItemParams{
+		ItemID:   itemID,
+		ItemName: chestItem.ItemName,
+		ItemDesc: chestItem.ItemDesc,
+	}); err != nil {
 		return Result{Output: "could not add item to inventory."}
 	}
 	if err := tx.Commit(); err != nil {
 		return Result{Output: "could not retrieve item."}
 	}
-	return Result{Output: fmt.Sprintf("you take %s from the chest.", name)}
+	return Result{Output: fmt.Sprintf("you take %s from the chest.", chestItem.ItemName)}
 }

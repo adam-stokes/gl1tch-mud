@@ -2,7 +2,10 @@
 package enchanting
 
 import (
+	"context"
 	"database/sql"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // Enchant is a record of an enchantment applied to an item.
@@ -14,47 +17,50 @@ type Enchant struct {
 
 // Apply adds an enchantment to an item (or upgrades level if already present).
 func Apply(db *sql.DB, itemID, enchantID string, level, appliedAt int) error {
-	_, err := db.Exec(
-		`INSERT INTO enchants (item_id, enchant_id, level, applied_at) VALUES (?,?,?,?)
-		 ON CONFLICT(item_id, enchant_id) DO UPDATE SET level=excluded.level, applied_at=excluded.applied_at`,
-		itemID, enchantID, level, appliedAt,
-	)
-	return err
+	q := sqliteq.New(db)
+	return q.ApplyEnchant(context.Background(), sqliteq.ApplyEnchantParams{
+		ItemID:    itemID,
+		EnchantID: enchantID,
+		Level:     int64(level),
+		AppliedAt: int64(appliedAt),
+	})
 }
 
 // List returns all enchantments on an item.
 func List(db *sql.DB, itemID string) ([]Enchant, error) {
-	rows, err := db.Query(`SELECT item_id, enchant_id, level FROM enchants WHERE item_id=?`, itemID)
+	q := sqliteq.New(db)
+	rows, err := q.ListEnchants(context.Background(), itemID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := make([]Enchant, 0)
-	for rows.Next() {
-		var e Enchant
-		if err := rows.Scan(&e.ItemID, &e.EnchantID, &e.Level); err != nil {
-			return nil, err
-		}
-		out = append(out, e)
+	out := make([]Enchant, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, Enchant{
+			ItemID:    r.ItemID,
+			EnchantID: r.EnchantID,
+			Level:     int(r.Level),
+		})
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // AddXP adds enchanting experience points and recalculates level (100 XP per level, cap 30).
 func AddXP(db *sql.DB, amount int) error {
-	_, err := db.Exec(`
-		UPDATE enchanting_xp
-		SET xp    = xp + ?,
-		    level = MIN(MAX(1, (xp + ?) / 100), 30)
-		WHERE id = 1
-	`, amount, amount)
-	return err
+	q := sqliteq.New(db)
+	return q.AddEnchantingXP(context.Background(), sqliteq.AddEnchantingXPParams{
+		Xp:   int64(amount),
+		Xp_2: int64(amount),
+	})
 }
 
 // XPState returns current enchanting XP and level.
 func XPState(db *sql.DB) (xp, level int, err error) {
-	err = db.QueryRow(`SELECT xp, level FROM enchanting_xp WHERE id=1`).Scan(&xp, &level)
-	return
+	q := sqliteq.New(db)
+	row, err := q.GetEnchantingXPState(context.Background())
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(row.Xp), int(row.Level), nil
 }
 
 // AttackBonus returns the attack bonus granted by an enchantment at a given level.

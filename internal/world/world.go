@@ -1,6 +1,7 @@
 package world
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"gopkg.in/yaml.v3"
 )
 
@@ -597,6 +599,8 @@ func SeedCrystalShards(db *sql.DB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
+	q := sqliteq.New(db)
+	ctx := context.Background()
 	shards := []struct{ id, biome string }{
 		{"meadow-shard", "meadow"},
 		{"forest-shard", "forest"},
@@ -605,10 +609,10 @@ func SeedCrystalShards(db *sql.DB, worldName string) error {
 		{"cave-shard", "caves"},
 	}
 	for _, s := range shards {
-		if _, err := db.Exec(
-			`INSERT OR IGNORE INTO crystal_shards (shard_id, biome, collected, collected_at) VALUES (?,?,0,0)`,
-			s.id, s.biome,
-		); err != nil {
+		if err := q.SeedCrystalShard(ctx, sqliteq.SeedCrystalShardParams{
+			ShardID: s.id,
+			Biome:   s.biome,
+		}); err != nil {
 			return err
 		}
 	}
@@ -620,9 +624,10 @@ func SeedStartingItems(db *sql.DB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
+	q := sqliteq.New(db)
+	ctx := context.Background()
 	// Check if starting items already seeded by probing for one specific item.
-	var cnt int
-	db.QueryRow(`SELECT COUNT(*) FROM inventory WHERE item_id='wooden-pickaxe'`).Scan(&cnt) //nolint:errcheck
+	cnt, _ := q.CountStartingItem(ctx)
 	if cnt > 0 {
 		return nil
 	}
@@ -633,8 +638,11 @@ func SeedStartingItems(db *sql.DB, worldName string) error {
 		{"builders-map", "Builder's Map", "A hand-drawn map of Blockhaven."},
 	}
 	for _, it := range items {
-		db.Exec(`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`, //nolint:errcheck
-			it.id, it.name, it.desc)
+		q.InsertStartingItem(ctx, sqliteq.InsertStartingItemParams{ //nolint:errcheck
+			ItemID:   it.id,
+			ItemName: it.name,
+			ItemDesc: it.desc,
+		})
 	}
 	return nil
 }

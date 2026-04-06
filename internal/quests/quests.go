@@ -2,9 +2,12 @@
 package quests
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // Quest mirrors the quests table.
@@ -29,76 +32,105 @@ type Quest struct {
 	NextQuestID    string
 }
 
+// fromSqlcQuest converts a sqliteq.Quest model to our Quest type.
+func fromSqlcQuest(q sqliteq.Quest) Quest {
+	return Quest{
+		ID:             q.ID,
+		Title:          q.Title,
+		Description:    q.Description.String,
+		Status:         q.Status,
+		ObjType:        q.ObjType,
+		ObjTarget:      q.ObjTarget,
+		ObjRoom:        q.ObjRoom.String,
+		ObjCount:       int(q.ObjCount),
+		ObjProgress:    int(q.ObjProgress),
+		RewardCredits:  int(q.RewardCredits),
+		RewardXPSkill:  q.RewardXpSkill.String,
+		RewardXPAmount: int(q.RewardXpAmount),
+		RewardItemID:   q.RewardItemID.String,
+		RewardItemName: q.RewardItemName.String,
+		RewardItemDesc: q.RewardItemDesc.String,
+		GiverNPCID:     q.GiverNpcID.String,
+		AcceptedAt:     q.AcceptedAt,
+		NextQuestID:    q.NextQuestID,
+	}
+}
+
 // Accept inserts a new quest into the database.
 func Accept(db *sql.DB, q Quest) error {
 	if q.AcceptedAt == 0 {
 		q.AcceptedAt = time.Now().Unix()
 	}
-	_, err := db.Exec(
-		`INSERT OR IGNORE INTO quests
-		 (id, title, description, status, obj_type, obj_target, obj_room,
-		  obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		  reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
-		  next_quest_id)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		q.ID, q.Title, q.Description, "active",
-		q.ObjType, q.ObjTarget, q.ObjRoom,
-		q.ObjCount, 0,
-		q.RewardCredits, q.RewardXPSkill, q.RewardXPAmount,
-		q.RewardItemID, q.RewardItemName, q.RewardItemDesc,
-		q.GiverNPCID, q.AcceptedAt, q.NextQuestID,
-	)
-	return err
+	queries := sqliteq.New(db)
+	return queries.AcceptQuest(context.Background(), sqliteq.AcceptQuestParams{
+		ID:             q.ID,
+		Title:          q.Title,
+		Description:    sql.NullString{String: q.Description, Valid: q.Description != ""},
+		Status:         "active",
+		ObjType:        q.ObjType,
+		ObjTarget:      q.ObjTarget,
+		ObjRoom:        sql.NullString{String: q.ObjRoom, Valid: q.ObjRoom != ""},
+		ObjCount:       int64(q.ObjCount),
+		ObjProgress:    0,
+		RewardCredits:  int64(q.RewardCredits),
+		RewardXpSkill:  sql.NullString{String: q.RewardXPSkill, Valid: q.RewardXPSkill != ""},
+		RewardXpAmount: int64(q.RewardXPAmount),
+		RewardItemID:   sql.NullString{String: q.RewardItemID, Valid: q.RewardItemID != ""},
+		RewardItemName: sql.NullString{String: q.RewardItemName, Valid: q.RewardItemName != ""},
+		RewardItemDesc: sql.NullString{String: q.RewardItemDesc, Valid: q.RewardItemDesc != ""},
+		GiverNpcID:     sql.NullString{String: q.GiverNPCID, Valid: q.GiverNPCID != ""},
+		AcceptedAt:     q.AcceptedAt,
+		NextQuestID:    q.NextQuestID,
+	})
 }
 
 // Active returns all quests with status='active'.
 func Active(db *sql.DB) ([]Quest, error) {
-	rows, err := db.Query(
-		`SELECT id, title, description, status, obj_type, obj_target, obj_room,
-		        obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
-		        next_quest_id
-		 FROM quests WHERE status='active'`,
-	)
+	queries := sqliteq.New(db)
+	rows, err := queries.ListActiveQuests(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return scanQuests(rows)
+	out := make([]Quest, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, fromSqlcQuest(r))
+	}
+	return out, nil
 }
 
 // Progress increments obj_progress by n for the given quest.
 func Progress(db *sql.DB, id string, n int) error {
-	_, err := db.Exec(`UPDATE quests SET obj_progress=obj_progress+? WHERE id=? AND status='active'`, n, id)
-	return err
+	queries := sqliteq.New(db)
+	return queries.ProgressQuest(context.Background(), sqliteq.ProgressQuestParams{
+		ObjProgress: int64(n),
+		ID:          id,
+	})
 }
 
 // Complete sets quest status to 'completed'.
 func Complete(db *sql.DB, id string) error {
-	_, err := db.Exec(`UPDATE quests SET status='completed' WHERE id=?`, id)
-	return err
+	queries := sqliteq.New(db)
+	return queries.CompleteQuest(context.Background(), id)
 }
 
 // Fail sets quest status to 'failed'.
 func Fail(db *sql.DB, id string) error {
-	_, err := db.Exec(`UPDATE quests SET status='failed' WHERE id=?`, id)
-	return err
+	queries := sqliteq.New(db)
+	return queries.FailQuest(context.Background(), id)
 }
 
 // Get fetches a single quest by ID.
 func Get(db *sql.DB, id string) (*Quest, error) {
-	row := db.QueryRow(
-		`SELECT id, title, description, status, obj_type, obj_target, obj_room,
-		        obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
-		        next_quest_id
-		 FROM quests WHERE id=?`, id,
-	)
-	q, err := scanQuest(row)
+	queries := sqliteq.New(db)
+	row, err := queries.GetQuest(context.Background(), id)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("quest %q not found", id)
 	}
-	return q, err
+	if err != nil {
+		return nil, err
+	}
+	q := fromSqlcQuest(row)
+	return &q, nil
 }
 
 // CheckKill finds active kill quests matching npcID, increments progress,
@@ -151,40 +183,32 @@ func CheckMine(db *sql.DB, resourceID string) ([]Quest, error) {
 
 // ActiveIDs returns a set of all active quest IDs.
 func ActiveIDs(db *sql.DB) (map[string]bool, error) {
-	rows, err := db.Query(`SELECT id FROM quests WHERE status='active'`)
+	queries := sqliteq.New(db)
+	idList, err := queries.ListActiveQuestIDs(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	ids := make(map[string]bool)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
+	ids := make(map[string]bool, len(idList))
+	for _, id := range idList {
 		ids[id] = true
 	}
-	return ids, rows.Err()
+	return ids, nil
 }
 
 // checkProgress is the shared implementation for Check* functions.
 func checkProgress(db *sql.DB, objType, target string) ([]Quest, error) {
-	rows, err := db.Query(
-		`SELECT id, title, description, status, obj_type, obj_target, obj_room,
-		        obj_count, obj_progress, reward_credits, reward_xp_skill, reward_xp_amount,
-		        reward_item_id, reward_item_name, reward_item_desc, giver_npc_id, accepted_at,
-		        next_quest_id
-		 FROM quests WHERE status='active' AND obj_type=? AND obj_target=?`,
-		objType, target,
-	)
+	queries := sqliteq.New(db)
+	rows, err := queries.ListActiveQuestsByTypeTarget(context.Background(), sqliteq.ListActiveQuestsByTypeTargetParams{
+		ObjType:   objType,
+		ObjTarget: target,
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	matching, err := scanQuests(rows)
-	if err != nil {
-		return nil, err
+	var matching []Quest
+	for _, r := range rows {
+		matching = append(matching, fromSqlcQuest(r))
 	}
 
 	var ready []Quest
@@ -198,52 +222,4 @@ func checkProgress(db *sql.DB, objType, target string) ([]Quest, error) {
 		}
 	}
 	return ready, nil
-}
-
-func scanQuests(rows *sql.Rows) ([]Quest, error) {
-	var quests []Quest
-	for rows.Next() {
-		q, err := scanQuestRow(rows)
-		if err != nil {
-			return nil, err
-		}
-		quests = append(quests, *q)
-	}
-	return quests, rows.Err()
-}
-
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
-func scanQuest(row *sql.Row) (*Quest, error) {
-	var q Quest
-	err := row.Scan(
-		&q.ID, &q.Title, &q.Description, &q.Status,
-		&q.ObjType, &q.ObjTarget, &q.ObjRoom,
-		&q.ObjCount, &q.ObjProgress,
-		&q.RewardCredits, &q.RewardXPSkill, &q.RewardXPAmount,
-		&q.RewardItemID, &q.RewardItemName, &q.RewardItemDesc,
-		&q.GiverNPCID, &q.AcceptedAt, &q.NextQuestID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &q, nil
-}
-
-func scanQuestRow(row rowScanner) (*Quest, error) {
-	var q Quest
-	err := row.Scan(
-		&q.ID, &q.Title, &q.Description, &q.Status,
-		&q.ObjType, &q.ObjTarget, &q.ObjRoom,
-		&q.ObjCount, &q.ObjProgress,
-		&q.RewardCredits, &q.RewardXPSkill, &q.RewardXPAmount,
-		&q.RewardItemID, &q.RewardItemName, &q.RewardItemDesc,
-		&q.GiverNPCID, &q.AcceptedAt, &q.NextQuestID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &q, nil
 }
