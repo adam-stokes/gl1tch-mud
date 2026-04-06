@@ -2,6 +2,7 @@
 package trading
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,21 +13,12 @@ import (
 
 // Reputation returns the player's reputation with a faction (0 if not found).
 func Reputation(gdb *gamedb.GameDB, faction string) int {
-	db := gdb.SQLiteDB()
-	var value int
-	db.QueryRow(`SELECT value FROM player_reputation WHERE faction=?`, faction).Scan(&value) //nolint:errcheck
-	return value
+	return gdb.GetReputation(context.Background(), faction)
 }
 
 // IncrementReputation adds 1 to a faction's reputation.
 func IncrementReputation(gdb *gamedb.GameDB, faction string) error {
-	db := gdb.SQLiteDB()
-	_, err := db.Exec(
-		`INSERT INTO player_reputation (faction, value) VALUES (?,1)
-		 ON CONFLICT(faction) DO UPDATE SET value=value+1`,
-		faction,
-	)
-	return err
+	return gdb.IncrementReputation(context.Background(), faction)
 }
 
 // parseFactionReq splits "faction:minRep" → (faction, minRep).
@@ -80,7 +72,7 @@ type ExecuteResult struct {
 // Execute performs a trade identified by tradeID with an NPC.
 // inventory is a map[itemID]bool of items the player carries.
 func Execute(gdb *gamedb.GameDB, npc *world.NPC, tradeID string, inventoryIDs []string) ExecuteResult {
-	db := gdb.SQLiteDB()
+	ctx := context.Background()
 
 	// Find trade
 	var trade *world.TradeOffer
@@ -130,7 +122,7 @@ func Execute(gdb *gamedb.GameDB, npc *world.NPC, tradeID string, inventoryIDs []
 	// Remove wanted items from DB
 	for _, want := range trade.Wants {
 		for i := 0; i < want.Count; i++ {
-			db.Exec(`DELETE FROM inventory WHERE item_id=?`, want.ID) //nolint:errcheck
+			gdb.RemoveOneItem(ctx, want.ID) //nolint:errcheck
 		}
 	}
 
@@ -144,10 +136,7 @@ func Execute(gdb *gamedb.GameDB, npc *world.NPC, tradeID string, inventoryIDs []
 		if desc == "" {
 			desc = fmt.Sprintf("received from %s", npc.Name)
 		}
-		db.Exec( //nolint:errcheck
-			`INSERT OR IGNORE INTO inventory (item_id, item_name, item_desc) VALUES (?,?,?)`,
-			offer.ID, name, desc,
-		)
+		gdb.AddItem(ctx, offer.ID, name, desc) //nolint:errcheck
 	}
 
 	// Increment faction reputation

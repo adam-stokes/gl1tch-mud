@@ -1,8 +1,8 @@
-// Package events manages world events backed by SQLite.
+// Package events manages world events backed by the database.
 package events
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -13,98 +13,31 @@ import (
 )
 
 // WorldEvent mirrors the world_events table.
-type WorldEvent struct {
-	ID              string
-	Type            string
-	Title           string
-	Description     string
-	TargetRoom      string
-	Faction         string
-	PayoutCredits   int
-	PayoutItemID    string
-	PayoutItemName  string
-	PayoutItemDesc  string
-	Status          string
-	ExpiresActions  int
-	CreatedActions  int
-	CreatedAt       int64
-}
+type WorldEvent = gamedb.WorldEvent
 
 // Active returns all events with status='active'.
 func Active(gdb *gamedb.GameDB) ([]WorldEvent, error) {
-	db := gdb.SQLiteDB()
-	rows, err := db.Query(
-		`SELECT id, type, title, description, target_room, faction,
-		        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
-		        status, expires_actions, created_actions, created_at
-		 FROM world_events WHERE status='active'`,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanEvents(rows)
+	return gdb.ListActiveEvents(context.Background())
 }
 
 // Get fetches a single world event by ID.
 func Get(gdb *gamedb.GameDB, id string) (*WorldEvent, error) {
-	db := gdb.SQLiteDB()
-	row := db.QueryRow(
-		`SELECT id, type, title, description, target_room, faction,
-		        payout_credits, payout_item_id, payout_item_name, payout_item_desc,
-		        status, expires_actions, created_actions, created_at
-		 FROM world_events WHERE id=?`, id,
-	)
-	var e WorldEvent
-	err := scanEvent(row, &e)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("event %q not found", id)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &e, nil
+	return gdb.GetEvent(context.Background(), id)
 }
 
 // Create inserts a new world event.
 func Create(gdb *gamedb.GameDB, e WorldEvent) error {
-	db := gdb.SQLiteDB()
-	if e.CreatedAt == 0 {
-		e.CreatedAt = time.Now().Unix()
-	}
-	_, err := db.Exec(
-		`INSERT OR REPLACE INTO world_events
-		 (id, type, title, description, target_room, faction,
-		  payout_credits, payout_item_id, payout_item_name, payout_item_desc,
-		  status, expires_actions, created_actions, created_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		e.ID, e.Type, e.Title, e.Description, e.TargetRoom, e.Faction,
-		e.PayoutCredits, e.PayoutItemID, e.PayoutItemName, e.PayoutItemDesc,
-		"active", e.ExpiresActions, e.CreatedActions, e.CreatedAt,
-	)
-	return err
+	return gdb.CreateEvent(context.Background(), e)
 }
 
 // Complete sets an event status to 'completed'.
 func Complete(gdb *gamedb.GameDB, id string) error {
-	db := gdb.SQLiteDB()
-	_, err := db.Exec(`UPDATE world_events SET status='completed' WHERE id=?`, id)
-	return err
+	return gdb.CompleteEvent(context.Background(), id)
 }
 
 // ExpireOld expires events whose lifetime has elapsed. Returns count of expired events.
 func ExpireOld(gdb *gamedb.GameDB, currentActions int) (int, error) {
-	db := gdb.SQLiteDB()
-	res, err := db.Exec(
-		`UPDATE world_events SET status='expired'
-		 WHERE status='active' AND (created_actions + expires_actions) <= ?`,
-		currentActions,
-	)
-	if err != nil {
-		return 0, err
-	}
-	n, _ := res.RowsAffected()
-	return int(n), nil
+	return gdb.ExpireOldEvents(context.Background(), currentActions)
 }
 
 // eventTypes lists the possible event types.
@@ -165,7 +98,7 @@ func SeedRandom(gdb *gamedb.GameDB, w *world.World) (*WorldEvent, error) {
 	id := fmt.Sprintf("event-%s-%d", evType, time.Now().UnixNano())
 	id = strings.ReplaceAll(id, "_", "-")
 
-	currentActions := actionCount(gdb)
+	currentActions := gdb.GetActionCount(context.Background())
 
 	e := WorldEvent{
 		ID:             id,
@@ -187,41 +120,4 @@ func SeedRandom(gdb *gamedb.GameDB, w *world.World) (*WorldEvent, error) {
 		return nil, err
 	}
 	return &e, nil
-}
-
-// actionCount reads the player's action count from player_actions.
-func actionCount(gdb *gamedb.GameDB) int {
-	db := gdb.SQLiteDB()
-	var c int
-	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&c) //nolint:errcheck
-	return c
-}
-
-func scanEvents(rows *sql.Rows) ([]WorldEvent, error) {
-	var events []WorldEvent
-	for rows.Next() {
-		var e WorldEvent
-		err := rows.Scan(
-			&e.ID, &e.Type, &e.Title, &e.Description, &e.TargetRoom, &e.Faction,
-			&e.PayoutCredits, &e.PayoutItemID, &e.PayoutItemName, &e.PayoutItemDesc,
-			&e.Status, &e.ExpiresActions, &e.CreatedActions, &e.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		events = append(events, e)
-	}
-	return events, rows.Err()
-}
-
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
-func scanEvent(row rowScanner, e *WorldEvent) error {
-	return row.Scan(
-		&e.ID, &e.Type, &e.Title, &e.Description, &e.TargetRoom, &e.Faction,
-		&e.PayoutCredits, &e.PayoutItemID, &e.PayoutItemName, &e.PayoutItemDesc,
-		&e.Status, &e.ExpiresActions, &e.CreatedActions, &e.CreatedAt,
-	)
 }

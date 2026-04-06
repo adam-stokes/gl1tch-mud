@@ -3,14 +3,12 @@ package base
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"strings"
 	"time"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -18,18 +16,12 @@ const baseRoomID = "dusthaven-4"
 
 // actionCount reads the player's action count from player_actions.
 func actionCount(gdb *gamedb.GameDB) int {
-	q := sqliteq.New(gdb.SQLiteDB())
-	c, err := q.GetActionCountBase(context.Background())
-	if err != nil || !c.Valid {
-		return 0
-	}
-	return int(c.Int64)
+	return gdb.GetActionCount(context.Background())
 }
 
 // DefenseScore sums the defense stats of all structures built in dusthaven-4.
 func DefenseScore(gdb *gamedb.GameDB, w *world.World) int {
-	q := sqliteq.New(gdb.SQLiteDB())
-	buildIDs, err := q.ListBuildIDsInRoom(context.Background(), baseRoomID)
+	buildIDs, err := gdb.ListBuildIDsInRoom(context.Background(), baseRoomID)
 	if err != nil {
 		return 0
 	}
@@ -51,34 +43,30 @@ func MaybeSpawnRaid(gdb *gamedb.GameDB) {
 		return
 	}
 
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
-	structCount, _ := q.CountBuildsInRoom(ctx, baseRoomID)
+	structCount, _ := gdb.CountBuildsInRoom(ctx, baseRoomID)
 	if structCount == 0 {
 		return
 	}
 
-	activeRaids, _ := q.CountActiveBaseRaids(ctx, baseRoomID)
+	activeRaids, _ := gdb.CountActiveBaseRaids(ctx, baseRoomID)
 	if activeRaids > 0 {
 		return
 	}
 
 	id := fmt.Sprintf("base-raid-%d", time.Now().UnixNano())
-	q.InsertWorldEvent(ctx, sqliteq.InsertWorldEventParams{ //nolint:errcheck
+	gdb.InsertWorldEvent(ctx, gamedb.WorldEventParams{ //nolint:errcheck
 		ID:             id,
 		Type:           "base-raid",
 		Title:          "Ash Raider Attack",
-		Description:    sql.NullString{String: "Ash Raiders are moving on your base.", Valid: true},
+		Description:    "Ash Raiders are moving on your base.",
 		TargetRoom:     baseRoomID,
-		Faction:        sql.NullString{String: "ash-raiders", Valid: true},
+		Faction:        "ash-raiders",
 		PayoutCredits:  0,
-		PayoutItemID:   sql.NullString{},
-		PayoutItemName: sql.NullString{},
-		PayoutItemDesc: sql.NullString{},
 		Status:         "active",
 		ExpiresActions: 30,
-		CreatedActions: int64(current),
+		CreatedActions: current,
 		CreatedAt:      time.Now().Unix(),
 	})
 }
@@ -87,14 +75,9 @@ func MaybeSpawnRaid(gdb *gamedb.GameDB) {
 // and returns a narrative report string. Returns empty string if no raids pending.
 func ResolvePendingRaids(gdb *gamedb.GameDB, w *world.World) string {
 	current := actionCount(gdb)
-
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
-	raidIDs, err := q.ListExpiredBaseRaids(ctx, sqliteq.ListExpiredBaseRaidsParams{
-		TargetRoom:     baseRoomID,
-		CreatedActions: int64(current),
-	})
+	raidIDs, err := gdb.ListExpiredBaseRaids(ctx, baseRoomID, current)
 	if err != nil || len(raidIDs) == 0 {
 		return ""
 	}
@@ -125,7 +108,7 @@ func ResolvePendingRaids(gdb *gamedb.GameDB, w *world.World) string {
 			}
 		}
 		reports = append(reports, report)
-		q.ResolveWorldEvent(ctx, id) //nolint:errcheck
+		gdb.ResolveWorldEvent(ctx, id) //nolint:errcheck
 	}
 
 	return strings.Join(reports, "\n\n")
@@ -134,13 +117,9 @@ func ResolvePendingRaids(gdb *gamedb.GameDB, w *world.World) string {
 // loseChestItems deletes up to max random items from the base chest and
 // returns the names of lost items.
 func loseChestItems(gdb *gamedb.GameDB, max int) []string {
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
-	items, err := q.ListRandomChestItems(ctx, sqliteq.ListRandomChestItemsParams{
-		RoomID: baseRoomID,
-		Limit:  int64(max),
-	})
+	items, err := gdb.ListRandomChestItems(ctx, baseRoomID, max)
 	if err != nil {
 		return nil
 	}
@@ -148,10 +127,7 @@ func loseChestItems(gdb *gamedb.GameDB, max int) []string {
 	var names []string
 	for _, item := range items {
 		names = append(names, item.ItemName)
-		q.DeleteChestItemBase(ctx, sqliteq.DeleteChestItemBaseParams{ //nolint:errcheck
-			RoomID: baseRoomID,
-			ItemID: item.ItemID,
-		})
+		gdb.DeleteChestItem(ctx, baseRoomID, item.ItemID) //nolint:errcheck
 	}
 	return names
 }

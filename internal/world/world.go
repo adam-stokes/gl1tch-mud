@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -613,7 +613,6 @@ func SeedCrystalShards(gdb *gamedb.GameDB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	shards := []struct{ id, biome string }{
 		{"meadow-shard", "meadow"},
@@ -623,10 +622,7 @@ func SeedCrystalShards(gdb *gamedb.GameDB, worldName string) error {
 		{"cave-shard", "caves"},
 	}
 	for _, s := range shards {
-		if err := q.SeedCrystalShard(ctx, sqliteq.SeedCrystalShardParams{
-			ShardID: s.id,
-			Biome:   s.biome,
-		}); err != nil {
+		if err := gdb.SeedCrystalShard(ctx, s.id, s.biome); err != nil {
 			return err
 		}
 	}
@@ -638,10 +634,9 @@ func SeedStartingItems(gdb *gamedb.GameDB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	// Check if starting items already seeded by probing for one specific item.
-	cnt, _ := q.CountStartingItem(ctx)
+	cnt, _ := gdb.CountStartingItem(ctx)
 	if cnt > 0 {
 		return nil
 	}
@@ -652,11 +647,7 @@ func SeedStartingItems(gdb *gamedb.GameDB, worldName string) error {
 		{"builders-map", "Builder's Map", "A hand-drawn map of Blockhaven."},
 	}
 	for _, it := range items {
-		q.InsertStartingItem(ctx, sqliteq.InsertStartingItemParams{ //nolint:errcheck
-			ItemID:   it.id,
-			ItemName: it.name,
-			ItemDesc: it.desc,
-		})
+		gdb.InsertStartingItem(ctx, it.id, it.name, it.desc) //nolint:errcheck
 	}
 	return nil
 }

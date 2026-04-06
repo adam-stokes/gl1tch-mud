@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -84,14 +83,7 @@ func Build(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) R
 	}
 
 	current := actionCount(gdb)
-	q := sqliteq.New(gdb.SQLiteDB())
-	q.InsertBuild(context.Background(), sqliteq.InsertBuildParams{ //nolint:errcheck
-		RoomID:   s.RoomID,
-		BuildID:  recipe.ID,
-		Name:     recipe.Name,
-		Desc:     recipe.Output.Desc,
-		PlacedAt: int64(current),
-	})
+	gdb.InsertBuild(context.Background(), s.RoomID, recipe.ID, recipe.Name, recipe.Output.Desc, current) //nolint:errcheck
 	bumpActions(gdb)
 
 	unlocks := buildUnlockMessage(recipe.ID)
@@ -120,8 +112,8 @@ func Stash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) R
 		return Result{Output: "stash <item-id> — store an item in the room's chest"}
 	}
 
-	q := sqliteq.New(gdb.SQLiteDB())
-	cnt, _ := q.CountChestInRoom(context.Background(), s.RoomID)
+	ctx := context.Background()
+	cnt, _ := gdb.CountChestInRoom(ctx, s.RoomID)
 	if cnt == 0 {
 		return Result{Output: "there is no chest here. build one first."}
 	}
@@ -142,26 +134,13 @@ func Stash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) R
 		return Result{Output: fmt.Sprintf("you don't have %q.", itemID)}
 	}
 
-	tx, err := gdb.SQLiteDB().Begin()
+	err = gdb.RunTx(ctx, func(txGDB *gamedb.GameDB) error {
+		if err := txGDB.DeleteInventoryItem(ctx, found.ID); err != nil {
+			return err
+		}
+		return txGDB.InsertChestItem(ctx, s.RoomID, found.ID, found.Name, found.Desc)
+	})
 	if err != nil {
-		return Result{Output: "could not begin transaction."}
-	}
-	defer tx.Rollback() //nolint:errcheck
-
-	tq := sqliteq.New(tx)
-	ctx := context.Background()
-	if err := tq.DeleteInventoryItem(ctx, found.ID); err != nil {
-		return Result{Output: fmt.Sprintf("could not remove %s.", found.Name)}
-	}
-	if err := tq.InsertChestItem(ctx, sqliteq.InsertChestItemParams{
-		RoomID:   s.RoomID,
-		ItemID:   found.ID,
-		ItemName: found.Name,
-		ItemDesc: found.Desc,
-	}); err != nil {
-		return Result{Output: "could not store item in chest."}
-	}
-	if err := tx.Commit(); err != nil {
 		return Result{Output: "could not store item in chest."}
 	}
 	return Result{Output: fmt.Sprintf("you store %s in the chest.", found.Name)}
@@ -169,15 +148,14 @@ func Stash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) R
 
 // Unstash retrieves an item from the chest in the current room.
 func Unstash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
-	cnt, _ := q.CountChestInRoom(ctx, s.RoomID)
+	cnt, _ := gdb.CountChestInRoom(ctx, s.RoomID)
 	if cnt == 0 {
 		return Result{Output: "there is no chest here."}
 	}
 
 	if len(args) == 0 {
-		items, err := q.ListChestItems(ctx, s.RoomID)
+		items, err := gdb.ListChestItems(ctx, s.RoomID)
 		if err != nil || len(items) == 0 {
 			return Result{Output: "the chest is empty."}
 		}
@@ -190,35 +168,18 @@ func Unstash(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string)
 	}
 
 	itemID := strings.ToLower(args[0])
-	chestItem, err := q.GetChestItem(ctx, sqliteq.GetChestItemParams{
-		RoomID: s.RoomID,
-		ItemID: itemID,
-	})
+	chestItem, err := gdb.GetChestItem(ctx, s.RoomID, itemID)
 	if err != nil {
 		return Result{Output: fmt.Sprintf("no %q in the chest.", itemID)}
 	}
 
-	tx, err := gdb.SQLiteDB().Begin()
+	err = gdb.RunTx(ctx, func(txGDB *gamedb.GameDB) error {
+		if err := txGDB.DeleteChestItemByRoomAndID(ctx, s.RoomID, itemID); err != nil {
+			return err
+		}
+		return txGDB.InsertInventoryItem(ctx, itemID, chestItem.ItemName, chestItem.ItemDesc)
+	})
 	if err != nil {
-		return Result{Output: "could not begin transaction."}
-	}
-	defer tx.Rollback() //nolint:errcheck
-
-	tq := sqliteq.New(tx)
-	if err := tq.DeleteChestItem(ctx, sqliteq.DeleteChestItemParams{
-		RoomID: s.RoomID,
-		ItemID: itemID,
-	}); err != nil {
-		return Result{Output: "could not retrieve item."}
-	}
-	if err := tq.InsertInventoryItem(ctx, sqliteq.InsertInventoryItemParams{
-		ItemID:   itemID,
-		ItemName: chestItem.ItemName,
-		ItemDesc: chestItem.ItemDesc,
-	}); err != nil {
-		return Result{Output: "could not add item to inventory."}
-	}
-	if err := tx.Commit(); err != nil {
 		return Result{Output: "could not retrieve item."}
 	}
 	return Result{Output: fmt.Sprintf("you take %s from the chest.", chestItem.ItemName)}

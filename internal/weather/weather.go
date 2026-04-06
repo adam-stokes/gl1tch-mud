@@ -8,7 +8,6 @@ import (
 	"math/rand"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // TickInterval is the number of player actions between possible weather changes.
@@ -17,31 +16,26 @@ const TickInterval = 50
 // Current returns the current weather condition for biome.
 // Returns "clear" if no record exists.
 func Current(gdb *gamedb.GameDB, biome string) (string, error) {
-	q := sqliteq.New(gdb.SQLiteDB())
-	cond, err := q.GetWeatherCondition(context.Background(), biome)
+	cond, err := gdb.GetWeatherCondition(context.Background(), biome)
 	if err == sql.ErrNoRows {
 		return "clear", nil
 	}
-	if err != nil {
-		return "clear", err
-	}
-	return cond, nil
+	return cond, err
 }
 
 // Tick checks whether weather should change for biome (if currentAction >= expires_action)
 // and if so rolls a new condition from possible. Returns the current (possibly new) condition.
 // When err is non-nil the returned condition string was not persisted and should be discarded.
 func Tick(gdb *gamedb.GameDB, biome string, currentAction int, possible []string) (string, error) {
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
-	row, err := q.GetWeatherState(ctx, biome)
+	ws, err := gdb.GetWeatherState(ctx, biome)
 	if err != nil && err != sql.ErrNoRows {
 		return "clear", err
 	}
 
-	cond := row.Condition
-	expires := int(row.ExpiresAction)
+	cond := ws.Condition
+	expires := ws.ExpiresAction
 
 	if err == sql.ErrNoRows || currentAction >= expires {
 		if len(possible) == 0 {
@@ -49,11 +43,7 @@ func Tick(gdb *gamedb.GameDB, biome string, currentAction int, possible []string
 		}
 		cond = possible[rand.Intn(len(possible))]
 		newExpires := currentAction + TickInterval
-		err = q.UpsertWeatherState(ctx, sqliteq.UpsertWeatherStateParams{
-			Biome:         biome,
-			Condition:     cond,
-			ExpiresAction: int64(newExpires),
-		})
+		err = gdb.UpsertWeatherState(ctx, biome, cond, newExpires)
 		if err != nil {
 			return cond, err
 		}

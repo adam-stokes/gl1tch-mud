@@ -3,14 +3,12 @@ package crafting
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
 
@@ -59,12 +57,11 @@ func Craft(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipeID string
 
 // craftIngredient is the existing ingredient-list crafting path, unchanged in behaviour.
 func craftIngredient(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int) Result {
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	// Blueprint/unlock check
 	if len(recipe.TierThresholds) > 0 {
-		count, _ := q.CountUnlockedRecipe(ctx, recipe.ID)
+		count, _ := gdb.CountUnlockedRecipe(ctx, recipe.ID)
 		if count == 0 {
 			return Result{Message: "You need a blueprint to craft this."}
 		}
@@ -108,7 +105,7 @@ func craftIngredient(gdb *gamedb.GameDB, w *world.World, room *world.Room, recip
 	// Consume ingredients
 	for _, ing := range recipe.Ingredients {
 		for i := 0; i < ing.Count; i++ {
-			q.DeleteOneInventoryItem(ctx, ing.ID) //nolint:errcheck
+			gdb.RemoveOneItem(ctx, ing.ID) //nolint:errcheck
 		}
 	}
 
@@ -128,11 +125,7 @@ func craftIngredient(gdb *gamedb.GameDB, w *world.World, room *world.Room, recip
 		}
 	}
 
-	q.InsertInventoryItemCraft(ctx, sqliteq.InsertInventoryItemCraftParams{ //nolint:errcheck
-		ItemID:   out.ID,
-		ItemName: out.Name,
-		ItemDesc: out.Desc,
-	})
+	gdb.InsertInventoryItemCraft(ctx, out.ID, out.Name, out.Desc) //nolint:errcheck
 
 	return Result{
 		OK:          true,
@@ -144,7 +137,6 @@ func craftIngredient(gdb *gamedb.GameDB, w *world.World, room *world.Room, recip
 
 // craftAssemble is the slot-based assembly path.
 func craftAssemble(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipe *world.CraftingRecipe, inventoryIDs []string, hackingSkill int, slots map[string]string) Result {
-	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 
 	// Skill gate
@@ -197,7 +189,7 @@ func craftAssemble(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipe 
 
 	// Consume all slot items from inventory
 	for _, itemID := range slots {
-		q.DeleteOneInventoryItem(ctx, itemID) //nolint:errcheck
+		gdb.RemoveOneItem(ctx, itemID) //nolint:errcheck
 	}
 
 	// Build output: start from base output, accumulate stats from slot item StatMods
@@ -219,11 +211,7 @@ func craftAssemble(gdb *gamedb.GameDB, w *world.World, room *world.Room, recipe 
 		}
 	}
 
-	q.InsertInventoryItemCraft(ctx, sqliteq.InsertInventoryItemCraftParams{ //nolint:errcheck
-		ItemID:   out.ID,
-		ItemName: out.Name,
-		ItemDesc: out.Desc,
-	})
+	gdb.InsertInventoryItemCraft(ctx, out.ID, out.Name, out.Desc) //nolint:errcheck
 
 	return Result{
 		OK:          true,
@@ -258,29 +246,23 @@ func hasTag(tags []string, target string) bool {
 
 // UnlockRecipe records that the given recipe has been unlocked via a blueprint.
 func UnlockRecipe(gdb *gamedb.GameDB, recipeID string) error {
-	q := sqliteq.New(gdb.SQLiteDB())
-	return q.UnlockRecipe(context.Background(), sqliteq.UnlockRecipeParams{
-		RecipeID:   recipeID,
-		UnlockedAt: sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
-	})
+	return gdb.UnlockRecipe(context.Background(), recipeID)
 }
 
 // IsUnlocked reports whether the given recipe has been unlocked.
 func IsUnlocked(gdb *gamedb.GameDB, recipeID string) (bool, error) {
-	q := sqliteq.New(gdb.SQLiteDB())
-	count, err := q.IsRecipeUnlocked(context.Background(), recipeID)
-	return count > 0, err
+	return gdb.IsRecipeUnlocked(context.Background(), recipeID)
 }
 
 // SetPlayerFlag sets a boolean flag in the player_flags table.
 func SetPlayerFlag(gdb *gamedb.GameDB, flag string) error {
-	q := sqliteq.New(gdb.SQLiteDB())
-	return q.SetPlayerFlag(context.Background(), flag)
+	return gdb.SetPlayerFlag(context.Background(), flag)
 }
 
 // IsPlayerFlagSet returns true if the flag exists in player_flags.
 func IsPlayerFlagSet(gdb *gamedb.GameDB, flag string) bool {
-	q := sqliteq.New(gdb.SQLiteDB())
-	count, _ := q.CountPlayerFlag(context.Background(), flag)
-	return count > 0
+	return gdb.IsPlayerFlagSet(context.Background(), flag)
 }
+
+// ensure time is used (for recipe unlock timestamp)
+var _ = time.Now

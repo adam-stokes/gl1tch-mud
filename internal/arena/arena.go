@@ -11,7 +11,6 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
 )
@@ -59,19 +58,15 @@ func StartTDM(gdb *gamedb.GameDB) error {
 	enemies := makeTDMEnemies()
 	enemyJSON, _ := json.Marshal(enemies)
 	id := fmt.Sprintf("arena-%d", time.Now().UnixNano())
-	q := sqliteq.New(gdb.SQLiteDB())
-	return q.InsertArenaSession(context.Background(), sqliteq.InsertArenaSessionParams{
-		ID:             id,
-		GameType:       "tdm",
-		Phase:          "fight",
-		Wave:           0,
-		EnemiesJson:    string(enemyJSON),
-		RewardCredits:  200,
-		RewardItemID:   "",
-		RewardItemName: "",
-		RewardItemDesc: "",
-		Status:         "active",
-		StartedAt:      time.Now().Unix(),
+	return gdb.InsertArenaSession(context.Background(), gamedb.ArenaMatch{
+		ID:            id,
+		GameType:      "tdm",
+		Phase:         "fight",
+		Wave:          0,
+		EnemiesJSON:   string(enemyJSON),
+		RewardCredits: 200,
+		Status:        "active",
+		StartedAt:     time.Now().Unix(),
 	})
 }
 
@@ -83,13 +78,12 @@ func StartTowerDefense(gdb *gamedb.GameDB, w *world.World) error {
 	enemies = applyTurretDamage(enemies, defScore)
 	enemyJSON, _ := json.Marshal(enemies)
 	id := fmt.Sprintf("arena-%d", time.Now().UnixNano())
-	q := sqliteq.New(gdb.SQLiteDB())
-	return q.InsertArenaSession(context.Background(), sqliteq.InsertArenaSessionParams{
+	return gdb.InsertArenaSession(context.Background(), gamedb.ArenaMatch{
 		ID:             id,
 		GameType:       "tower-defense",
 		Phase:          "wave",
 		Wave:           0,
-		EnemiesJson:    string(enemyJSON),
+		EnemiesJSON:    string(enemyJSON),
 		RewardCredits:  300,
 		RewardItemID:   "pre-war-circuitry",
 		RewardItemName: "Pre-War Circuitry",
@@ -101,23 +95,22 @@ func StartTowerDefense(gdb *gamedb.GameDB, w *world.World) error {
 
 // GetActive returns the current active match, or nil if none exists.
 func GetActive(gdb *gamedb.GameDB) *Match {
-	q := sqliteq.New(gdb.SQLiteDB())
-	row, err := q.GetActiveArenaSession(context.Background())
-	if err != nil {
+	am := gdb.GetActiveArena(context.Background())
+	if am == nil {
 		return nil
 	}
 	var m Match
-	m.ID = row.ID
-	m.GameType = row.GameType
-	m.Phase = row.Phase
-	m.Wave = int(row.Wave)
-	m.RewardCredits = int(row.RewardCredits)
-	m.RewardItemID = row.RewardItemID
-	m.RewardItemName = row.RewardItemName
-	m.RewardItemDesc = row.RewardItemDesc
-	m.Status = row.Status
-	m.StartedAt = row.StartedAt
-	json.Unmarshal([]byte(row.EnemiesJson), &m.Enemies) //nolint:errcheck
+	m.ID = am.ID
+	m.GameType = am.GameType
+	m.Phase = am.Phase
+	m.Wave = am.Wave
+	m.RewardCredits = am.RewardCredits
+	m.RewardItemID = am.RewardItemID
+	m.RewardItemName = am.RewardItemName
+	m.RewardItemDesc = am.RewardItemDesc
+	m.Status = am.Status
+	m.StartedAt = am.StartedAt
+	json.Unmarshal([]byte(am.EnemiesJSON), &m.Enemies) //nolint:errcheck
 	return &m
 }
 
@@ -137,8 +130,7 @@ func ProcessAttack(gdb *gamedb.GameDB, w *world.World, s *player.State) AttackRe
 
 // Quit forfeits the active match and marks it lost.
 func Quit(gdb *gamedb.GameDB) string {
-	q := sqliteq.New(gdb.SQLiteDB())
-	q.QuitArenaSession(context.Background()) //nolint:errcheck
+	gdb.QuitArenaSession(context.Background())
 	return "you forfeit the match."
 }
 
@@ -215,13 +207,18 @@ func firstAliveIdx(enemies []Enemy) int {
 
 func saveMatch(gdb *gamedb.GameDB, m *Match) {
 	enemyJSON, _ := json.Marshal(m.Enemies)
-	q := sqliteq.New(gdb.SQLiteDB())
-	q.UpdateArenaSession(context.Background(), sqliteq.UpdateArenaSessionParams{ //nolint:errcheck
-		Phase:       m.Phase,
-		Wave:        int64(m.Wave),
-		EnemiesJson: string(enemyJSON),
-		Status:      m.Status,
-		ID:          m.ID,
+	gdb.UpdateArenaSession(context.Background(), gamedb.ArenaMatch{
+		ID:             m.ID,
+		GameType:       m.GameType,
+		Phase:          m.Phase,
+		Wave:           m.Wave,
+		EnemiesJSON:    string(enemyJSON),
+		RewardCredits:  m.RewardCredits,
+		RewardItemID:   m.RewardItemID,
+		RewardItemName: m.RewardItemName,
+		RewardItemDesc: m.RewardItemDesc,
+		Status:         m.Status,
+		StartedAt:      m.StartedAt,
 	})
 }
 

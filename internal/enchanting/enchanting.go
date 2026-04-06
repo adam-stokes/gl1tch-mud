@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // Enchant is a record of an enchantment applied to an item.
@@ -17,50 +16,34 @@ type Enchant struct {
 
 // Apply adds an enchantment to an item (or upgrades level if already present).
 func Apply(gdb *gamedb.GameDB, itemID, enchantID string, level, appliedAt int) error {
-	q := sqliteq.New(gdb.SQLiteDB())
-	return q.ApplyEnchant(context.Background(), sqliteq.ApplyEnchantParams{
-		ItemID:    itemID,
-		EnchantID: enchantID,
-		Level:     int64(level),
-		AppliedAt: int64(appliedAt),
-	})
+	return gdb.ApplyEnchant(context.Background(), itemID, enchantID, level, appliedAt)
 }
 
 // List returns all enchantments on an item.
 func List(gdb *gamedb.GameDB, itemID string) ([]Enchant, error) {
-	q := sqliteq.New(gdb.SQLiteDB())
-	rows, err := q.ListEnchants(context.Background(), itemID)
+	records, err := gdb.ListEnchants(context.Background(), itemID)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Enchant, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, Enchant{
+	out := make([]Enchant, len(records))
+	for i, r := range records {
+		out[i] = Enchant{
 			ItemID:    r.ItemID,
 			EnchantID: r.EnchantID,
-			Level:     int(r.Level),
-		})
+			Level:     r.Level,
+		}
 	}
 	return out, nil
 }
 
 // AddXP adds enchanting experience points and recalculates level (100 XP per level, cap 30).
 func AddXP(gdb *gamedb.GameDB, amount int) error {
-	q := sqliteq.New(gdb.SQLiteDB())
-	return q.AddEnchantingXP(context.Background(), sqliteq.AddEnchantingXPParams{
-		Xp:   int64(amount),
-		Xp_2: int64(amount),
-	})
+	return gdb.AddEnchantingXP(context.Background(), amount)
 }
 
 // XPState returns current enchanting XP and level.
 func XPState(gdb *gamedb.GameDB) (xp, level int, err error) {
-	q := sqliteq.New(gdb.SQLiteDB())
-	row, err := q.GetEnchantingXPState(context.Background())
-	if err != nil {
-		return 0, 0, err
-	}
-	return int(row.Xp), int(row.Level), nil
+	return gdb.GetEnchantingXPState(context.Background())
 }
 
 // AttackBonus returns the attack bonus granted by an enchantment at a given level.

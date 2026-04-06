@@ -2,11 +2,10 @@
 package espionage
 
 import (
-	"fmt"
+	"context"
 	"math/rand"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -15,31 +14,19 @@ import (
 // StealthState holds the player's session-scoped stealth information.
 // The values are read/written from the player_stealth table.
 type StealthState struct {
-	Level   int
+	Level    int
 	Disguise string
 }
 
 // LoadStealth reads stealth state from DB; defaults to level=50, disguise="none".
 func LoadStealth(gdb *gamedb.GameDB) StealthState {
-	db := gdb.SQLiteDB()
-	var s StealthState
-	err := db.QueryRow(`SELECT level, disguise FROM player_stealth WHERE id=1`).
-		Scan(&s.Level, &s.Disguise)
-	if err != nil {
-		return StealthState{Level: 50, Disguise: "none"}
-	}
-	return s
+	s := gdb.LoadStealth(context.Background())
+	return StealthState{Level: s.Level, Disguise: s.Disguise}
 }
 
 // SaveStealth persists stealth state to DB.
 func SaveStealth(gdb *gamedb.GameDB, s StealthState) error {
-	db := gdb.SQLiteDB()
-	_, err := db.Exec(
-		`INSERT INTO player_stealth (id, level, disguise) VALUES (1, ?, ?)
-		 ON CONFLICT(id) DO UPDATE SET level=excluded.level, disguise=excluded.disguise`,
-		s.Level, s.Disguise,
-	)
-	return err
+	return gdb.SaveStealth(context.Background(), gamedb.StealthState{Level: s.Level, Disguise: s.Disguise})
 }
 
 // Hide attempts to raise stealth by a random amount between 5 and 15 (capped at 100).
@@ -66,7 +53,7 @@ func Disguise(gdb *gamedb.GameDB, w *world.World, itemID string, inventoryIDs []
 		}
 	}
 	if !hasItem {
-		return LoadStealth(gdb), false, fmt.Sprintf("you don't have %q.", itemID)
+		return LoadStealth(gdb), false, "you don't have \"" + itemID + "\"."
 	}
 
 	// Check item is tagged as_disguise in any room
@@ -80,9 +67,7 @@ func Disguise(gdb *gamedb.GameDB, w *world.World, itemID string, inventoryIDs []
 		}
 	}
 	// Also check if the item is in the world's crafting output (disguise flag)
-	// For now, only check room items as per spec.
 	if !isDisguise {
-		// Check world items by inspecting all rooms and recipe outputs
 		for _, recipe := range w.CraftingRecipes {
 			if recipe.Output.ID == itemID && recipe.Output.IsDisguise {
 				isDisguise = true
@@ -92,23 +77,23 @@ func Disguise(gdb *gamedb.GameDB, w *world.World, itemID string, inventoryIDs []
 	}
 
 	if !isDisguise {
-		return LoadStealth(gdb), false, fmt.Sprintf("%q is not a disguise item.", itemID)
+		return LoadStealth(gdb), false, "\"" + itemID + "\" is not a disguise item."
 	}
 
 	s := LoadStealth(gdb)
 	s.Disguise = itemID
 	SaveStealth(gdb, s) //nolint:errcheck
-	return s, true, fmt.Sprintf("you put on %s. you look the part.", itemID)
+	return s, true, "you put on " + itemID + ". you look the part."
 }
 
 // PlayerContext holds the info needed to evaluate dialogue triggers.
 type PlayerContext struct {
-	InventoryIDs        []string
-	Reputation          map[string]int // faction → rep value
-	Skills              map[string]int // skill → level
-	Disguise            string
-	AllShardsCollected  bool            // true when all crystal_shards rows have collected=1
-	ActiveQuestIDs      map[string]bool // set of quest IDs currently active for the player
+	InventoryIDs       []string
+	Reputation         map[string]int // faction → rep value
+	Skills             map[string]int // skill → level
+	Disguise           string
+	AllShardsCollected bool            // true when all crystal_shards rows have collected=1
+	ActiveQuestIDs     map[string]bool // set of quest IDs currently active for the player
 }
 
 // EvalDialogue evaluates NPC dialogue triggers in order and returns
@@ -175,11 +160,5 @@ func matchTrigger(trigger string, ctx PlayerContext) bool {
 
 // RecordMemory records an NPC interaction in the npc_memory table.
 func RecordMemory(gdb *gamedb.GameDB, npcID, action string) error {
-	db := gdb.SQLiteDB()
-	_, err := db.Exec(
-		`INSERT INTO npc_memory (npc_id, action, ts) VALUES (?,?,?)
-		 ON CONFLICT(npc_id, action) DO UPDATE SET ts=excluded.ts`,
-		npcID, action, time.Now().Unix(),
-	)
-	return err
+	return gdb.RecordNPCMemory(context.Background(), npcID, action)
 }

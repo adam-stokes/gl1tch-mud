@@ -75,10 +75,7 @@ func oppositeDirection(dir string) string {
 
 // cachedRoom looks up a generated room from the cache. Returns nil if not found.
 func (g *Generator) cachedRoom(hash string) *world.Room {
-	var blob string
-	err := g.gdb.SQLiteDB().QueryRow(
-		`SELECT yaml_blob FROM generated_content WHERE prompt_hash=? AND type='room'`, hash,
-	).Scan(&blob)
+	blob, err := g.gdb.GetCachedContent(context.Background(), hash)
 	if err != nil {
 		return nil
 	}
@@ -95,11 +92,7 @@ func (g *Generator) persistRoom(hash string, r *world.Room) error {
 	if err != nil {
 		return err
 	}
-	_, err = g.gdb.SQLiteDB().Exec(
-		`INSERT OR IGNORE INTO generated_content (prompt_hash, type, yaml_blob, created_at) VALUES (?,?,?,?)`,
-		hash, "room", string(blob), time.Now().Unix(),
-	)
-	return err
+	return g.gdb.PersistContent(context.Background(), hash, "room", string(blob), time.Now().Unix())
 }
 
 // ollamaRequest is the JSON body sent to the Ollama API.

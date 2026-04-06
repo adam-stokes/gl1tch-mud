@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 )
 
 // State holds the player's current state.
@@ -196,11 +195,3 @@ func LoadDefense(gdb *gamedb.GameDB, s *State) {
 	s.Defense = rec.Defense
 }
 
-// ─── Escape-hatch helpers for packages that still need sqliteq directly ───
-
-// SQLiteQueries returns a sqliteq.Queries for the underlying SQLite DB.
-// This is an escape hatch for packages that haven't been updated yet.
-// Returns nil if the GameDB is backed by Postgres.
-func SQLiteQueries(gdb *gamedb.GameDB) *sqliteq.Queries {
-	return gdb.SQLite()
-}

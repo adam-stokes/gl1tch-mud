@@ -2,7 +2,7 @@
 package locking
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"math/rand"
 
@@ -13,27 +13,12 @@ import (
 // IsLocked reports whether the lock with the given ID is currently locked.
 // A lock is locked by default (no DB record = locked).
 func IsLocked(gdb *gamedb.GameDB, lockID string) bool {
-	db := gdb.SQLiteDB()
-	var unlocked int
-	err := db.QueryRow(`SELECT unlocked FROM lock_state WHERE lock_id=?`, lockID).Scan(&unlocked)
-	if err == sql.ErrNoRows {
-		return true // default: locked
-	}
-	if err != nil {
-		return true
-	}
-	return unlocked == 0
+	return gdb.IsLocked(context.Background(), lockID)
 }
 
 // Unlock sets a lock to the unlocked state unconditionally.
 func Unlock(gdb *gamedb.GameDB, lockID string) error {
-	db := gdb.SQLiteDB()
-	_, err := db.Exec(
-		`INSERT INTO lock_state (lock_id, unlocked) VALUES (?,1)
-		 ON CONFLICT(lock_id) DO UPDATE SET unlocked=1`,
-		lockID,
-	)
-	return err
+	return gdb.UnlockLock(context.Background(), lockID)
 }
 
 // PickResult is the outcome of a pick attempt.

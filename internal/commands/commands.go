@@ -3,7 +3,6 @@ package commands
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
-	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"github.com/adam-stokes/gl1tch-mud/internal/espionage"
 	"github.com/adam-stokes/gl1tch-mud/internal/events"
 	"github.com/adam-stokes/gl1tch-mud/internal/factions"
@@ -1044,10 +1042,9 @@ func Talk(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 	rep := buildReputationMap(gdb)
 	sk := buildSkillMap(gdb)
 
-	gq := sqliteq.New(gdb.SQLiteDB())
 	gctx := context.Background()
-	shardCount64, _ := gq.CountCollectedShards(gctx)
-	totalShards64, _ := gq.CountTotalShards(gctx)
+	shardCount64, _ := gdb.CountCollectedShards(gctx)
+	totalShards64, _ := gdb.CountTotalShards(gctx)
 	shardCount := int(shardCount64)
 	totalShards := int(totalShards64)
 
@@ -1303,14 +1300,13 @@ func Blueprint(gdb *gamedb.GameDB, s *player.State, w *world.World, args []strin
 
 // buildReputationMap returns a map of all faction reputations.
 func buildReputationMap(gdb *gamedb.GameDB) map[string]int {
-	q := sqliteq.New(gdb.SQLiteDB())
-	rows, err := q.ListReputations(context.Background())
+	records, err := gdb.ListReputations(context.Background())
 	if err != nil {
 		return map[string]int{}
 	}
-	rep := make(map[string]int, len(rows))
-	for _, r := range rows {
-		rep[r.Faction] = int(r.Value)
+	rep := make(map[string]int, len(records))
+	for _, r := range records {
+		rep[r.Faction] = r.Value
 	}
 	return rep
 }
@@ -1330,12 +1326,7 @@ func buildSkillMap(gdb *gamedb.GameDB) map[string]int {
 
 // actionCount returns the player's current action count.
 func actionCount(gdb *gamedb.GameDB) int {
-	q := sqliteq.New(gdb.SQLiteDB())
-	c, err := q.GetActionCountGeneral(context.Background())
-	if err != nil || !c.Valid {
-		return 0
-	}
-	return int(c.Int64)
+	return gdb.GetActionCount(context.Background())
 }
 
 // Credits shows the player's current credit balance.
@@ -1661,8 +1652,7 @@ func Recruit(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string)
 	}
 
 	// Check reputation with any faction (any rep >= 3)
-	rq := sqliteq.New(gdb.SQLiteDB())
-	highRepFactions, err := rq.ListHighRepFactions(context.Background())
+	highRepFactions, err := gdb.ListHighRepFactions(context.Background())
 	if err != nil {
 		return Result{Output: "error checking reputation."}
 	}
@@ -1683,10 +1673,7 @@ func Recruit(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string)
 
 	// Station them at hideout if set
 	if f.HideoutRoomID != "" {
-		rq.UpdateFactionMemberStation(context.Background(), sqliteq.UpdateFactionMemberStationParams{ //nolint:errcheck
-			StationedRoom: sql.NullString{String: f.HideoutRoomID, Valid: true},
-			NpcID:         npc.ID,
-		})
+		gdb.UpdateFactionMemberStation(context.Background(), npc.ID, f.HideoutRoomID) //nolint:errcheck
 	}
 
 	return Result{
@@ -1934,9 +1921,8 @@ func Equipment(gdb *gamedb.GameDB, s *player.State, w *world.World, args []strin
 func BaseInfo(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	const baseRoom = "dusthaven-4"
 
-	bq := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
-	builds, err := bq.ListBuildsInRoom(ctx, baseRoom)
+	builds, err := gdb.ListBuildsInRoom(ctx, baseRoom)
 	if err != nil || len(builds) == 0 {
 		return Result{Output: "BASE STATUS — The Base Plots\nNo structures built. Head to dusthaven-4 and use 'build' to start."}
 	}
@@ -1956,7 +1942,7 @@ func BaseInfo(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string
 	sb.WriteString(strings.Repeat("─", 35) + "\n")
 	fmt.Fprintf(&sb, "  DEFENSE SCORE: %d / 11 max\n", defense)
 
-	chestCount, _ := bq.CountChestItemsInRoom(ctx, baseRoom)
+	chestCount, _ := gdb.CountChestItemsInRoom(ctx, baseRoom)
 	fmt.Fprintf(&sb, "  CHEST ITEMS: %d\n", chestCount)
 
 	current := actionCount(gdb)
