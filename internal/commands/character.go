@@ -22,7 +22,13 @@ import (
 //	flag "tutorial_complete" — mentor handoff finished (set elsewhere)
 //
 // CharacterWizardActive returns true while the player has not finished creation.
+// Pre-existing players (those who logged in before the wizard existed) won't
+// be in wakeup-camp, so we skip the wizard for them entirely — they keep their
+// progress and can earn class verbs the long way via skill levels.
 func CharacterWizardActive(gdb *gamedb.GameDB, s *player.State) bool {
+	if s.RoomID != "wakeup-camp" {
+		return false
+	}
 	if s.Class == "" {
 		return true
 	}
