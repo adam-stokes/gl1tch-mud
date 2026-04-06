@@ -233,4 +233,18 @@ CREATE TABLE IF NOT EXISTS equipped_armor (
     item_name TEXT    NOT NULL,
     defense   INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS arena_sessions (
+    id               TEXT    PRIMARY KEY,
+    game_type        TEXT    NOT NULL,
+    phase            TEXT    NOT NULL DEFAULT 'fight',
+    wave             INTEGER NOT NULL DEFAULT 0,
+    enemies_json     TEXT    NOT NULL DEFAULT '[]',
+    reward_credits   INTEGER NOT NULL DEFAULT 0,
+    reward_item_id   TEXT    NOT NULL DEFAULT '',
+    reward_item_name TEXT    NOT NULL DEFAULT '',
+    reward_item_desc TEXT    NOT NULL DEFAULT '',
+    status           TEXT    NOT NULL DEFAULT 'active',
+    started_at       INTEGER NOT NULL DEFAULT 0
+);
 `

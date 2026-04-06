@@ -33,6 +33,7 @@ func TestSchemaMigration(t *testing.T) {
 		"player_stealth",
 		"generated_content",
 		"equipped_armor",
+		"arena_sessions",
 	}
 
 	for _, table := range tables {
