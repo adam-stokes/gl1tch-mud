@@ -90,6 +90,9 @@ var Registry = map[string]HandlerFunc{
 	"inv":       Inventory,
 	"help":      Help,
 	"?":         Help,
+	"start":     Start,
+	"restart":   Start,
+	"home":      Start,
 	// New commands
 	"skills":   Skills,
 	"hack":     Hack,
@@ -650,10 +653,43 @@ func Help(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 	if len(args) > 0 {
 		return helpDetail(strings.ToLower(args[0]))
 	}
-	return Result{Output: `═══ HELP ═══
+
+	// Build a contextual getting-started block based on the player's state.
+	ctx := context.Background()
+	activeQuests, _ := quests.Active(gdb)
+	inv, _ := player.Inventory(gdb)
+	visitedStart := gdb.HasVisited(ctx, w.StartRoom)
+
+	var hints []string
+	if !visitedStart || s.RoomID != w.StartRoom {
+		hints = append(hints, fmt.Sprintf("  • lost? type 'start' to return to %s.", w.StartRoom))
+	}
+	if len(activeQuests) == 0 {
+		// Find a quest-giver NPC in the current room
+		if room := w.Room(s.RoomID); room != nil {
+			for _, npc := range room.NPCs {
+				hints = append(hints, fmt.Sprintf("  • talk to %s — they may have work for you. ('talk %s')", npc.Name, npc.ID))
+				break
+			}
+		}
+		if len(hints) < 2 {
+			hints = append(hints, "  • type 'start' to return to the starting area and find a quest-giver.")
+		}
+	} else {
+		q := activeQuests[0]
+		hints = append(hints, fmt.Sprintf("  • active quest: %s (%d/%d) — type 'quests' for details.", q.Title, q.ObjProgress, q.ObjCount))
+	}
+	if len(inv) == 0 {
+		hints = append(hints, "  • inventory is empty — try 'take <item>' or 'gather' / 'mine' for resources.")
+	}
+
+	getStarted := "═══ GETTING STARTED ═══\n" + strings.Join(hints, "\n") + "\n\n"
+
+	return Result{Output: getStarted + `═══ COMMANDS ═══
 NAVIGATION:
   look                   - describe current room
   go <dir>               - move (north/south/east/west, or n/s/e/w)
+  start                  - teleport back to the starting area
   explore <dir>          - explore an unmapped direction
 
 INTERACTION:
@@ -692,6 +728,17 @@ SYSTEM:
 
 Type 'help <command>' for details on any specific command.
 ═══════════`}
+}
+
+// Start teleports the player back to the world's starting room.
+func Start(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	if s.RoomID == w.StartRoom {
+		return Result{Output: fmt.Sprintf("you are already at the starting area (%s).", w.StartRoom)}
+	}
+	return Result{
+		Output:   fmt.Sprintf("* you make your way back to the starting area... *"),
+		MoveRoom: w.StartRoom,
+	}
 }
 
 // helpDetail returns detailed help for a single topic, or a fallback note.
