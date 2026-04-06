@@ -1,0 +1,22 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "internal/db/queries/sqlite/"
+    schema: "internal/db/schema/sqlite/"
+    gen:
+      go:
+        package: "sqliteq"
+        out: "internal/db/sqliteq"
+        emit_json_tags: true
+        emit_empty_slices: true
+
+  - engine: "postgresql"
+    queries: "internal/db/queries/postgres/"
+    schema: "internal/db/schema/postgres/"
+    gen:
+      go:
+        package: "pgq"
+        out: "internal/db/pgq"
+        emit_json_tags: true
+        emit_empty_slices: true
+        sql_package: "pgx/v5"
