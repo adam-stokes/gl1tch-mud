@@ -130,6 +130,13 @@ var Registry = map[string]HandlerFunc{
 	"baseinfo":     BaseInfo,
 	"mybase":       BaseInfo,
 	"arena":        Arena,
+	// Class signature verbs
+	"fan":      Fan,
+	"hotwire":  Hotwire,
+	"barter":   Barter,
+	"lift":     Lift,
+	"stim":     Stim,
+	"rad-feed": RadFeed,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
