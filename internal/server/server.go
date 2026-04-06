@@ -525,6 +525,9 @@ func (gs *GameServer) Start(port int, passphrase string) (string, error) {
 	// Start idle timeout watcher.
 	go gs.idleWatcher()
 
+	// Start NPC/resource respawn ticker for shared worlds.
+	go gs.respawnTicker()
+
 	return gs.lanURL, nil
 }
 
