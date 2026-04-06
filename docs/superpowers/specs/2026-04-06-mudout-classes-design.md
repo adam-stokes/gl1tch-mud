@@ -45,7 +45,7 @@ This preserves long-term build freedom while making the first hour feel distinct
 
 ### Faction-rep starting penalty (Ghoul only)
 
-Ghoul characters start with `+10` rep with `ghoul-collective` and `-10` rep with `settlers`. The current quest system does not gate quests on faction rep, so Marta will still hand a Ghoul player the `settlers-intro` quest — the penalty is currently flavor and a hook for future rep-gated content (NPC dialogue, vendor prices, cosmetic mentions). When rep gating lands, this starting penalty is what makes the Settler path harder for Ghouls. Other classes start at 0 rep with all factions.
+Ghoul characters start with `+10` rep with `ghoul-collective` and `-10` rep with `settlers`. Rep gating ships in this spec (see **Faction Rep Gating** below), and the Ghoul's `-10` Settler rep is what makes the Settler path harder: it bars them from a few low-tier Settler quests until they grind back to neutral, while opening Ghoul Collective quests immediately. Other classes start at 0 rep with all factions.
 
 ---
 
@@ -192,6 +192,79 @@ Mentor dialogue is scripted to teach four commands and the signature verb in ord
 | 4 | "Try this on for size: `<signature verb>`." | the class signature verb on a safe target in the room |
 | 5 | "Now get to The Gate. Marta's hiring." | sets `tutorial_complete = true`, points south |
 
+## Faction Rep Gating
+
+The existing `player_reputation` table (`faction TEXT, value INTEGER`) already tracks per-faction rep, and `gamedb.GetReputation` / `gamedb.IncrementReputation` exist. This spec extends that system so quests can require a minimum rep with their giving faction.
+
+### Schema additions
+
+No new tables. One new gamedb helper:
+
+- `AdjustReputation(faction string, delta int) error` — adds an arbitrary signed delta (positive or negative). Used by character creation to apply Ghoul's `-10 settlers / +10 ghoul-collective`, and by future quest rewards that grant or revoke rep.
+
+(`IncrementReputation` stays as-is for callers that only need `+1`.)
+
+### Quest definition additions
+
+The quest YAML schema gains two optional fields:
+
+```yaml
+- id: settlers-intro
+  title: "Prove Yourself"
+  giver_npc_id: settler-recruiter
+  giver_faction: settlers      # NEW — which faction this NPC speaks for
+  min_rep: 0                   # NEW — minimum rep with giver_faction to receive this quest
+  ...
+```
+
+If `min_rep` is omitted, the quest is offered to anyone (current behavior). If `giver_faction` is omitted, no rep check happens.
+
+### Quest accept logic
+
+In the quest acceptance code path (where Marta currently hands out `settlers-intro`):
+
+1. If `quest.giver_faction` is empty → offer normally.
+2. Otherwise, fetch `gamedb.GetReputation(quest.giver_faction)`.
+3. If `current_rep < quest.min_rep` → the NPC refuses with a flavor line: `"Marta eyes you and shakes her head. 'I don't deal with your kind. Not yet.'"`
+4. Otherwise → offer normally.
+
+### Mudout quest rep tags
+
+For this spec, the two existing Settler quests get `giver_faction: settlers, min_rep: 0`. That means a baseline player (rep 0) can take them, but a Ghoul (rep -10) cannot until they grind to 0. To give Ghoul players an immediate path forward, this spec adds **one new starter quest** for the Ghoul Collective:
+
+```yaml
+- id: ghoul-intro
+  title: "Old Bones"
+  description: "Mother Ash wants you to retrieve a glowing relic from the Collapsed Mall — an old-world thing the Ironclad would kill to own."
+  giver_npc_id: mother-ash
+  giver_faction: ghoul-collective
+  min_rep: 0
+  obj_type: retrieve
+  obj_target: glowing-relic
+  obj_count: 1
+  reward_credits: 50
+  reward_xp_skill: scavenging
+  reward_xp_amount: 25
+  reward_rep_faction: ghoul-collective
+  reward_rep_delta: 5
+```
+
+This introduces a third optional field on quests: `reward_rep_faction` + `reward_rep_delta`, applied via `AdjustReputation` on quest completion. (Existing quests can adopt it later; not required for this spec.)
+
+Mother Ash already exists in `wakeup-camp` as the Ghoul mentor, so she doubles as the quest giver. The `glowing-relic` item lives in `ruins-0` (Collapsed Mall) — just a single new YAML item, no new room.
+
+### Levels 0 → 2 math (Ghoul path)
+
+| Source | Skill | XP |
+|---|---|---|
+| `ghoul-intro` reward | scavenging | 25 |
+| 2× raider grunt encounters (any biome) | combat | 60 |
+| 1× scrap container | scavenging | 20 |
+| 1× rad-feed exchange (use signature verb on rad-chunks) | scavenging | 30 |
+| Kills inside Collapsed Mall while retrieving the relic | combat | 40 |
+
+Total: ~175 XP. Hits level 2 in scavenging cleanly without needing the Settler chain.
+
 ### First real quests (already exist)
 
 The player walks south from `wakeup-camp` into `dusthaven-0` and meets **Marta** (the existing `settler-recruiter` NPC), who hands out the existing quest chain:
@@ -230,6 +303,12 @@ Total: roughly 205 XP spread across 1–2 signature skills. Any class will comfo
 | `start_room: wakeup-camp` | `internal/world/defaults/mudout/world.yaml` | new players only; existing players keep their saved `room_id` from the DB |
 | Signature verbs: `fan`, `hotwire`, `barter`, `lift`, `stim`, `rad-feed` | `internal/commands/commands.go` | each verb checks `class == X OR skills.Level(gatingSkill) >= 3` |
 | Mentor dialogue trees | `internal/world/defaults/mudout/world.yaml` (NPC dialogue field) or new `internal/dialogue/` package if YAML grows unwieldy | scripted, deterministic, testable |
+| `AdjustReputation(faction, delta)` helper | `internal/db/gamedb/gamedb.go` | signed delta; used by char creation and quest rewards |
+| Quest YAML fields: `giver_faction`, `min_rep`, `reward_rep_faction`, `reward_rep_delta` | `internal/quests/quests.go` (struct) + loader + accept/complete logic | all four optional, backward-compatible |
+| Quest accept rep check | `internal/commands/commands.go` (or wherever quest accept is wired) | refuses with NPC flavor line if rep too low |
+| Quest reward rep apply | quest completion path | calls `AdjustReputation` if reward fields set |
+| `ghoul-intro` quest + `glowing-relic` item | `internal/world/defaults/mudout/world.yaml` | new quest, new item in `ruins-0` |
+| Two existing Settler quests tagged with `giver_faction: settlers, min_rep: 0` | `internal/world/defaults/mudout/world.yaml` | minimal edit |
 
 ---
 
@@ -257,3 +336,4 @@ The following are deliberately excluded from this spec to keep it shippable:
 | Mechanical depth of class system? | **Light mechanical tilt** — skill bonus, signature verb, kit, mentor; no exclusive skill trees |
 | Number of classes? | **Five** |
 | Customization model? | **Point-buy, 10 kit points per class** |
+| Faction rep gating? | **In scope** — quest YAML gains `giver_faction`/`min_rep`/`reward_rep_*` fields, plus a Ghoul-friendly starter quest so the rep penalty is meaningful from action one |
