@@ -139,6 +139,19 @@ func (r *SessionRegistry) OnlinePlayersInWorld(worldName string, excludeID strin
 	return result
 }
 
+// OnlineCountByWorld returns the number of connected sessions per world name.
+func (r *SessionRegistry) OnlineCountByWorld() map[string]int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	counts := make(map[string]int)
+	for _, s := range r.sessions {
+		if s.worldName != "" {
+			counts[s.worldName]++
+		}
+	}
+	return counts
+}
+
 // BroadcastToRoomInWorld sends msg to every session in the given world and room.
 func (r *SessionRegistry) BroadcastToRoomInWorld(worldName, roomID string, msg ServerMsg) {
 	r.mu.RLock()
@@ -587,6 +600,7 @@ func (gs *GameServer) worldForRequest(name string) (*world.World, error) {
 
 // handleWorlds returns JSON list of WorldMeta for all available worlds.
 func (gs *GameServer) handleWorlds(w http.ResponseWriter, r *http.Request) {
+	onlineCounts := gs.registry.OnlineCountByWorld()
 	metas := make([]world.WorldMeta, 0, len(gs.worlds))
 	for _, wld := range gs.worlds {
 		mode := wld.Mode
@@ -597,6 +611,7 @@ func (gs *GameServer) handleWorlds(w http.ResponseWriter, r *http.Request) {
 			Name:    wld.Name,
 			Tagline: wld.UI.Tagline,
 			Mode:    mode,
+			Online:  onlineCounts[wld.Name],
 			Theme:   wld.UI.Theme,
 		})
 	}

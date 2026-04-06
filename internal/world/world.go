@@ -2,7 +2,6 @@ package world
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"fmt"
 	"log"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/db/gamedb"
 	"github.com/adam-stokes/gl1tch-mud/internal/db/sqliteq"
 	"gopkg.in/yaml.v3"
 )
@@ -150,6 +150,7 @@ type WorldMeta struct {
 	Name    string     `json:"name"`
 	Tagline string     `json:"tagline"`
 	Mode    string     `json:"mode"`
+	Online  int        `json:"online"`
 	Theme   WorldTheme `json:"theme"`
 }
 
@@ -608,11 +609,11 @@ func worldPath(name string) string {
 
 // SeedCrystalShards inserts the five Crystal Shard rows for Blockhaven if they don't exist.
 // Safe to call on any world — only acts when world name is "blockhaven".
-func SeedCrystalShards(db *sql.DB, worldName string) error {
+func SeedCrystalShards(gdb *gamedb.GameDB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	shards := []struct{ id, biome string }{
 		{"meadow-shard", "meadow"},
@@ -633,11 +634,11 @@ func SeedCrystalShards(db *sql.DB, worldName string) error {
 }
 
 // SeedStartingItems adds starting items for the blockhaven world if inventory is empty.
-func SeedStartingItems(db *sql.DB, worldName string) error {
+func SeedStartingItems(gdb *gamedb.GameDB, worldName string) error {
 	if worldName != "blockhaven" {
 		return nil
 	}
-	q := sqliteq.New(db)
+	q := sqliteq.New(gdb.SQLiteDB())
 	ctx := context.Background()
 	// Check if starting items already seeded by probing for one specific item.
 	cnt, _ := q.CountStartingItem(ctx)

@@ -114,7 +114,6 @@
         font-size: 0.88rem;
         font-weight: bold;
         letter-spacing: 0.04em;
-        margin-bottom: 0.15rem;
         color: var(--entry-accent, var(--purple));
       }
 
@@ -124,6 +123,35 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .entry-badge {
+        font-size: 0.56rem;
+        color: var(--dim);
+        border: 1px solid var(--border);
+        padding: 0.05rem 0.35rem;
+        border-radius: 2px;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+
+      .entry-badge.shared {
+        color: var(--cyan);
+        border-color: color-mix(in srgb, var(--cyan) 30%, transparent);
+      }
+
+      .entry-online {
+        font-size: 0.56rem;
+        color: var(--cyan);
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
+      .entry-name-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.15rem;
       }
 
       .entry-arrow {
@@ -177,7 +205,7 @@
         const statusMsg = document.getElementById('status-msg')!;
         const errorMsg  = document.getElementById('error-msg')!;
 
-        type WorldMeta = { name: string; tagline: string; theme?: { accent?: string } };
+        type WorldMeta = { name: string; tagline: string; mode?: string; online?: number; theme?: { accent?: string } };
         let worlds: WorldMeta[] = [];
 
         try {
@@ -224,15 +252,32 @@
           const body = document.createElement('div');
           body.className = 'entry-body';
 
-          const nameEl = document.createElement('div');
+          const nameRow = document.createElement('div');
+          nameRow.className = 'entry-name-row';
+
+          const nameEl = document.createElement('span');
           nameEl.className = 'entry-name';
           nameEl.textContent = w.name;
+          nameRow.appendChild(nameEl);
+
+          const mode = w.mode || 'solo';
+          const badge = document.createElement('span');
+          badge.className = `entry-badge${mode === 'shared' ? ' shared' : ''}`;
+          badge.textContent = mode;
+          nameRow.appendChild(badge);
+
+          if (mode === 'shared' && w.online && w.online > 0) {
+            const onlineEl = document.createElement('span');
+            onlineEl.className = 'entry-online';
+            onlineEl.textContent = `${w.online} online`;
+            nameRow.appendChild(onlineEl);
+          }
 
           const tagEl = document.createElement('div');
           tagEl.className = 'entry-tagline';
           tagEl.textContent = w.tagline || '—';
 
-          body.appendChild(nameEl);
+          body.appendChild(nameRow);
           body.appendChild(tagEl);
 
           const arrow = document.createElement('div');
