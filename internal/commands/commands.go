@@ -1268,26 +1268,43 @@ func Talk(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 	if matchedQuestID != "" && !activeQuestIDs[matchedQuestID] {
 		wq := w.FindQuest(matchedQuestID)
 		if wq != nil {
-			q := quests.Quest{
-				ID:             wq.ID,
-				Title:          wq.Title,
-				Description:    wq.Description,
-				ObjType:        wq.ObjType,
-				ObjTarget:      wq.ObjTarget,
-				ObjRoom:        wq.ObjRoom,
-				ObjCount:       wq.ObjCount,
-				RewardCredits:  wq.RewardCredits,
-				RewardXPSkill:  wq.RewardXPSkill,
-				RewardXPAmount: wq.RewardXPAmount,
-				RewardItemID:   wq.RewardItemID,
-				RewardItemName: wq.RewardItemName,
-				RewardItemDesc: wq.RewardItemDesc,
-				GiverNPCID:     npc.ID,
+			// Faction rep gate.
+			acceptable := true
+			if wq.GiverFaction != "" {
+				if gdb.GetReputation(context.Background(), wq.GiverFaction) < wq.MinRep {
+					output += fmt.Sprintf(
+						"\n%s eyes you and shakes their head. \"I don't deal with your kind. Not yet.\"",
+						npc.Name,
+					)
+					acceptable = false
+				}
 			}
-			if err := quests.Accept(gdb, q); err == nil {
-				output += fmt.Sprintf("\n[QUEST ACCEPTED] %s", wq.Title)
-				if wq.Description != "" {
-					output += "\n" + wq.Description
+			if acceptable {
+				q := quests.Quest{
+					ID:               wq.ID,
+					Title:            wq.Title,
+					Description:      wq.Description,
+					ObjType:          wq.ObjType,
+					ObjTarget:        wq.ObjTarget,
+					ObjRoom:          wq.ObjRoom,
+					ObjCount:         wq.ObjCount,
+					RewardCredits:    wq.RewardCredits,
+					RewardXPSkill:    wq.RewardXPSkill,
+					RewardXPAmount:   wq.RewardXPAmount,
+					RewardItemID:     wq.RewardItemID,
+					RewardItemName:   wq.RewardItemName,
+					RewardItemDesc:   wq.RewardItemDesc,
+					GiverNPCID:       npc.ID,
+					GiverFaction:     wq.GiverFaction,
+					MinRep:           wq.MinRep,
+					RewardRepFaction: wq.RewardRepFaction,
+					RewardRepDelta:   wq.RewardRepDelta,
+				}
+				if err := quests.Accept(gdb, q); err == nil {
+					output += fmt.Sprintf("\n[QUEST ACCEPTED] %s", wq.Title)
+					if wq.Description != "" {
+						output += "\n" + wq.Description
+					}
 				}
 			}
 		}
@@ -1613,26 +1630,42 @@ func questComplete(gdb *gamedb.GameDB, w *world.World, id string) Result {
 		}
 	}
 
+	if q.RewardRepFaction != "" && q.RewardRepDelta != 0 {
+		if err := gdb.AdjustReputation(context.Background(), q.RewardRepFaction, q.RewardRepDelta); err == nil {
+			sign := "+"
+			if q.RewardRepDelta < 0 {
+				sign = ""
+			}
+			out.WriteString(fmt.Sprintf("  %s%d rep with %s\n", sign, q.RewardRepDelta, q.RewardRepFaction))
+		}
+	}
+
 	// Auto-chain: accept next quest in chain
 	if q.NextQuestID != "" {
 		wq := w.FindQuest(q.NextQuestID)
 		if wq != nil {
+			// Chain quests skip the rep gate — they're pre-earned by completing
+			// the prior quest in the chain.
 			nextQ := quests.Quest{
-				ID:             wq.ID,
-				Title:          wq.Title,
-				Description:    wq.Description,
-				ObjType:        wq.ObjType,
-				ObjTarget:      wq.ObjTarget,
-				ObjRoom:        wq.ObjRoom,
-				ObjCount:       wq.ObjCount,
-				RewardCredits:  wq.RewardCredits,
-				RewardXPSkill:  wq.RewardXPSkill,
-				RewardXPAmount: wq.RewardXPAmount,
-				RewardItemID:   wq.RewardItemID,
-				RewardItemName: wq.RewardItemName,
-				RewardItemDesc: wq.RewardItemDesc,
-				GiverNPCID:     wq.GiverNPCID,
-				NextQuestID:    wq.NextQuestID,
+				ID:               wq.ID,
+				Title:            wq.Title,
+				Description:      wq.Description,
+				ObjType:          wq.ObjType,
+				ObjTarget:        wq.ObjTarget,
+				ObjRoom:          wq.ObjRoom,
+				ObjCount:         wq.ObjCount,
+				RewardCredits:    wq.RewardCredits,
+				RewardXPSkill:    wq.RewardXPSkill,
+				RewardXPAmount:   wq.RewardXPAmount,
+				RewardItemID:     wq.RewardItemID,
+				RewardItemName:   wq.RewardItemName,
+				RewardItemDesc:   wq.RewardItemDesc,
+				GiverNPCID:       wq.GiverNPCID,
+				GiverFaction:     wq.GiverFaction,
+				MinRep:           wq.MinRep,
+				RewardRepFaction: wq.RewardRepFaction,
+				RewardRepDelta:   wq.RewardRepDelta,
+				NextQuestID:      wq.NextQuestID,
 			}
 			if err := quests.Accept(gdb, nextQ); err == nil {
 				out.WriteString(fmt.Sprintf("\n[NEW QUEST] %s\n%s", wq.Title, wq.Description))
