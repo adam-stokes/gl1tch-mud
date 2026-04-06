@@ -76,10 +76,23 @@ func main() {
 }
 
 // selectWorld prints an interactive numbered world menu and returns the chosen world name.
+// In CLI mode (no Postgres), shared worlds are shown but not selectable.
 func selectWorld() string {
 	metas := world.ListAvailable()
 	if len(metas) == 0 {
 		return "cyberspace"
+	}
+
+	// Filter to solo-only for auto-selection when there's exactly one solo world.
+	var soloMetas []world.WorldMeta
+	for _, m := range metas {
+		if m.Mode != "shared" {
+			soloMetas = append(soloMetas, m)
+		}
+	}
+	if len(soloMetas) == 0 {
+		fmt.Fprintln(os.Stderr, "gl1tch-mud: all available worlds are shared and require the multiplayer server. start with --serve to enable.")
+		os.Exit(1)
 	}
 	if len(metas) == 1 {
 		return metas[0].Name
@@ -91,14 +104,18 @@ func selectWorld() string {
 		if tagline == "" {
 			tagline = "—"
 		}
-		fmt.Printf("  [%d] %-16s — %s\n", i+1, m.Name, tagline)
+		if m.Mode == "shared" {
+			fmt.Printf("  [%d] %-16s — %s (shared — requires --serve)\n", i+1, m.Name, tagline)
+		} else {
+			fmt.Printf("  [%d] %-16s — %s\n", i+1, m.Name, tagline)
+		}
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("\n  > ")
 		if !scanner.Scan() {
-			return metas[0].Name
+			return soloMetas[0].Name
 		}
 		input := strings.TrimSpace(scanner.Text())
 		if input == "" {
@@ -106,15 +123,29 @@ func selectWorld() string {
 		}
 		if n, err := strconv.Atoi(input); err == nil {
 			if n >= 1 && n <= len(metas) {
-				return metas[n-1].Name
+				sel := metas[n-1]
+				if sel.Mode == "shared" {
+					fmt.Printf("  %s is a shared world and requires the multiplayer server. start with --serve to enable.\n", sel.Name)
+					continue
+				}
+				return sel.Name
 			}
 		}
+		matched := false
 		for _, m := range metas {
 			if strings.EqualFold(input, m.Name) {
-				return m.Name
+				matched = true
+				if m.Mode == "shared" {
+					fmt.Printf("  %s is a shared world and requires the multiplayer server. start with --serve to enable.\n", m.Name)
+				} else {
+					return m.Name
+				}
+				break
 			}
 		}
-		fmt.Printf("  invalid selection %q — enter a number (1-%d) or world name\n", input, len(metas))
+		if !matched {
+			fmt.Printf("  invalid selection %q — enter a number (1-%d) or world name\n", input, len(metas))
+		}
 	}
 }
 
@@ -196,6 +227,11 @@ func runGame(worldName string) {
 	w, err := world.Load(worldName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "gl1tch-mud: world:", err)
+		os.Exit(1)
+	}
+
+	if w.IsShared() {
+		fmt.Fprintf(os.Stderr, "gl1tch-mud: %s is a shared world and requires the multiplayer server. start with --serve to enable.\n", worldName)
 		os.Exit(1)
 	}
 
@@ -281,6 +317,11 @@ func runGame(worldName string) {
 			bus.Publish(result.Event.Topic, result.Event.Payload)
 		}
 		if result.SwitchWorld != "" {
+			// Check if target world is shared — not available in CLI mode.
+			if probe, probeErr := world.Load(result.SwitchWorld); probeErr == nil && probe.IsShared() {
+				fmt.Printf("%s is a shared world and requires the multiplayer server. start with --serve to enable.\n", result.SwitchWorld)
+				continue
+			}
 			newDB, swErr := db.OpenForWorld(result.SwitchWorld)
 			if swErr != nil {
 				fmt.Fprintf(os.Stderr, "world switch: %v\n", swErr)
