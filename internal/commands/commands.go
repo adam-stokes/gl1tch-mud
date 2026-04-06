@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/augments"
+	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
 	"github.com/adam-stokes/gl1tch-mud/internal/credits"
 	"github.com/adam-stokes/gl1tch-mud/internal/espionage"
@@ -103,6 +104,8 @@ var Registry = map[string]HandlerFunc{
 	"remove":       Unwear,
 	"equipment":    Equipment,
 	"eq":           Equipment,
+	"baseinfo":     BaseInfo,
+	"mybase":       BaseInfo,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
@@ -1885,4 +1888,56 @@ func Equipment(db *sql.DB, s *player.State, w *world.World, args []string) Resul
 		return Result{Output: "ARMOR: nothing equipped."}
 	}
 	return Result{Output: fmt.Sprintf("ARMOR: %s [DEF %d]", rec.ItemName, rec.Defense)}
+}
+
+// BaseInfo shows the status of the player's permanent base at dusthaven-4.
+func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	const baseRoom = "dusthaven-4"
+
+	rows, err := db.Query(`SELECT build_id, name FROM builds WHERE room_id=? ORDER BY placed_at`, baseRoom)
+	if err != nil {
+		return Result{Output: "BASE STATUS — The Base Plots\nNo structures built. Head to dusthaven-4 and use 'build' to start."}
+	}
+	defer rows.Close()
+
+	type buildRow struct{ id, name string }
+	var built []buildRow
+	for rows.Next() {
+		var b buildRow
+		rows.Scan(&b.id, &b.name) //nolint:errcheck
+		built = append(built, b)
+	}
+
+	if len(built) == 0 {
+		return Result{Output: "BASE STATUS — The Base Plots\nNo structures built. Head to dusthaven-4 and use 'build' to start."}
+	}
+
+	defense := base.DefenseScore(db, w)
+
+	var sb strings.Builder
+	sb.WriteString("BASE STATUS — The Base Plots\n")
+	sb.WriteString(strings.Repeat("─", 35) + "\n")
+	for _, b := range built {
+		def := 0
+		if r := w.FindRecipe(b.id); r != nil {
+			def = r.Output.Stats["defense"]
+		}
+		fmt.Fprintf(&sb, "  %-18s %-20s [DEF %2d]\n", b.id, b.name, def)
+	}
+	sb.WriteString(strings.Repeat("─", 35) + "\n")
+	fmt.Fprintf(&sb, "  DEFENSE SCORE: %d / 11 max\n", defense)
+
+	var chestCount int
+	db.QueryRow(`SELECT COUNT(*) FROM chests WHERE room_id=?`, baseRoom).Scan(&chestCount) //nolint:errcheck
+	fmt.Fprintf(&sb, "  CHEST ITEMS: %d\n", chestCount)
+
+	var current int
+	db.QueryRow(`SELECT count FROM player_actions WHERE id=1`).Scan(&current) //nolint:errcheck
+	nextRaid := 30 - (current % 30)
+	if nextRaid == 30 {
+		nextRaid = 0
+	}
+	fmt.Fprintf(&sb, "  Next raid check: ~%d actions", nextRaid)
+
+	return Result{Output: strings.TrimRight(sb.String(), "\n")}
 }
