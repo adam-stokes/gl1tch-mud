@@ -694,7 +694,7 @@ rooms:
       A weathered sign above a reinforced door reads: COMBAT ZONE — ENTER AT
       OWN RISK. The sounds of distant gunfire echo from somewhere inside.
       Spectators and gamblers cluster near the entrance, exchanging caps.
-      Arena matches coming in a future update.
+      Type 'arena' to enter a Team Deathmatch. Kill all five raiders to win.
     biome: wasteland
     exits:
       north: barrens-1
@@ -702,9 +702,9 @@ rooms:
     items:
       - id: combat-zone-flyer
         name: "Combat Zone Flyer"
-        desc: "COMBAT ZONE: Team deathmatch, capture the flag. Caps paid to survivors. Opening soon."
+        desc: "COMBAT ZONE: Team deathmatch. Caps paid to survivors."
         readable: true
-        content: "COMBAT ZONE — COMING SOON\nTeam deathmatch. Capture the flag. Hide and seek.\nCaps paid to survivors. Raiders and mercs welcome."
+        content: "COMBAT ZONE — TDM\nKill all five Ash Raiders before they kill you.\nReward: 200 caps. Type 'arena' to begin."
 
   - id: ruins-0
     name: "Collapsed Mall"
@@ -823,9 +823,9 @@ rooms:
     name: "Tower Defense Grid"
     desc: |
       A cleared zone in the ruins, marked with painted grid lines and numbered
-      positions. Old terminal screens along the walls display tactical readouts
-      that haven't updated in years. A staging area waits for players.
-      Arena matches coming in a future update.
+      positions. Old terminal screens along the walls display wave readouts.
+      Your base turrets from dusthaven will fire at the start of each wave.
+      Type 'arena' to start a Tower Defense match. Survive three waves to win.
     biome: ruins
     exits:
       west: ruins-0
@@ -835,5 +835,5 @@ rooms:
         name: "Tower Defense Manual"
         desc: "Place your defenses. Survive the waves. Split the loot."
         readable: true
-        content: "TOWER DEFENSE — COMING SOON\nPlace turrets and defenses. Survive waves of raiders.\nSurvivor payouts in caps and rare components."
+        content: "TOWER DEFENSE\nSurvive 3 waves of Ash Raiders.\nYour dusthaven-4 base turrets auto-fire each wave.\nReward: 300 caps + Pre-War Circuitry. Type 'arena' to begin."
 
