@@ -59,6 +59,7 @@ type StateUpdatePayload struct {
 	Quests        []QuestInfo        `json:"quests,omitempty"`
 	Skills        []SkillInfo        `json:"skills,omitempty"`
 	OnlinePlayers []OnlinePlayerInfo `json:"online_players,omitempty"`
+	EquippedArmor *EquippedArmorInfo `json:"equipped_armor,omitempty"`
 }
 
 // RecipeIngredient is a single crafting ingredient as sent to the client.
@@ -143,6 +144,13 @@ type MapRoomInfo struct {
 type OnlinePlayerInfo struct {
 	Name   string `json:"name"`
 	RoomID string `json:"room_id"`
+}
+
+// EquippedArmorInfo describes the currently worn armor, sent in state.update.
+type EquippedArmorInfo struct {
+	ItemID   string `json:"item_id"`
+	ItemName string `json:"item_name"`
+	Defense  int    `json:"defense"`
 }
 
 // QuestInfo is a summary of an active quest sent in state.update.

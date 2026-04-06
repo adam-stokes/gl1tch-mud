@@ -498,6 +498,16 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		})
 	}
 
+	// Equipped armor for wasteland HUD
+	var equippedArmorInfo *EquippedArmorInfo
+	if rec, err := player.GetEquippedArmor(s.database); err == nil && rec != nil {
+		equippedArmorInfo = &EquippedArmorInfo{
+			ItemID:   rec.ItemID,
+			ItemName: rec.ItemName,
+			Defense:  rec.Defense,
+		}
+	}
+
 	payload := StateUpdatePayload{
 		HP:            s.state.HP,
 		MaxHP:         s.state.MaxHP,
@@ -513,6 +523,7 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 		Quests:        questInfos,
 		Skills:        skillInfos,
 		OnlinePlayers: s.registry.OnlinePlayersInWorld(s.worldName, s.playerID),
+		EquippedArmor: equippedArmorInfo,
 	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{Type: "state.update", Payload: payload})
 

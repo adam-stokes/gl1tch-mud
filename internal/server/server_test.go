@@ -319,3 +319,38 @@ func TestOnlinePlayersInWorldSkipsNoRoom(t *testing.T) {
 		t.Errorf("expected 0 results, got %d: %+v", len(result), result)
 	}
 }
+
+func TestStateUpdatePayloadEquippedArmor(t *testing.T) {
+	armor := &EquippedArmorInfo{
+		ItemID:   "leather-armor",
+		ItemName: "Leather Armor",
+		Defense:  3,
+	}
+	p := StateUpdatePayload{
+		HP:            50,
+		MaxHP:         100,
+		EquippedArmor: armor,
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	armorField, ok := out["equipped_armor"]
+	if !ok {
+		t.Fatal("equipped_armor field missing from payload")
+	}
+	armorMap, ok := armorField.(map[string]any)
+	if !ok {
+		t.Fatal("equipped_armor is not a map")
+	}
+	if armorMap["item_id"] != "leather-armor" {
+		t.Errorf("item_id: got %v want %q", armorMap["item_id"], "leather-armor")
+	}
+	if armorMap["defense"] != float64(3) {
+		t.Errorf("defense: got %v want 3", armorMap["defense"])
+	}
+}
