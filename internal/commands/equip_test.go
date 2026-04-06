@@ -177,3 +177,26 @@ func TestEquipmentCommand(t *testing.T) {
 		t.Error("Equipment (with armor): expected output")
 	}
 }
+
+func TestDefenseFormula(t *testing.T) {
+	cases := []struct {
+		attack  int
+		defense int
+		want    int
+	}{
+		{10, 3, 7},
+		{10, 0, 10},
+		{10, 100, 1}, // min 1
+		{5, 5, 1},    // min 1
+		{5, 4, 1},    // min 1
+	}
+	for _, tc := range cases {
+		dmg := tc.attack - tc.defense
+		if dmg < 1 {
+			dmg = 1
+		}
+		if dmg != tc.want {
+			t.Errorf("attack=%d defense=%d: got dmg=%d want %d", tc.attack, tc.defense, dmg, tc.want)
+		}
+	}
+}

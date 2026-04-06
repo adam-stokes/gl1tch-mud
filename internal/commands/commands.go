@@ -377,7 +377,11 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 		// Simple combat round: player deals 10-20, NPC retaliates.
 		playerDmg := 15
 		npcHP := player.NPCCurrentHP(db, s.RoomID, npc.ID, npc.HP) - playerDmg
-		s.HP -= npc.Attack
+		dmg := npc.Attack - s.Defense
+		if dmg < 1 {
+			dmg = 1
+		}
+		s.HP -= dmg
 
 		var out strings.Builder
 		out.WriteString(fmt.Sprintf("you hit %s for %d damage.", npc.Name, playerDmg))
@@ -427,7 +431,7 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 			}
 		} else {
 			player.SetNPCHP(db, s.RoomID, npc.ID, npcHP) //nolint:errcheck
-			out.WriteString(fmt.Sprintf("\n%s retaliates for %d. your HP: %d/%d.", npc.Name, npc.Attack, s.HP, s.MaxHP))
+			out.WriteString(fmt.Sprintf("\n%s retaliates for %d. your HP: %d/%d.", npc.Name, dmg, s.HP, s.MaxHP))
 			ev = &Event{
 				Topic: "mud.combat.started",
 				Payload: map[string]any{
