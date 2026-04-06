@@ -1333,14 +1333,14 @@
         gap: 2px;
       }
 
-      #kids-map-grid[data-map-zoom="world"] { --cell: 18px; }
-      #kids-map-grid[data-map-zoom="area"]  { --cell: 32px; }
-      #kids-map-grid[data-map-zoom="room"]  { --cell: 56px; }
+      #kids-map-grid[data-map-zoom="world"] { --cell: 28px; }
+      #kids-map-grid[data-map-zoom="area"]  { --cell: 40px; }
+      #kids-map-grid[data-map-zoom="room"]  { --cell: 60px; }
 
       .kids-map-cell {
         width: var(--cell);
         height: var(--cell);
-        font-size: calc(var(--cell) * 0.28);
+        font-size: calc(var(--cell) * 0.30);
         border-radius: 2px;
         position: relative;
         display: flex;
@@ -1348,27 +1348,39 @@
         justify-content: center;
         overflow: hidden;
         cursor: default;
-        color: rgba(0,0,0,0.7);
+        color: rgba(255,255,255,0.85);
         font-weight: bold;
         white-space: nowrap;
         text-overflow: ellipsis;
+        background: #2a2a3a;
+        border: 1px solid #3a3a4a;
       }
 
       .kids-map-cell.current-room {
-        outline: 2px solid var(--yellow);
+        outline: 2px solid var(--yellow, #f5e76b);
+        outline-offset: -1px;
         z-index: 1;
+        background: #4a4020;
       }
 
       .kids-map-cell.current-room .kids-map-abbr { display: none; }
 
-      /* Biome colors */
-      .kids-map-cell[data-biome="meadow"]  { background: #5a8c5a; }
-      .kids-map-cell[data-biome="forest"]  { background: #2d5a2d; color: #c8f0c8; }
-      .kids-map-cell[data-biome="desert"]  { background: #c8a86a; }
-      .kids-map-cell[data-biome="snow"]    { background: #d0e8f0; }
-      .kids-map-cell[data-biome="caves"]   { background: #5a5a6a; color: #c0c0d0; }
-      .kids-map-cell[data-biome="ember"]   { background: #8c3a2a; color: #f0c0a0; }
-      .kids-map-cell[data-biome=""]        { background: var(--bg-mid); color: var(--comment); }
+      /* Biome colors — broad coverage for all worlds */
+      .kids-map-cell[data-biome="meadow"]      { background: #5a8c5a; color: #fff; }
+      .kids-map-cell[data-biome="forest"]      { background: #2d5a2d; color: #c8f0c8; }
+      .kids-map-cell[data-biome="desert"]      { background: #c8a86a; color: #2a1a00; }
+      .kids-map-cell[data-biome="snow"]        { background: #d0e8f0; color: #1a3050; }
+      .kids-map-cell[data-biome="caves"]       { background: #5a5a6a; color: #c0c0d0; }
+      .kids-map-cell[data-biome="ember"]       { background: #8c3a2a; color: #f0c0a0; }
+      .kids-map-cell[data-biome="settlement"]  { background: #8a6a3a; color: #f0d8a0; }
+      .kids-map-cell[data-biome="barrens"]     { background: #7a6a4a; color: #e0d0a0; }
+      .kids-map-cell[data-biome="wasteland"]   { background: #5a4a2a; color: #d0b88a; }
+      .kids-map-cell[data-biome="ruins"]       { background: #4a4a5a; color: #b0b0c0; }
+      .kids-map-cell[data-biome="net"]         { background: #2a2a5a; color: #8be9fd; }
+      .kids-map-cell[data-biome="cyber"]       { background: #3a2a5a; color: #bd93f9; }
+      .kids-map-cell[data-biome="ash"]         { background: #3a3a3a; color: #b0b0b0; }
+      .kids-map-cell[data-biome="dust"]        { background: #6a5030; color: #e0c090; }
+      .kids-map-cell[data-biome=""]            { background: #2a2a3a; color: #8888a0; }
 
       .kids-map-star {
         position: absolute;
