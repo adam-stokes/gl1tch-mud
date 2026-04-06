@@ -1882,10 +1882,11 @@ export function initMUD() {
     if (_kidsMode) {
       rebuildRoomContext(state);
       rebuildKidsActionButtons(state);
-      rebuildKidsMap(state.room_id ?? '', state.online_players ?? []);
     } else {
       updateCompass(state.exits ?? []);
     }
+    // Map is shown in both modes
+    rebuildKidsMap(state.room_id ?? '', state.online_players ?? []);
     renderInventory(state.inventory ?? [], (item) => openItemModal(item, sendCommand));
   }
 
