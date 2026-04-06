@@ -238,21 +238,25 @@ type Room struct {
 
 // WorldQuest is a pre-defined quest loaded from world YAML.
 type WorldQuest struct {
-	ID             string `yaml:"id"`
-	Title          string `yaml:"title"`
-	Description    string `yaml:"description"`
-	GiverNPCID     string `yaml:"giver_npc_id"`
-	ObjType        string `yaml:"obj_type"`
-	ObjTarget      string `yaml:"obj_target"`
-	ObjRoom        string `yaml:"obj_room,omitempty"`
-	ObjCount       int    `yaml:"obj_count"`
-	RewardCredits  int    `yaml:"reward_credits"`
-	RewardXPSkill  string `yaml:"reward_xp_skill,omitempty"`
-	RewardXPAmount int    `yaml:"reward_xp_amount,omitempty"`
-	RewardItemID   string `yaml:"reward_item_id,omitempty"`
-	RewardItemName string `yaml:"reward_item_name,omitempty"`
-	RewardItemDesc string `yaml:"reward_item_desc,omitempty"`
-	NextQuestID    string `yaml:"next_quest_id,omitempty"`
+	ID               string `yaml:"id"`
+	Title            string `yaml:"title"`
+	Description      string `yaml:"description"`
+	GiverNPCID       string `yaml:"giver_npc_id"`
+	GiverFaction     string `yaml:"giver_faction,omitempty"`
+	MinRep           int    `yaml:"min_rep,omitempty"`
+	ObjType          string `yaml:"obj_type"`
+	ObjTarget        string `yaml:"obj_target"`
+	ObjRoom          string `yaml:"obj_room,omitempty"`
+	ObjCount         int    `yaml:"obj_count"`
+	RewardCredits    int    `yaml:"reward_credits"`
+	RewardXPSkill    string `yaml:"reward_xp_skill,omitempty"`
+	RewardXPAmount   int    `yaml:"reward_xp_amount,omitempty"`
+	RewardItemID     string `yaml:"reward_item_id,omitempty"`
+	RewardItemName   string `yaml:"reward_item_name,omitempty"`
+	RewardItemDesc   string `yaml:"reward_item_desc,omitempty"`
+	RewardRepFaction string `yaml:"reward_rep_faction,omitempty"`
+	RewardRepDelta   int    `yaml:"reward_rep_delta,omitempty"`
+	NextQuestID      string `yaml:"next_quest_id,omitempty"`
 }
 
 // World holds all rooms for a loaded world.

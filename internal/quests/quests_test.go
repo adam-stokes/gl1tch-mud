@@ -31,9 +31,13 @@ func openTestDB(t *testing.T) *sql.DB {
 		reward_item_id   TEXT,
 		reward_item_name TEXT,
 		reward_item_desc TEXT,
-		giver_npc_id     TEXT,
-		accepted_at      INTEGER NOT NULL,
-		next_quest_id    TEXT    NOT NULL DEFAULT ''
+		giver_npc_id       TEXT,
+		accepted_at        INTEGER NOT NULL,
+		next_quest_id      TEXT    NOT NULL DEFAULT '',
+		giver_faction      TEXT    NOT NULL DEFAULT '',
+		min_rep            INTEGER NOT NULL DEFAULT 0,
+		reward_rep_faction TEXT    NOT NULL DEFAULT '',
+		reward_rep_delta   INTEGER NOT NULL DEFAULT 0
 	)`)
 	if err != nil {
 		t.Fatalf("create table: %v", err)

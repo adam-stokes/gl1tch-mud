@@ -11,71 +11,83 @@ import (
 
 // Quest mirrors the quests table.
 type Quest struct {
-	ID             string
-	Title          string
-	Description    string
-	Status         string
-	ObjType        string
-	ObjTarget      string
-	ObjRoom        string
-	ObjCount       int
-	ObjProgress    int
-	RewardCredits  int
-	RewardXPSkill  string
-	RewardXPAmount int
-	RewardItemID   string
-	RewardItemName string
-	RewardItemDesc string
-	GiverNPCID     string
-	AcceptedAt     int64
-	NextQuestID    string
+	ID               string
+	Title            string
+	Description      string
+	Status           string
+	ObjType          string
+	ObjTarget        string
+	ObjRoom          string
+	ObjCount         int
+	ObjProgress      int
+	RewardCredits    int
+	RewardXPSkill    string
+	RewardXPAmount   int
+	RewardItemID     string
+	RewardItemName   string
+	RewardItemDesc   string
+	GiverNPCID       string
+	GiverFaction     string
+	MinRep           int
+	RewardRepFaction string
+	RewardRepDelta   int
+	AcceptedAt       int64
+	NextQuestID      string
 }
 
 // fromRecord converts a gamedb.QuestRecord to our Quest type.
 func fromRecord(r gamedb.QuestRecord) Quest {
 	return Quest{
-		ID:             r.ID,
-		Title:          r.Title,
-		Description:    r.Description,
-		Status:         r.Status,
-		ObjType:        r.ObjType,
-		ObjTarget:      r.ObjTarget,
-		ObjRoom:        r.ObjRoom,
-		ObjCount:       r.ObjCount,
-		ObjProgress:    r.ObjProgress,
-		RewardCredits:  r.RewardCredits,
-		RewardXPSkill:  r.RewardXPSkill,
-		RewardXPAmount: r.RewardXPAmount,
-		RewardItemID:   r.RewardItemID,
-		RewardItemName: r.RewardItemName,
-		RewardItemDesc: r.RewardItemDesc,
-		GiverNPCID:     r.GiverNPCID,
-		AcceptedAt:     r.AcceptedAt,
-		NextQuestID:    r.NextQuestID,
+		ID:               r.ID,
+		Title:            r.Title,
+		Description:      r.Description,
+		Status:           r.Status,
+		ObjType:          r.ObjType,
+		ObjTarget:        r.ObjTarget,
+		ObjRoom:          r.ObjRoom,
+		ObjCount:         r.ObjCount,
+		ObjProgress:      r.ObjProgress,
+		RewardCredits:    r.RewardCredits,
+		RewardXPSkill:    r.RewardXPSkill,
+		RewardXPAmount:   r.RewardXPAmount,
+		RewardItemID:     r.RewardItemID,
+		RewardItemName:   r.RewardItemName,
+		RewardItemDesc:   r.RewardItemDesc,
+		GiverNPCID:       r.GiverNPCID,
+		GiverFaction:     r.GiverFaction,
+		MinRep:           r.MinRep,
+		RewardRepFaction: r.RewardRepFaction,
+		RewardRepDelta:   r.RewardRepDelta,
+		AcceptedAt:       r.AcceptedAt,
+		NextQuestID:      r.NextQuestID,
 	}
 }
 
 // toRecord converts a Quest to a gamedb.QuestRecord.
 func toRecord(q Quest) gamedb.QuestRecord {
 	return gamedb.QuestRecord{
-		ID:             q.ID,
-		Title:          q.Title,
-		Description:    q.Description,
-		Status:         q.Status,
-		ObjType:        q.ObjType,
-		ObjTarget:      q.ObjTarget,
-		ObjRoom:        q.ObjRoom,
-		ObjCount:       q.ObjCount,
-		ObjProgress:    q.ObjProgress,
-		RewardCredits:  q.RewardCredits,
-		RewardXPSkill:  q.RewardXPSkill,
-		RewardXPAmount: q.RewardXPAmount,
-		RewardItemID:   q.RewardItemID,
-		RewardItemName: q.RewardItemName,
-		RewardItemDesc: q.RewardItemDesc,
-		GiverNPCID:     q.GiverNPCID,
-		AcceptedAt:     q.AcceptedAt,
-		NextQuestID:    q.NextQuestID,
+		ID:               q.ID,
+		Title:            q.Title,
+		Description:      q.Description,
+		Status:           q.Status,
+		ObjType:          q.ObjType,
+		ObjTarget:        q.ObjTarget,
+		ObjRoom:          q.ObjRoom,
+		ObjCount:         q.ObjCount,
+		ObjProgress:      q.ObjProgress,
+		RewardCredits:    q.RewardCredits,
+		RewardXPSkill:    q.RewardXPSkill,
+		RewardXPAmount:   q.RewardXPAmount,
+		RewardItemID:     q.RewardItemID,
+		RewardItemName:   q.RewardItemName,
+		RewardItemDesc:   q.RewardItemDesc,
+		GiverNPCID:       q.GiverNPCID,
+		GiverFaction:     q.GiverFaction,
+		MinRep:           q.MinRep,
+		RewardRepFaction: q.RewardRepFaction,
+		RewardRepDelta:   q.RewardRepDelta,
+		AcceptedAt:       q.AcceptedAt,
+		NextQuestID:      q.NextQuestID,
 	}
 }
 

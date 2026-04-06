@@ -2420,30 +2420,82 @@ func (g *GameDB) InstallHideoutUpgrade(ctx context.Context, id string) error {
 
 // QuestRecord holds quest data.
 type QuestRecord struct {
-	ID             string
-	Title          string
-	Description    string
-	Status         string
-	ObjType        string
-	ObjTarget      string
-	ObjRoom        string
-	ObjCount       int
-	ObjProgress    int
-	RewardCredits  int
-	RewardXPSkill  string
-	RewardXPAmount int
-	RewardItemID   string
-	RewardItemName string
-	RewardItemDesc string
-	GiverNPCID     string
-	AcceptedAt     int64
-	NextQuestID    string
+	ID               string
+	Title            string
+	Description      string
+	Status           string
+	ObjType          string
+	ObjTarget        string
+	ObjRoom          string
+	ObjCount         int
+	ObjProgress      int
+	RewardCredits    int
+	RewardXPSkill    string
+	RewardXPAmount   int
+	RewardItemID     string
+	RewardItemName   string
+	RewardItemDesc   string
+	GiverNPCID       string
+	GiverFaction     string
+	MinRep           int
+	RewardRepFaction string
+	RewardRepDelta   int
+	AcceptedAt       int64
+	NextQuestID      string
+}
+
+// loadQuestRepFields fetches the rep-gating columns for a single quest by ID.
+// These columns aren't in the sqlc generated models, so we read them directly.
+func (g *GameDB) loadQuestRepFields(ctx context.Context, questID string) (giverFaction string, minRep int, rewardRepFaction string, rewardRepDelta int) {
+	if g.pg != nil {
+		if g.pgPool != nil {
+			_ = g.pgPool.QueryRow(ctx,
+				`SELECT giver_faction, min_rep, reward_rep_faction, reward_rep_delta
+				 FROM shared_quests WHERE id=$1 AND account_id=$2 AND world_id=$3`,
+				questID, g.pgUUID(), g.worldID,
+			).Scan(&giverFaction, &minRep, &rewardRepFaction, &rewardRepDelta)
+		}
+		return
+	}
+	_ = g.sqliteDB.QueryRow(
+		`SELECT giver_faction, min_rep, reward_rep_faction, reward_rep_delta FROM quests WHERE id=?`,
+		questID,
+	).Scan(&giverFaction, &minRep, &rewardRepFaction, &rewardRepDelta)
+	return
+}
+
+// saveQuestRepFields writes the rep-gating columns for a quest.
+// Called after AcceptQuest to persist fields the sqlc layer doesn't know about.
+func (g *GameDB) saveQuestRepFields(ctx context.Context, q QuestRecord) error {
+	if g.pg != nil {
+		if g.pgPool == nil {
+			return nil
+		}
+		_, err := g.pgPool.Exec(ctx,
+			`UPDATE shared_quests
+			 SET giver_faction=$1, min_rep=$2, reward_rep_faction=$3, reward_rep_delta=$4
+			 WHERE id=$5 AND account_id=$6 AND world_id=$7`,
+			q.GiverFaction, q.MinRep, q.RewardRepFaction, q.RewardRepDelta,
+			q.ID, g.pgUUID(), g.worldID,
+		)
+		return err
+	}
+	_, err := g.sqliteDB.Exec(
+		`UPDATE quests SET giver_faction=?, min_rep=?, reward_rep_faction=?, reward_rep_delta=? WHERE id=?`,
+		q.GiverFaction, q.MinRep, q.RewardRepFaction, q.RewardRepDelta, q.ID,
+	)
+	return err
+}
+
+// augmentQuestRep populates the rep fields on a record loaded via sqlc.
+func (g *GameDB) augmentQuestRep(ctx context.Context, r *QuestRecord) {
+	r.GiverFaction, r.MinRep, r.RewardRepFaction, r.RewardRepDelta = g.loadQuestRepFields(ctx, r.ID)
 }
 
 // AcceptQuest inserts a new quest.
 func (g *GameDB) AcceptQuest(ctx context.Context, q QuestRecord) error {
 	if g.pg != nil {
-		return g.pg.AcceptSharedQuest(ctx, pgq.AcceptSharedQuestParams{
+		if err := g.pg.AcceptSharedQuest(ctx, pgq.AcceptSharedQuestParams{
 			ID:             q.ID,
 			AccountID:      g.pgUUID(),
 			WorldID:        g.worldID,
@@ -2464,9 +2516,12 @@ func (g *GameDB) AcceptQuest(ctx context.Context, q QuestRecord) error {
 			GiverNpcID:     pgText(q.GiverNPCID),
 			AcceptedAt:     int32(q.AcceptedAt),
 			NextQuestID:    q.NextQuestID,
-		})
+		}); err != nil {
+			return err
+		}
+		return g.saveQuestRepFields(ctx, q)
 	}
-	return g.sqlite.AcceptQuest(ctx, sqliteq.AcceptQuestParams{
+	if err := g.sqlite.AcceptQuest(ctx, sqliteq.AcceptQuestParams{
 		ID:             q.ID,
 		Title:          q.Title,
 		Description:    sql.NullString{String: q.Description, Valid: q.Description != ""},
@@ -2485,7 +2540,10 @@ func (g *GameDB) AcceptQuest(ctx context.Context, q QuestRecord) error {
 		GiverNpcID:     sql.NullString{String: q.GiverNPCID, Valid: q.GiverNPCID != ""},
 		AcceptedAt:     q.AcceptedAt,
 		NextQuestID:    q.NextQuestID,
-	})
+	}); err != nil {
+		return err
+	}
+	return g.saveQuestRepFields(ctx, q)
 }
 
 // ListActiveQuests returns active quests.
@@ -2520,6 +2578,7 @@ func (g *GameDB) ListActiveQuests(ctx context.Context) ([]QuestRecord, error) {
 				AcceptedAt:     int64(r.AcceptedAt),
 				NextQuestID:    r.NextQuestID,
 			}
+			g.augmentQuestRep(ctx, &out[i])
 		}
 		return out, nil
 	}
@@ -2530,6 +2589,7 @@ func (g *GameDB) ListActiveQuests(ctx context.Context) ([]QuestRecord, error) {
 	out := make([]QuestRecord, len(rows))
 	for i, r := range rows {
 		out[i] = questFromSqlc(r)
+		g.augmentQuestRep(ctx, &out[i])
 	}
 	return out, nil
 }
@@ -2605,6 +2665,7 @@ func (g *GameDB) GetQuest(ctx context.Context, id string) (*QuestRecord, error) 
 			AcceptedAt:     int64(row.AcceptedAt),
 			NextQuestID:    row.NextQuestID,
 		}
+		g.augmentQuestRep(ctx, &q)
 		return &q, nil
 	}
 	row, err := g.sqlite.GetQuest(ctx, id)
@@ -2612,6 +2673,7 @@ func (g *GameDB) GetQuest(ctx context.Context, id string) (*QuestRecord, error) 
 		return nil, normErr(err)
 	}
 	q := questFromSqlc(row)
+	g.augmentQuestRep(ctx, &q)
 	return &q, nil
 }
 
@@ -2676,6 +2738,7 @@ func (g *GameDB) ListActiveQuestsByTypeTarget(ctx context.Context, objType, targ
 				AcceptedAt:     int64(r.AcceptedAt),
 				NextQuestID:    r.NextQuestID,
 			}
+			g.augmentQuestRep(ctx, &out[i])
 		}
 		return out, nil
 	}
@@ -2689,6 +2752,7 @@ func (g *GameDB) ListActiveQuestsByTypeTarget(ctx context.Context, objType, targ
 	out := make([]QuestRecord, len(rows))
 	for i, r := range rows {
 		out[i] = questFromSqlc(r)
+		g.augmentQuestRep(ctx, &out[i])
 	}
 	return out, nil
 }
