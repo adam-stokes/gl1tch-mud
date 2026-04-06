@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/arena"
 	"github.com/adam-stokes/gl1tch-mud/internal/augments"
 	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
@@ -38,6 +39,7 @@ type Result struct {
 	Output           string
 	Event            *Event
 	SwitchWorld      string // non-empty triggers a world switch in main.go
+	MoveRoom         string // non-empty: session moves player to this room ID
 	PendingRequestID string // non-empty: register this request_id → player in server
 	PendingPlayer    string
 }
@@ -106,6 +108,7 @@ var Registry = map[string]HandlerFunc{
 	"eq":           Equipment,
 	"baseinfo":     BaseInfo,
 	"mybase":       BaseInfo,
+	"arena":        Arena,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
@@ -364,6 +367,23 @@ func Attack(db *sql.DB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
 		return Result{Output: "attack what?"}
 	}
+
+	// Arena intercept: if an active match exists, route to arena combat.
+	if match := arena.GetActive(db); match != nil {
+		res := arena.ProcessAttack(db, w, s)
+		if res.Lost {
+			s.HP = s.MaxHP / 2
+			if s.HP < 1 {
+				s.HP = 1
+			}
+			return Result{
+				Output:   res.Output + "\nyou've been knocked out. back to dusthaven.",
+				MoveRoom: "dusthaven-0",
+			}
+		}
+		return Result{Output: res.Output}
+	}
+
 	target := strings.ReplaceAll(strings.Join(args, " "), "-", " ")
 	room := w.Room(s.RoomID)
 	if room == nil {
@@ -1940,4 +1960,51 @@ func BaseInfo(db *sql.DB, s *player.State, w *world.World, args []string) Result
 	fmt.Fprintf(&sb, "  Next raid check: ~%d actions", nextRaid)
 
 	return Result{Output: strings.TrimRight(sb.String(), "\n")}
+}
+
+// Arena starts, shows status, or quits an arena match.
+// Use at barrens-3 for TDM, ruins-3 for Tower Defense.
+func Arena(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	// arena quit
+	if len(args) > 0 && args[0] == "quit" {
+		if arena.GetActive(db) == nil {
+			return Result{Output: "no active arena match."}
+		}
+		msg := arena.Quit(db)
+		s.HP = s.MaxHP / 2
+		if s.HP < 1 {
+			s.HP = 1
+		}
+		return Result{Output: msg + "\nyou limp back to dusthaven.", MoveRoom: "dusthaven-0"}
+	}
+
+	// Active match: show status
+	if m := arena.GetActive(db); m != nil {
+		alive := 0
+		for _, e := range m.Enemies {
+			if e.Alive {
+				alive++
+			}
+		}
+		if m.GameType == "tdm" {
+			return Result{Output: fmt.Sprintf("ARENA [TDM] — %d enemies remaining. type 'attack' to fight.", alive)}
+		}
+		return Result{Output: fmt.Sprintf("ARENA [TOWER DEFENSE] — wave %d/3, %d enemies remaining. type 'attack' to fight.", m.Wave+1, alive)}
+	}
+
+	// No active match: start one based on room
+	switch s.RoomID {
+	case "barrens-3":
+		if err := arena.StartTDM(db); err != nil {
+			return Result{Output: fmt.Sprintf("failed to start match: %v", err)}
+		}
+		return Result{Output: "COMBAT ZONE — TDM\n5 Ash Raiders. Kill them all.\nReward: 200 caps.\nType 'attack' to engage. 'arena quit' to forfeit."}
+	case "ruins-3":
+		if err := arena.StartTowerDefense(db, w); err != nil {
+			return Result{Output: fmt.Sprintf("failed to start match: %v", err)}
+		}
+		return Result{Output: "TOWER DEFENSE\n3 waves incoming. Your base turrets will fire at the start of each wave.\nReward: 300 caps + pre-war-circuitry.\nType 'attack' to engage. 'arena quit' to forfeit."}
+	default:
+		return Result{Output: "find an arena entrance first. (Combat Zone: barrens-3, Tower Defense: ruins-3)"}
+	}
 }
