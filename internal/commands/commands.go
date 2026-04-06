@@ -201,6 +201,12 @@ func Look(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 		}
 	}
 
+	// Quest-giver hints: highlight NPCs in this room that have an unaccepted
+	// quest available so new players know who to talk to.
+	if hints := questGiverHints(gdb, w, room); hints != "" {
+		output += "\n" + hints
+	}
+
 	return Result{
 		Output: output,
 		Event: &Event{
@@ -212,6 +218,37 @@ func Look(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 			},
 		},
 	}
+}
+
+// questGiverHints returns a one-line hint when an NPC in the current room has
+// an available (unaccepted, uncompleted) quest the player could pick up by
+// talking to them. Returns "" when there is nothing to suggest.
+func questGiverHints(gdb *gamedb.GameDB, w *world.World, room *world.Room) string {
+	if w == nil || room == nil || len(w.Quests) == 0 {
+		return ""
+	}
+	activeIDs, _ := quests.ActiveIDs(gdb)
+	var hints []string
+	for _, npc := range room.NPCs {
+		if !player.NPCAlive(gdb, room.ID, npc.ID) {
+			continue
+		}
+		for _, q := range w.Quests {
+			if q.GiverNPCID != npc.ID {
+				continue
+			}
+			if activeIDs[q.ID] {
+				continue
+			}
+			// Skip quests the player has already completed.
+			if existing, err := quests.Get(gdb, q.ID); err == nil && existing != nil && existing.Status != "active" {
+				continue
+			}
+			hints = append(hints, fmt.Sprintf("[hint] %s has work for you — try 'talk %s'.", npc.Name, npc.ID))
+			break
+		}
+	}
+	return strings.Join(hints, "\n")
 }
 
 // checkStealthDetection checks if the player is detected by NPCs due to low stealth.
@@ -607,49 +644,83 @@ func Inventory(gdb *gamedb.GameDB, s *player.State, w *world.World, args []strin
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }
 
-// Help lists available commands.
+// Help lists available commands. With no args, shows the friendly grouped
+// quick reference. With an argument, shows detailed help for that topic.
 func Help(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
-	return Result{Output: `commands:
-  look / l              — describe current room
-  go <dir>              — move (north/south/east/west, or just: n/s/e/w)
-  examine <thing>       — examine an NPC or item
-  take <item>           — pick up an item
-  attack <npc>          — attack an enemy
-  inventory / i         — list carried items
-  skills                — show skill levels and XP
-  credits               — show credit balance
-  hack <system>         — attempt to hack a system in the room
-  pick <lock>           — attempt to pick a lock
-  unlock <lock>         — use a key to unlock a lock
-  offers <npc>          — list what an NPC will trade
-  trade <trade-id>      — execute a trade with an NPC in the room
-  craft <recipe>        — craft an item from ingredients
-  hide                  — attempt to increase stealth
-  disguise <item>       — equip a disguise item
-  talk <npc>            — speak to an NPC (may auto-accept quests)
-  explore <dir>         — explore an unmapped direction
-  read <item>           — read a readable item in the room
-  search <item>         — search a container item in the room
-  install <item>        — install a neural augment
-  mod <item> with <mod> — apply a mod to an item
-  blueprint <item>      — decode a blueprint to unlock a recipe
-  quests / quest        — list active quests; 'quest complete <id>' to turn in
-  events                — list active world events; 'events join <id>' for briefing
-  faction               — show faction status; 'faction create <name> [agenda]'
-  recruit <npc-id>      — recruit an NPC into your faction
-  hideout               — teleport to your faction hideout
-  upgrade list          — list hideout upgrades; 'upgrade buy <id>' to purchase
-  weather               — show current weather conditions
-  gather                — gather natural resources from the current room
-  mine                  — mine ore or stone from the current room
-  build <recipe>        — build a structure from materials
-  stash <item>          — stash an item in the current room
-  unstash               — retrieve a stashed item from the current room
-  world list            — list available worlds
-  world switch <name>   — switch to a different world
-  enchant <item>        — enchant an item using a rune stone
-  help / ?              — this list
-  quit                  — disconnect`}
+	if len(args) > 0 {
+		return helpDetail(strings.ToLower(args[0]))
+	}
+	return Result{Output: `═══ HELP ═══
+NAVIGATION:
+  look                   - describe current room
+  go <dir>               - move (north/south/east/west, or n/s/e/w)
+  explore <dir>          - explore an unmapped direction
+
+INTERACTION:
+  take <item>            - pick up an item
+  drop <item>            - drop an item
+  examine <thing>        - inspect an NPC or item
+  talk <npc>             - talk to a person (may auto-accept quests)
+  attack <npc>           - attack a target
+  inventory / i          - show what you're carrying
+  read <item>            - read a readable item
+
+PROGRESS:
+  quests                 - show active quests ('quest complete <id>' to turn in)
+  skills                 - show your skills
+  credits                - show your credits
+  faction                - show faction status
+
+GATHERING & CRAFTING:
+  gather                 - gather resources from this room
+  mine                   - mine ore or stone
+  craft <recipe>         - craft an item
+  build <recipe>         - build a structure
+  trade <trade-id>       - trade with an NPC ('offers <npc>' to see)
+
+SOCIAL:
+  say <msg>              - speak to people in your room
+  shout <msg>            - shout to everyone in this world
+  whisper <player> <msg> - private message
+  who                    - list online players
+
+SYSTEM:
+  world list             - list available worlds
+  world switch <name>    - switch to a different world
+  help <command>         - details on a specific command
+  quit                   - disconnect
+
+Type 'help <command>' for details on any specific command.
+═══════════`}
+}
+
+// helpDetail returns detailed help for a single topic, or a fallback note.
+func helpDetail(topic string) Result {
+	details := map[string]string{
+		"look":      "look — describe the current room, exits, NPCs, and items.",
+		"go":        "go <direction> — move through an exit. Directions: north, south, east, west (or n/s/e/w).",
+		"take":      "take <item> — pick up an item from the room. 'take death-pile' recovers items you dropped or lost on death.",
+		"drop":      "drop <item> — drop an item from your inventory; recoverable via 'take death-pile'.",
+		"examine":   "examine <thing> — inspect an NPC (shows HP) or item (shows description).",
+		"talk":      "talk <npc> — speak to an NPC. Some NPCs offer quests, which are auto-accepted.",
+		"attack":    "attack <npc> — engage an NPC in combat. Bring a weapon and friends.",
+		"inventory": "inventory (or i) — list everything you're currently carrying.",
+		"quests":    "quests — list active quests. 'quest complete <id>' to turn in a finished quest.",
+		"skills":    "skills — show your skill levels and XP. Skills improve through use.",
+		"credits":   "credits — show your credit balance.",
+		"craft":     "craft <recipe> — craft an item using ingredients in your inventory at an appropriate workbench.",
+		"hack":      "hack <system> — attempt to compromise a hackable system in the room.",
+		"say":       "say <message> — speak to everyone in your current room.",
+		"shout":     "shout <message> — broadcast to every player in this world.",
+		"whisper":   "whisper <player> <message> — send a private message to one player.",
+		"who":       "who — list players currently online in this world.",
+		"world":     "world list / world switch <name> — list or change worlds.",
+		"help":      "help — show the command quick reference. 'help <command>' for details.",
+	}
+	if d, ok := details[topic]; ok {
+		return Result{Output: d}
+	}
+	return Result{Output: fmt.Sprintf("no detailed help for %q. type 'help' for the command list.", topic)}
 }
 
 // Read reads a readable item in the current room.
@@ -1145,8 +1216,9 @@ func Talk(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 
 	output := fmt.Sprintf("%s: \"%s\"", npc.Name, text)
 
-	// Auto-accept quest if the dialogue line has a quest_id
-	if matchedQuestID != "" {
+	// Auto-accept quest if the dialogue line has a quest_id and the player
+	// doesn't already have it active.
+	if matchedQuestID != "" && !activeQuestIDs[matchedQuestID] {
 		wq := w.FindQuest(matchedQuestID)
 		if wq != nil {
 			q := quests.Quest{

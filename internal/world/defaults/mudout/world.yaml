@@ -439,10 +439,15 @@ rooms:
         attack: 8
         desc: "A tough-looking woman with a Settlers armband. She sizes you up."
         dialogue:
+          - trigger: "quest_not_active:settlers-intro"
+            text: "You look like you can handle yourself. Prove it — bring me 3 scrap metal from the wasteland and I'll know you're useful to the Settlers."
+            quest_id: settlers-intro
+          - trigger: "quest_active:settlers-intro"
+            text: "Still need that scrap metal. Head south through the gate and start scavenging."
+          - trigger: "quest_active:settlers-defense"
+            text: "Two Ash Raiders. That's the price for our gate. Get to it."
           - trigger: always
-            text: "You look like you can handle yourself. The Settlers could use another hand."
-          - trigger: always
-            text: "Raiders hit the south fence last night. We need fighters."
+            text: "Settlers stand together. Stay sharp out there."
     items:
       - id: wasteland-notice
         name: "Crumpled Notice"
@@ -838,3 +843,26 @@ rooms:
         readable: true
         content: "TOWER DEFENSE\nSurvive 3 waves of Ash Raiders.\nYour dusthaven-4 base turrets auto-fire each wave.\nReward: 300 caps + Pre-War Circuitry. Type 'arena' to begin."
 
+quests:
+  - id: settlers-intro
+    title: "Prove Yourself"
+    description: "Marta wants you to scavenge 3 scrap metal from the wasteland to prove you're useful to the Settlers."
+    giver_npc_id: settler-recruiter
+    obj_type: retrieve
+    obj_target: scrap-metal
+    obj_count: 3
+    reward_credits: 50
+    reward_xp_skill: scavenging
+    reward_xp_amount: 25
+    next_quest_id: settlers-defense
+
+  - id: settlers-defense
+    title: "Defend the Gate"
+    description: "Raiders hit the south fence last night. Kill 2 Ash Raider scouts to make them think twice."
+    giver_npc_id: settler-recruiter
+    obj_type: kill
+    obj_target: raider-scout
+    obj_count: 2
+    reward_credits: 100
+    reward_xp_skill: combat
+    reward_xp_amount: 50

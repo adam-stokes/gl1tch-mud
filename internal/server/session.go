@@ -115,6 +115,14 @@ func (s *ClientSession) Handle(ctx context.Context) {
 		world.SeedStartingItems(s.gdb, s.worldName)  //nolint:errcheck
 	}
 
+	// First-time mudout welcome banner — shown before the first room render.
+	if s.worldName == "mudout" && !s.gdb.HasVisited(ctx, s.state.RoomID) {
+		_ = writeMsg(ctx, s.conn, ServerMsg{
+			Type:    "output.token",
+			Payload: OutputTokenPayload{Token: mudoutWelcomeBanner() + "\r\n"},
+		})
+	}
+
 	// Send welcome look.
 	res := commands.Look(s.gdb, s.state, s.world, nil)
 	_ = writeMsg(ctx, s.conn, ServerMsg{
@@ -790,6 +798,22 @@ func (s *ClientSession) sendStateUpdate(ctx context.Context) {
 			Players:    s.registry.PlayersInWorld(s.worldName, s.world),
 		},
 	})
+}
+
+// mudoutWelcomeBanner returns the first-time onboarding banner for mudout.
+func mudoutWelcomeBanner() string {
+	return "" +
+		"═══ WELCOME TO DUSTHAVEN ═══\r\n" +
+		"The wasteland doesn't care if you live or die. Here's what you need to know:\r\n" +
+		"\r\n" +
+		"  • Click action buttons or type commands (look, take, talk, attack, go north, etc.)\r\n" +
+		"  • Talk to Marta at the gate — she's hiring fighters for the Settlers\r\n" +
+		"  • Scavenge ruins, mine resources, build a base, survive raids\r\n" +
+		"  • Type 'help' for the full command list\r\n" +
+		"  • Type 'quests' to see what jobs are available\r\n" +
+		"\r\n" +
+		"Your mission: Find a faction, build power, survive.\r\n" +
+		"═══════════════════════════\r\n"
 }
 
 // Close cancels the session context and unregisters the player.

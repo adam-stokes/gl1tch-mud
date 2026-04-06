@@ -153,6 +153,10 @@ func matchTrigger(trigger string, ctx PlayerContext) bool {
 	case strings.HasPrefix(trigger, "quest_active:"):
 		questID := strings.TrimPrefix(trigger, "quest_active:")
 		return ctx.ActiveQuestIDs[questID]
+
+	case strings.HasPrefix(trigger, "quest_not_active:"):
+		questID := strings.TrimPrefix(trigger, "quest_not_active:")
+		return !ctx.ActiveQuestIDs[questID]
 	}
 
 	return false
