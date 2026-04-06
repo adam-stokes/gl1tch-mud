@@ -437,43 +437,51 @@ rooms:
         attack: 10
         desc: "Retired gunslinger. Two fingers missing on the off hand. Drinks slow."
         dialogue:
+          - trigger: "class:gunslinger"
+            text: "You wear it on you, kid. The walk. Try 'inventory' — see what you came in with. Then 'look' around. Then 'examine' that crate at my feet. Then try 'fan' on the bottle. When you're ready, head south to the Gate. Marta's hiring."
           - trigger: always
-            text: "You wear it on you, kid. The walk. Try 'inventory' — see what you came in with. Then 'look' around. Then 'examine' that crate at my feet. Then try 'fan' on the bottle. Then get to the Gate. Marta's hiring."
+            text: "*Old Cass tips his hat without looking up.*"
       - id: rust
         name: "Rust"
         hp: 50
         attack: 6
         desc: "One-eyed tinker hunched over a half-disassembled pipe rifle."
         dialogue:
+          - trigger: "class:mechanic"
+            text: "Hands first. Type 'inventory'. Then 'look'. Then 'examine' that crate — schematics inside. Try 'hotwire' on the dead radio. When you can do all four, head south to the Gate."
           - trigger: always
-            text: "Hands first. Type 'inventory'. Then 'look'. Then 'examine' that crate — schematics inside. Try 'hotwire' on the dead radio. When you can do all four, get to the Gate."
+            text: "*Rust grunts and keeps tinkering. Not your conversation.*"
       - id: halftrack
         name: "Halftrack"
         hp: 45
         attack: 5
         desc: "One-legged trader with a satchel that bulges in suspicious places."
         dialogue:
-          - trigger: always
+          - trigger: "class:scavver"
             text: "Lesson one: 'inventory'. Lesson two: 'look'. Lesson three: 'examine' the crate — there's product in it. Lesson four: 'barter' with me. Then go talk to Marta at the Gate."
+          - trigger: always
+            text: "*Halftrack squints at you, decides you're not a customer, looks away.*"
       - id: doc-vega
         name: "Doc Vega"
         hp: 50
         attack: 5
         desc: "Vault-issue lab coat, sleeves rolled, scalpel tucked behind the ear."
         dialogue:
-          - trigger: always
+          - trigger: "class:medic"
             text: "Triage check. 'inventory'. 'look'. 'examine' the crate — chems inside. 'stim' yourself. Then south to the Gate."
+          - trigger: always
+            text: "*Doc Vega is sorting vials and doesn't look up.*"
       - id: mother-ash
         name: "Mother Ash"
         hp: 70
         attack: 7
         desc: "Ancient ghoul wrapped in tattered robes. Her eyes still see fine."
         dialogue:
-          - trigger: "quest_not_active:ghoul-intro"
-            text: "Old bones, child. There's a glowing relic in the Collapsed Mall — pre-war, brittle, mine. Bring it back to me and I'll know you. The Settlers won't help you. We will."
+          - trigger: "class:ghoul"
+            text: "Old bones, child. 'inventory'. 'look'. 'examine' the crate. 'rad-feed' on the chunks. Then walk south. There's a glowing relic in the Collapsed Mall — pre-war, brittle, mine. Bring it to me when you can. The Settlers won't help you. We will."
             quest_id: ghoul-intro
           - trigger: always
-            text: "'inventory'. 'look'. 'examine' the crate. 'rad-feed' on the chunks. Then walk south. The world is older than the gate."
+            text: "*Mother Ash regards you with patient, ancient eyes. 'Not yet,' she murmurs. 'Not yet.'*"
     items:
       - id: tutorial-crate
         name: "Battered Crate"

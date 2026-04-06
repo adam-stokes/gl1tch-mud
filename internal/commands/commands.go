@@ -530,6 +530,11 @@ func Attack(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) 
 
 		// Simple combat round: player deals 10-20, NPC retaliates.
 		playerDmg := 15
+		// Gunslinger fan: if primed, double damage and consume the prime.
+		if gdb.IsPlayerFlagSet(context.Background(), flagFanPrimed) {
+			playerDmg *= 2
+			_ = gdb.DeletePlayerFlag(context.Background(), flagFanPrimed)
+		}
 		npcHP := player.NPCCurrentHP(gdb, s.RoomID, npc.ID, npc.HP) - playerDmg
 		dmg := npc.Attack - s.Defense
 		if dmg < 1 {
@@ -1073,6 +1078,23 @@ func Trade(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) R
 
 	var ev *Event
 	if res.OK {
+		// Scavver barter prime: if set, grant a duplicate of every received item
+		// and consume the prime.
+		if gdb.IsPlayerFlagSet(context.Background(), flagBarterPrimed) {
+			for _, item := range res.GotItems {
+				name := item.Name
+				if name == "" {
+					name = item.ID
+				}
+				desc := item.Desc
+				if desc == "" {
+					desc = "barter bonus"
+				}
+				_ = player.AddItem(gdb, item.ID+"-bonus", name+" (bonus)", desc)
+			}
+			_ = gdb.DeletePlayerFlag(context.Background(), flagBarterPrimed)
+			res.Message += "\n[barter bonus] you talked them up — extra items in the bag."
+		}
 		var receiveItems []string
 		for _, item := range res.GotItems {
 			name := item.Name
@@ -1252,6 +1274,7 @@ func Talk(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 		Disguise:           st.Disguise,
 		AllShardsCollected: totalShards >= 5 && shardCount >= 5,
 		ActiveQuestIDs:     activeQuestIDs,
+		Class:              s.Class,
 	}
 
 	text := espionage.EvalDialogue(npc.Dialogue, ctx)
