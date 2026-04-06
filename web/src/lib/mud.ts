@@ -1879,8 +1879,9 @@ export function initMUD() {
     }
     if (state.recipes) _recipes = state.recipes;
 
+    // Room context (who's here / on the ground / exits) is shown in both modes
+    rebuildRoomContext(state);
     if (_kidsMode) {
-      rebuildRoomContext(state);
       rebuildKidsActionButtons(state);
     } else {
       updateCompass(state.exits ?? []);

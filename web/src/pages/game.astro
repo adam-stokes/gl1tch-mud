@@ -112,17 +112,18 @@
         min-height: 1.1em;
       }
 
-      /* ── HUD layout ─────────────────────────────────────── */
+      /* ── HUD layout — 3 columns + bottom HUD bar ────────── */
       #hud-screen {
         display: none;
         height: 100vh;
         width: 100vw;
-        grid-template-rows: 2.4rem 1fr 2.8rem;
-        grid-template-columns: 1fr 268px;
+        grid-template-rows: 2.4rem 1fr auto 2.8rem;
+        grid-template-columns: 280px 1fr 280px;
         grid-template-areas:
-          "topbar topbar"
-          "output sidebar"
-          "input  input";
+          "topbar topbar  topbar"
+          "left   output  right"
+          "left   bottom  right"
+          "input  input   input";
       }
 
       #hud-screen.active { display: grid; }
@@ -206,17 +207,32 @@
       #output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
       /* ── Sidebar ────────────────────────────────────────── */
-      #sidebar {
-        grid-area: sidebar;
+      #sidebar-left, #sidebar-right {
         background: var(--bg);
         display: flex;
         flex-direction: column;
         gap: 0;
-        overflow-y: auto;
+        overflow: hidden;
+        border-color: var(--border);
+        min-height: 0;
+      }
+      #sidebar-left  { grid-area: left;  border-right: 1px solid var(--border); }
+      #sidebar-right { grid-area: right; border-left:  1px solid var(--border); }
+
+      #bottom-bar {
+        grid-area: bottom;
+        background: var(--bg-dark);
+        border-top: 1px solid var(--border);
+        padding: 0.5rem 0.75rem;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+        min-height: 3rem;
       }
 
-      #sidebar::-webkit-scrollbar { width: 3px; }
-      #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+      /* legacy #sidebar selector for any remaining JS hooks */
+      #sidebar { display: contents; }
 
       .panel {
         padding: 0.5rem 0.6rem;
@@ -517,9 +533,10 @@
 
       /* ── Actions ────────────────────────────────────────── */
       .action-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-wrap: wrap;
         gap: 4px;
+        flex: 1;
       }
 
       .action-btn {
@@ -1110,8 +1127,7 @@
       /* ── Kids mode (data-ui="kids") ──────────────────────── */
 
       /* Hide compass + network; show room-context */
-      #room-context                           { display: none; }
-      [data-ui="kids"] #room-context          { display: block; }
+      #room-context                           { display: block; }
       [data-ui="kids"] .panel:has(#btn-n)     { display: none; }
       [data-ui="kids"] .panel:has(#player-list) { display: none; }
 
@@ -1734,8 +1750,8 @@
       <!-- Game output -->
       <div id="output"></div>
 
-      <!-- Sidebar -->
-      <div id="sidebar">
+      <!-- LEFT sidebar: Navigate, Map, Network, Chat -->
+      <div id="sidebar-left">
 
         <!-- Compass -->
         <div class="panel">
@@ -1755,17 +1771,7 @@
           </div>
         </div>
 
-        <!-- Room Context (kids mode only) -->
-        <div class="panel" id="room-context">
-          <div class="panel-title">who's here</div>
-          <div id="room-npcs-list"></div>
-          <div class="panel-title kids-section-sep">on the ground</div>
-          <div id="room-ground-list"></div>
-          <div class="panel-title kids-section-sep">exits</div>
-          <div id="kids-exits"></div>
-        </div>
-
-        <!-- Map (kids mode only) -->
+        <!-- Map -->
         <div class="panel" id="kids-map-panel">
           <div class="panel-title kids-map-header">
             map
@@ -1783,9 +1789,7 @@
         <!-- Network -->
         <div class="panel">
           <div class="panel-title">network</div>
-          <div id="player-list">
-            <!-- populated by JS -->
-          </div>
+          <div id="player-list"></div>
         </div>
 
         <!-- Chat -->
@@ -1798,26 +1802,38 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- RIGHT sidebar: Room context, Inventory -->
+      <div id="sidebar-right">
+
+        <!-- Room Context: who's here / on the ground / exits -->
+        <div class="panel" id="room-context">
+          <div class="panel-title">who's here</div>
+          <div id="room-npcs-list"></div>
+          <div class="panel-title kids-section-sep">on the ground</div>
+          <div id="room-ground-list"></div>
+          <div class="panel-title kids-section-sep">exits</div>
+          <div id="kids-exits"></div>
+        </div>
+
         <!-- Inventory -->
         <div class="panel">
           <div class="panel-title">inventory</div>
-          <div class="inv-grid" id="inv-grid">
-            <!-- 8 slots rendered by JS -->
-          </div>
+          <div class="inv-grid" id="inv-grid"></div>
         </div>
 
-        <!-- Actions -->
-        <div class="panel">
-          <div class="panel-title">actions</div>
-          <div id="target-picker">
-            <div class="picker-label" id="target-picker-label">choose a target</div>
-            <div id="target-picker-btns"></div>
-          </div>
-          <div class="action-grid" id="action-grid">
-            <!-- populated by JS based on world -->
-          </div>
-        </div>
+      </div>
 
+      <!-- BOTTOM bar: Actions + target picker -->
+      <div id="bottom-bar">
+        <div id="target-picker">
+          <div class="picker-label" id="target-picker-label">choose a target</div>
+          <div id="target-picker-btns"></div>
+        </div>
+        <div class="action-grid" id="action-grid">
+          <!-- populated by JS based on world -->
+        </div>
       </div>
 
       <!-- Onboarding hint banner (kids mode only) -->
