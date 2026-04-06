@@ -97,6 +97,12 @@ var Registry = map[string]HandlerFunc{
 	"credits":      Credits,
 	"top":          handleTop,
 	"achievements": handleAchievements,
+	"wear":         Wear,
+	"equip":        Wear,
+	"unwear":       Unwear,
+	"remove":       Unwear,
+	"equipment":    Equipment,
+	"eq":           Equipment,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
@@ -1800,4 +1806,79 @@ func upgradeBuy(db *sql.DB, id string) Result {
 	}
 
 	return Result{Output: fmt.Sprintf("[UPGRADE INSTALLED] %s (--%d ¢)\n%s", u.Name, u.Cost, flavor)}
+}
+
+// Wear equips an armor item from the player's inventory.
+func Wear(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	if len(args) == 0 {
+		return Result{Output: "wear <item-id> — put on an armor item"}
+	}
+	itemID := args[0]
+
+	// Check inventory
+	items, err := player.Inventory(db)
+	if err != nil {
+		return Result{Output: "inventory error."}
+	}
+	found := false
+	for _, it := range items {
+		if it.ID == itemID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return Result{Output: fmt.Sprintf("you don't have %s.", itemID)}
+	}
+
+	// Verify armor tag via world lookup
+	item := w.FindItemAnywhere(itemID)
+	if item == nil {
+		return Result{Output: fmt.Sprintf("unknown item: %s.", itemID)}
+	}
+	hasArmorTag := false
+	for _, tag := range item.Tags {
+		if tag == "armor" {
+			hasArmorTag = true
+			break
+		}
+	}
+	if !hasArmorTag {
+		return Result{Output: fmt.Sprintf("%s is not wearable armor.", item.Name)}
+	}
+
+	// If armor already equipped, return it to inventory first
+	current, _ := player.GetEquippedArmor(db)
+	if current != nil {
+		player.AddItem(db, current.ItemID, current.ItemName, "") //nolint:errcheck
+	}
+
+	// Remove new armor from inventory and equip it
+	player.RemoveItem(db, itemID)                              //nolint:errcheck
+	defense := item.Stats["damage_resist"]
+	player.EquipArmor(db, itemID, item.Name, defense)         //nolint:errcheck
+	s.Defense = defense
+
+	return Result{Output: fmt.Sprintf("you put on the %s. [DEF +%d]", item.Name, defense)}
+}
+
+// Unwear removes the currently equipped armor and returns it to inventory.
+func Unwear(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	current, err := player.GetEquippedArmor(db)
+	if err != nil || current == nil {
+		return Result{Output: "you're not wearing any armor."}
+	}
+	player.UnequipArmor(db)                                   //nolint:errcheck
+	player.AddItem(db, current.ItemID, current.ItemName, "")  //nolint:errcheck
+	s.Defense = 0
+	return Result{Output: fmt.Sprintf("you remove the %s.", current.ItemName)}
+}
+
+// Equipment shows the currently equipped armor.
+func Equipment(db *sql.DB, s *player.State, w *world.World, args []string) Result {
+	rec, err := player.GetEquippedArmor(db)
+	if err != nil || rec == nil {
+		return Result{Output: "ARMOR: nothing equipped."}
+	}
+	return Result{Output: fmt.Sprintf("ARMOR: %s [DEF %d]", rec.ItemName, rec.Defense)}
 }
