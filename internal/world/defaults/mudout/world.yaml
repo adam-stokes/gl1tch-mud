@@ -299,6 +299,7 @@ crafting_recipes:
       desc: "Stitched leather panels. Light and flexible."
       signal_tier: noise
       tags: [armor, wearable]
+      stats: {damage_resist: 2}
 
 rooms:
   - id: dusthaven-0

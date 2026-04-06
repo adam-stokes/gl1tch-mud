@@ -497,6 +497,20 @@ func (w *World) FindItem(id string) *Item {
 	return nil
 }
 
+// FindItemAnywhere searches room items AND crafting recipe outputs for an item
+// with the given ID. Returns nil if not found.
+func (w *World) FindItemAnywhere(id string) *Item {
+	if item := w.FindItem(id); item != nil {
+		return item
+	}
+	for i := range w.CraftingRecipes {
+		if w.CraftingRecipes[i].Output.ID == id {
+			return &w.CraftingRecipes[i].Output
+		}
+	}
+	return nil
+}
+
 // FindLock returns the lock for the given exit direction in the room, or nil.
 func (r *Room) FindLock(exitDir string) *Lock {
 	for i := range r.Locks {

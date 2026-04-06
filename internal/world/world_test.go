@@ -451,6 +451,45 @@ ui:
 	}
 }
 
+func TestFindItemAnywhere(t *testing.T) {
+	w := &World{
+		Rooms: []Room{
+			{
+				ID: "room-0",
+				Items: []Item{
+					{ID: "bread", Name: "Bread", Desc: "Food."},
+				},
+			},
+		},
+		CraftingRecipes: []CraftingRecipe{
+			{
+				ID:     "leather-armor",
+				Name:   "Leather Armor",
+				Output: Item{ID: "leather-armor", Name: "Leather Armor", Tags: []string{"armor"}, Stats: map[string]int{"damage_resist": 2}},
+			},
+		},
+	}
+	// Build the index manually (same package — unexported field is accessible)
+	w.index = map[string]*Room{"room-0": &w.Rooms[0]}
+
+	// Finds room items
+	if item := w.FindItemAnywhere("bread"); item == nil {
+		t.Error("FindItemAnywhere: expected to find 'bread' in room items")
+	}
+	// Finds recipe outputs
+	item := w.FindItemAnywhere("leather-armor")
+	if item == nil {
+		t.Fatal("FindItemAnywhere: expected to find 'leather-armor' in recipe outputs")
+	}
+	if item.Stats["damage_resist"] != 2 {
+		t.Errorf("FindItemAnywhere: damage_resist: got %d want 2", item.Stats["damage_resist"])
+	}
+	// Returns nil for unknown
+	if item := w.FindItemAnywhere("no-such-item"); item != nil {
+		t.Error("FindItemAnywhere: expected nil for unknown item")
+	}
+}
+
 func TestMudoutWorldLoads(t *testing.T) {
 	w, err := Load("mudout")
 	if err != nil {
