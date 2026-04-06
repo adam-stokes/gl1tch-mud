@@ -3196,6 +3196,60 @@ func (g *GameDB) IsPlayerFlagSet(ctx context.Context, flag string) bool {
 	return count > 0
 }
 
+// DeletePlayerFlag removes a player flag if present.
+func (g *GameDB) DeletePlayerFlag(ctx context.Context, flag string) error {
+	if g.pg != nil {
+		if g.pgPool == nil {
+			return nil
+		}
+		_, err := g.pgPool.Exec(ctx,
+			`DELETE FROM shared_player_flags WHERE account_id=$1 AND world_id=$2 AND flag=$3`,
+			g.pgUUID(), g.worldID, flag,
+		)
+		return err
+	}
+	_, err := g.sqliteDB.Exec(`DELETE FROM player_flags WHERE flag=?`, flag)
+	return err
+}
+
+// ListPlayerFlagsWithPrefix returns all flags starting with the given prefix.
+func (g *GameDB) ListPlayerFlagsWithPrefix(ctx context.Context, prefix string) []string {
+	if g.pg != nil {
+		if g.pgPool == nil {
+			return nil
+		}
+		rows, err := g.pgPool.Query(ctx,
+			`SELECT flag FROM shared_player_flags WHERE account_id=$1 AND world_id=$2 AND flag LIKE $3`,
+			g.pgUUID(), g.worldID, prefix+"%",
+		)
+		if err != nil {
+			return nil
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var f string
+			if err := rows.Scan(&f); err == nil {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	rows, err := g.sqliteDB.Query(`SELECT flag FROM player_flags WHERE flag LIKE ?`, prefix+"%")
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err == nil {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // CountChestItemsInRoom returns count of chest items in a room.
 func (g *GameDB) CountChestItemsInRoom(ctx context.Context, roomID string) (int64, error) {
 	if g.pg != nil {

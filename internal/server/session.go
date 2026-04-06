@@ -230,6 +230,23 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 	// records output length once the handler returns.
 	analytics.Command(s.accountID, s.username, s.worldName, s.state.RoomID, verb, args, "", true)
 
+	// Mudout character creation wizard. While active, intercepts every command
+	// (including unknown ones) so the player walks through name → class → kit
+	// before being dropped into the world.
+	if s.worldName == "mudout" {
+		if res, consumed := commands.CharacterIntercept(s.gdb, s.state, s.world, input); consumed {
+			if res.Output != "" {
+				_ = writeMsg(ctx, s.conn, ServerMsg{
+					Type:    "output.token",
+					Payload: OutputTokenPayload{Token: res.Output + "\r\n"},
+				})
+			}
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+			s.sendStateUpdate(ctx)
+			return
+		}
+	}
+
 	// ── say: broadcast to room ───────────────────────────────────────────────
 	if verb == "say" {
 		result := chat.Say(s.username, args)
