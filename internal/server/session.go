@@ -11,6 +11,7 @@ import (
 
 	"nhooyr.io/websocket"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/base"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/crafting"
@@ -65,6 +66,15 @@ func (s *ClientSession) Handle(ctx context.Context) {
 	}
 	s.state.PlayerID = s.playerID
 	player.LoadDefense(s.database, s.state)
+	if s.worldName == "mudout" {
+		if report := base.ResolvePendingRaids(s.database, s.world); report != "" {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: report + "\r\n\r\n"},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		}
+	}
 
 	// If the player's saved world differs or their room no longer exists in this
 	// world, reset them to the start room.
@@ -295,6 +305,9 @@ func (s *ClientSession) dispatchCommand(ctx context.Context, input string) {
 		return
 	}
 
+	if s.worldName == "mudout" {
+		base.MaybeSpawnRaid(s.database)
+	}
 	s.sendStateUpdate(ctx)
 }
 
@@ -337,6 +350,15 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	s.state = newState
 	s.state.PlayerID = s.playerID
 	player.LoadDefense(newDB, newState)
+	if targetName == "mudout" {
+		if report := base.ResolvePendingRaids(s.database, s.world); report != "" {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "output.token",
+				Payload: OutputTokenPayload{Token: report + "\r\n\r\n"},
+			})
+			_ = writeMsg(ctx, s.conn, ServerMsg{Type: "output.done"})
+		}
+	}
 
 	// Tell the client to update title, theme, UI profile, and room grid.
 	_ = writeMsg(ctx, s.conn, ServerMsg{
