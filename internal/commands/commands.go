@@ -82,6 +82,7 @@ var Registry = map[string]HandlerFunc{
 	"x":         Examine,
 	"take":      Take,
 	"get":       Take,
+	"drop":      Drop,
 	"attack":    Attack,
 	"kill":      Attack,
 	"inventory": Inventory,
@@ -389,6 +390,60 @@ func Take(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Re
 		}
 	}
 	return Result{Output: fmt.Sprintf("no %s here.", target)}
+}
+
+// Drop removes an item from inventory and places it on the ground (death pile).
+// Other players in the same room (and the dropper themselves) can recover the
+// items via "take death-pile".
+func Drop(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
+	if len(args) == 0 {
+		return Result{Output: "drop what?"}
+	}
+
+	target := strings.ToLower(strings.Join(args, " "))
+	targetID := strings.ReplaceAll(target, " ", "-")
+
+	inv, err := player.Inventory(gdb)
+	if err != nil {
+		return Result{Output: fmt.Sprintf("failed to read inventory: %v", err)}
+	}
+
+	var found *player.InventoryItem
+	for i := range inv {
+		if strings.EqualFold(inv[i].ID, targetID) ||
+			strings.Contains(strings.ToLower(inv[i].Name), target) {
+			found = &inv[i]
+			break
+		}
+	}
+	if found == nil {
+		return Result{Output: fmt.Sprintf("you don't have %q.", target)}
+	}
+
+	if err := player.RemoveItem(gdb, found.ID); err != nil {
+		return Result{Output: fmt.Sprintf("failed to drop: %v", err)}
+	}
+
+	ctx := context.Background()
+	actionCnt := gdb.GetActionCount(ctx)
+	if err := gdb.InsertDeathPile(ctx, s.RoomID, found.ID, found.Name, found.Desc, actionCnt); err != nil {
+		// Try to put it back into inventory if dropping fails so the item
+		// isn't lost.
+		_ = player.AddItem(gdb, found.ID, found.Name, found.Desc)
+		return Result{Output: fmt.Sprintf("failed to drop: %v", err)}
+	}
+
+	return Result{
+		Output: fmt.Sprintf("you drop the %s. (use 'take death-pile' to recover)", found.Name),
+		Event: &Event{
+			Topic: "mud.item.dropped",
+			Payload: map[string]any{
+				"item_id":   found.ID,
+				"item_name": found.Name,
+				"room_id":   s.RoomID,
+			},
+		},
+	}
 }
 
 // Attack initiates combat with an NPC.

@@ -2014,8 +2014,53 @@ export function initMUD() {
       return;
     }
 
-    if (btn.dataset.cmd && inputEnabled) sendCommand(btn.dataset.cmd);
+    if (btn.dataset.cmd && inputEnabled) {
+      if (handleSmartAction(btn.dataset.cmd)) return;
+      sendCommand(btn.dataset.cmd);
+    }
   });
+
+  // handleSmartAction intercepts Take/Talk action button clicks and applies
+  // context-aware behavior based on the current room contents. Returns true
+  // if the action was handled (and the caller should NOT also send the raw
+  // command), false otherwise.
+  function handleSmartAction(cmd: string): boolean {
+    if (cmd === 'take') {
+      const items = (_lastState?.room_items ?? []).filter(i => i.takeable);
+      if (items.length === 0) {
+        appendOutput('nothing to take here.\n');
+        return true;
+      }
+      if (items.length === 1) {
+        sendCommand(`take ${items[0].id}`);
+        return true;
+      }
+      showTargetPicker(
+        'What do you want to take?',
+        items.map(i => ({ id: i.id, name: i.name })),
+        id => sendCommand(`take ${id}`),
+      );
+      return true;
+    }
+    if (cmd === 'talk') {
+      const npcs = (_lastState?.room_npcs ?? []).filter(n => n.can_talk);
+      if (npcs.length === 0) {
+        appendOutput('no one to talk to.\n');
+        return true;
+      }
+      if (npcs.length === 1) {
+        sendCommand(`talk ${npcs[0].id}`);
+        return true;
+      }
+      showTargetPicker(
+        'Who do you want to talk to?',
+        npcs.map(n => ({ id: n.id, name: n.name })),
+        id => sendCommand(`talk ${id}`),
+      );
+      return true;
+    }
+    return false;
+  }
 
   document.addEventListener('click', (e) => {
     const picker = document.getElementById('target-picker');
