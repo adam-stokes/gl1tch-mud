@@ -149,6 +149,7 @@ type WorldUI struct {
 type WorldMeta struct {
 	Name    string     `json:"name"`
 	Tagline string     `json:"tagline"`
+	Mode    string     `json:"mode"`
 	Theme   WorldTheme `json:"theme"`
 }
 
@@ -256,6 +257,8 @@ type WorldQuest struct {
 // World holds all rooms for a loaded world.
 type World struct {
 	Name            string           `yaml:"name"`
+	Mode            string           `yaml:"mode,omitempty"`            // "solo" or "shared", defaults to "solo"
+	RespawnMinutes  int              `yaml:"respawn_minutes,omitempty"` // NPC respawn time for shared worlds, default 30
 	StartRoom       string           `yaml:"start_room"`
 	NarratorModel   string           `yaml:"narrator_model"`
 	Rooms           []Room           `yaml:"rooms"`
@@ -358,6 +361,11 @@ func (w *World) UIBanner() string {
 	return w.UI.Banner
 }
 
+// IsShared returns true if this world uses shared multiplayer state.
+func (w *World) IsShared() bool {
+	return w.Mode == "shared"
+}
+
 // ListAvailable returns WorldMeta for all installed worlds plus embedded defaults.
 // Ordering matches Available() — embedded defaults first, then user-installed.
 func ListAvailable() []WorldMeta {
@@ -368,9 +376,14 @@ func ListAvailable() []WorldMeta {
 		if err != nil {
 			continue
 		}
+		mode := w.Mode
+		if mode == "" {
+			mode = "solo"
+		}
 		metas = append(metas, WorldMeta{
 			Name:    w.Name,
 			Tagline: w.UI.Tagline,
+			Mode:    mode,
 			Theme:   w.UI.Theme,
 		})
 	}

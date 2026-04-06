@@ -507,9 +507,14 @@ func (gs *GameServer) worldForRequest(name string) (*world.World, error) {
 func (gs *GameServer) handleWorlds(w http.ResponseWriter, r *http.Request) {
 	metas := make([]world.WorldMeta, 0, len(gs.worlds))
 	for _, wld := range gs.worlds {
+		mode := wld.Mode
+		if mode == "" {
+			mode = "solo"
+		}
 		metas = append(metas, world.WorldMeta{
 			Name:    wld.Name,
 			Tagline: wld.UI.Tagline,
+			Mode:    mode,
 			Theme:   wld.UI.Theme,
 		})
 	}
@@ -632,11 +637,16 @@ func (gs *GameServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	})
 
 	mapRooms := buildMapRooms(selectedWorld)
+	worldMode := selectedWorld.Mode
+	if worldMode == "" {
+		worldMode = "solo"
+	}
 	_ = writeMsg(ctx, conn, ServerMsg{
 		Type: "world_meta",
 		Payload: WorldMetaPayload{
 			Name:      selectedWorld.Name,
 			Tagline:   selectedWorld.UI.Tagline,
+			Mode:      worldMode,
 			Theme:     selectedWorld.UI.Theme,
 			UIProfile: selectedWorld.UI.Profile,
 			MapRooms:  mapRooms,

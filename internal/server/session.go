@@ -366,11 +366,16 @@ func (s *ClientSession) switchWorld(ctx context.Context, targetName string) erro
 	}
 
 	// Tell the client to update title, theme, UI profile, and room grid.
+	newMode := newWorld.Mode
+	if newMode == "" {
+		newMode = "solo"
+	}
 	_ = writeMsg(ctx, s.conn, ServerMsg{
 		Type: "world_meta",
 		Payload: WorldMetaPayload{
 			Name:      newWorld.Name,
 			Tagline:   newWorld.UI.Tagline,
+			Mode:      newMode,
 			Theme:     newWorld.UI.Theme,
 			UIProfile: newWorld.UI.Profile,
 			MapRooms:  buildMapRooms(newWorld),

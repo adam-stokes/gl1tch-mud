@@ -1,4 +1,5 @@
 name: cyberspace
+mode: solo
 ui:
   banner: |
     ██████  ██      ██ ████████  ██████ ██   ██       ███    ███ ██    ██ ██████

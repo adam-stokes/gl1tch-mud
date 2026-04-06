@@ -200,6 +200,7 @@ type InputPayload struct {
 type WorldMetaPayload struct {
 	Name      string           `json:"name"`
 	Tagline   string           `json:"tagline"`
+	Mode      string           `json:"mode"`
 	Theme     world.WorldTheme `json:"theme"`
 	UIProfile string           `json:"ui_profile,omitempty"`
 	MapRooms  []MapRoomInfo    `json:"map_rooms,omitempty"`
