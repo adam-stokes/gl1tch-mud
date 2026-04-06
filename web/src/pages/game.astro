@@ -149,6 +149,26 @@
 
       #topbar .sep { color: var(--border); flex-shrink: 0; }
 
+      .topbar-spacer { flex: 1; }
+
+      .topbar-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--dim);
+        padding: 0.2rem 0.55rem;
+        font-family: inherit;
+        font-size: 0.7rem;
+        cursor: pointer;
+        letter-spacing: 0.04em;
+        transition: border-color 0.12s, color 0.12s, background 0.12s;
+      }
+
+      .topbar-btn:hover {
+        border-color: var(--cyan);
+        color: var(--cyan);
+        background: color-mix(in srgb, var(--cyan) 8%, transparent);
+      }
+
       #room-name {
         color: var(--purple);
         flex: 1;
@@ -1695,6 +1715,9 @@
         </div>
         <span class="sep">|</span>
         <span id="credits-display">¢ 0</span>
+        <span class="topbar-spacer"></span>
+        <button id="btn-switch-world" class="topbar-btn" title="Switch world">⇄ worlds</button>
+        <button id="btn-logout" class="topbar-btn" title="Logout">⏻ logout</button>
       </div>
 
       <!-- Game output -->

@@ -1935,6 +1935,27 @@ export function initMUD() {
     });
   }
 
+  // Switch worlds button — return to lobby
+  const switchBtn = document.getElementById('btn-switch-world');
+  if (switchBtn) {
+    switchBtn.addEventListener('click', () => {
+      window.location.href = '/';
+    });
+  }
+
+  // Logout button — clear token and return to lobby
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('gl1tch-token');
+      localStorage.removeItem('gl1tch-username');
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      window.location.href = '/';
+    });
+  }
+
   // ── Action buttons (delegated) ─────────────────────────────────────────────
 
   function handleKidsAction(action: string): void {
