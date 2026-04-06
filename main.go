@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -11,12 +12,16 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 
 	"golang.org/x/term"
 
+	"github.com/adam-stokes/gl1tch-mud/internal/auth"
 	"github.com/adam-stokes/gl1tch-mud/internal/busd"
 	"github.com/adam-stokes/gl1tch-mud/internal/commands"
 	"github.com/adam-stokes/gl1tch-mud/internal/db"
+	"github.com/adam-stokes/gl1tch-mud/internal/db/pgq"
+	"github.com/adam-stokes/gl1tch-mud/internal/pgdb"
 	"github.com/adam-stokes/gl1tch-mud/internal/player"
 	"github.com/adam-stokes/gl1tch-mud/internal/server"
 	"github.com/adam-stokes/gl1tch-mud/internal/world"
@@ -26,6 +31,23 @@ import (
 var webDist embed.FS
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "useradd":
+			runUserAdd(os.Args[2:])
+			return
+		case "userdel":
+			runUserDel(os.Args[2:])
+			return
+		case "usermod":
+			runUserMod(os.Args[2:])
+			return
+		case "userlist":
+			runUserList()
+			return
+		}
+	}
+
 	serveMode := flag.Bool("serve", false, "run LAN server only")
 	servePort := flag.Int("port", 8080, "server port")
 	servePass := flag.String("passphrase", "", "session passphrase")
@@ -281,3 +303,171 @@ func executablePath() string {
 	}
 	return exe
 }
+
+// --- CLI account management subcommands ---
+
+func runUserAdd(args []string) {
+	fs := flag.NewFlagSet("useradd", flag.ExitOnError)
+	username := fs.String("username", "", "account username")
+	password := fs.String("password", "", "account password")
+	role := fs.String("role", "player", "account role (admin|player)")
+	fs.Parse(args) //nolint:errcheck
+
+	if err := auth.ValidateNewAccount(*username, *password, *role); err != nil {
+		fmt.Fprintln(os.Stderr, "useradd:", err)
+		os.Exit(1)
+	}
+
+	hash, err := auth.HashPassword(*password)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "useradd:", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	pool, err := pgdb.Connect(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "useradd:", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	row, err := pgq.New(pool).CreateAccount(ctx, pgq.CreateAccountParams{
+		Username:     *username,
+		PasswordHash: hash,
+		Role:         *role,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "useradd:", err)
+		os.Exit(1)
+	}
+
+	uid := formatUUID(row.ID.Bytes)
+	fmt.Printf("created account %q (id: %s, role: %s)\n", row.Username, uid, row.Role)
+}
+
+func runUserDel(args []string) {
+	fs := flag.NewFlagSet("userdel", flag.ExitOnError)
+	username := fs.String("username", "", "account username")
+	fs.Parse(args) //nolint:errcheck
+
+	if *username == "" {
+		fmt.Fprintln(os.Stderr, "userdel: --username required")
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	pool, err := pgdb.Connect(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "userdel:", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	if err := pgq.New(pool).DeleteAccount(ctx, *username); err != nil {
+		fmt.Fprintln(os.Stderr, "userdel:", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("deleted account %q\n", *username)
+}
+
+func runUserMod(args []string) {
+	fs := flag.NewFlagSet("usermod", flag.ExitOnError)
+	username := fs.String("username", "", "account username")
+	password := fs.String("password", "", "new password")
+	ban := fs.Bool("ban", false, "ban the account")
+	unban := fs.Bool("unban", false, "unban the account")
+	fs.Parse(args) //nolint:errcheck
+
+	if *username == "" {
+		fmt.Fprintln(os.Stderr, "usermod: --username required")
+		os.Exit(1)
+	}
+	if *password == "" && !*ban && !*unban {
+		fmt.Fprintln(os.Stderr, "usermod: specify --password, --ban, or --unban")
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	pool, err := pgdb.Connect(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "usermod:", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	q := pgq.New(pool)
+
+	if *password != "" {
+		hash, err := auth.HashPassword(*password)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "usermod:", err)
+			os.Exit(1)
+		}
+		if err := q.UpdatePassword(ctx, pgq.UpdatePasswordParams{
+			PasswordHash: hash,
+			Username:     *username,
+		}); err != nil {
+			fmt.Fprintln(os.Stderr, "usermod:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("updated password for %q\n", *username)
+	}
+
+	if *ban {
+		if err := q.SetBanned(ctx, pgq.SetBannedParams{
+			Banned:   true,
+			Username: *username,
+		}); err != nil {
+			fmt.Fprintln(os.Stderr, "usermod:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("banned %q\n", *username)
+	}
+
+	if *unban {
+		if err := q.SetBanned(ctx, pgq.SetBannedParams{
+			Banned:   false,
+			Username: *username,
+		}); err != nil {
+			fmt.Fprintln(os.Stderr, "usermod:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("unbanned %q\n", *username)
+	}
+}
+
+func runUserList() {
+	ctx := context.Background()
+	pool, err := pgdb.Connect(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "userlist:", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	accounts, err := pgq.New(pool).ListAccounts(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "userlist:", err)
+		os.Exit(1)
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, "USERNAME\tROLE\tBANNED\tCREATED")
+	for _, a := range accounts {
+		created := "—"
+		if a.CreatedAt.Valid {
+			created = a.CreatedAt.Time.Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(w, "%s\t%s\t%t\t%s\n", a.Username, a.Role, a.Banned, created)
+	}
+	w.Flush()
+}
+
+// formatUUID converts a [16]byte UUID to its string representation.
+func formatUUID(b [16]byte) string {
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
