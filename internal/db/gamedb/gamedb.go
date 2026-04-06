@@ -133,62 +133,101 @@ func (g *GameDB) RunTx(ctx context.Context, fn TxFunc) error {
 
 // GetPlayer returns core player state. For solo: reads from the single-row
 // player table. For shared: reads from shared_player_state.
-func (g *GameDB) GetPlayer(ctx context.Context) (roomID string, hp, maxHP int, worldName string, err error) {
+func (g *GameDB) GetPlayer(ctx context.Context) (roomID string, hp, maxHP int, worldName, class string, err error) {
 	if g.pg != nil {
 		row, qerr := g.pg.GetSharedPlayerState(ctx, pgq.GetSharedPlayerStateParams{
 			AccountID: g.pgUUID(),
 			WorldID:   g.worldID,
 		})
 		if qerr != nil {
-			return "", 0, 0, "", normErr(qerr)
+			return "", 0, 0, "", "", normErr(qerr)
 		}
-		return row.RoomID, int(row.Hp), int(row.MaxHp), g.worldID, nil
+		// class lives in a column the sqlc model doesn't know about — query separately.
+		var c string
+		if g.pgPool != nil {
+			_ = g.pgPool.QueryRow(ctx,
+				`SELECT class FROM shared_player_state WHERE account_id=$1 AND world_id=$2`,
+				g.pgUUID(), g.worldID,
+			).Scan(&c)
+		}
+		return row.RoomID, int(row.Hp), int(row.MaxHp), g.worldID, c, nil
 	}
 	row, qerr := g.sqlite.GetPlayer(ctx)
 	if qerr != nil {
-		return "", 0, 0, "", qerr
+		return "", 0, 0, "", "", qerr
 	}
-	return row.RoomID, int(row.Hp), int(row.MaxHp), row.World, nil
+	// class lives in a column the sqlc model doesn't know about — query separately.
+	var c string
+	_ = g.sqliteDB.QueryRow(`SELECT class FROM player WHERE id=1`).Scan(&c)
+	return row.RoomID, int(row.Hp), int(row.MaxHp), row.World, c, nil
 }
 
 // SavePlayer persists current player state.
-func (g *GameDB) SavePlayer(ctx context.Context, roomID string, hp, maxHP int, worldName string) error {
+func (g *GameDB) SavePlayer(ctx context.Context, roomID string, hp, maxHP int, worldName, class string) error {
 	if g.pg != nil {
-		return g.pg.UpsertSharedPlayerState(ctx, pgq.UpsertSharedPlayerStateParams{
+		if err := g.pg.UpsertSharedPlayerState(ctx, pgq.UpsertSharedPlayerStateParams{
 			AccountID: g.pgUUID(),
 			WorldID:   g.worldID,
 			RoomID:    roomID,
 			Hp:        int32(hp),
 			MaxHp:     int32(maxHP),
 			Credits:   0, // credits managed separately
-		})
+		}); err != nil {
+			return err
+		}
+		if g.pgPool != nil {
+			_, err := g.pgPool.Exec(ctx,
+				`UPDATE shared_player_state SET class=$1 WHERE account_id=$2 AND world_id=$3`,
+				class, g.pgUUID(), g.worldID,
+			)
+			return err
+		}
+		return nil
 	}
-	return g.sqlite.SavePlayer(ctx, sqliteq.SavePlayerParams{
+	if err := g.sqlite.SavePlayer(ctx, sqliteq.SavePlayerParams{
 		RoomID: roomID,
 		Hp:     int64(hp),
 		MaxHp:  int64(maxHP),
 		World:  worldName,
-	})
+	}); err != nil {
+		return err
+	}
+	_, err := g.sqliteDB.Exec(`UPDATE player SET class=? WHERE id=1`, class)
+	return err
 }
 
 // SeedPlayer creates the initial player record (SQLite only — Postgres uses upsert).
-func (g *GameDB) SeedPlayer(ctx context.Context, name, roomID string, hp, maxHP int, worldName string) error {
+func (g *GameDB) SeedPlayer(ctx context.Context, name, roomID string, hp, maxHP int, worldName, class string) error {
 	if g.pg != nil {
-		return g.pg.UpsertSharedPlayerState(ctx, pgq.UpsertSharedPlayerStateParams{
+		if err := g.pg.UpsertSharedPlayerState(ctx, pgq.UpsertSharedPlayerStateParams{
 			AccountID: g.pgUUID(),
 			WorldID:   g.worldID,
 			RoomID:    roomID,
 			Hp:        int32(hp),
 			MaxHp:     int32(maxHP),
-		})
+		}); err != nil {
+			return err
+		}
+		if g.pgPool != nil {
+			_, err := g.pgPool.Exec(ctx,
+				`UPDATE shared_player_state SET class=$1 WHERE account_id=$2 AND world_id=$3`,
+				class, g.pgUUID(), g.worldID,
+			)
+			return err
+		}
+		return nil
 	}
-	return g.sqlite.SeedPlayer(ctx, sqliteq.SeedPlayerParams{
+	if err := g.sqlite.SeedPlayer(ctx, sqliteq.SeedPlayerParams{
 		Name:   name,
 		RoomID: roomID,
 		Hp:     int64(hp),
 		MaxHp:  int64(maxHP),
 		World:  worldName,
-	})
+	}); err != nil {
+		return err
+	}
+	_, err := g.sqliteDB.Exec(`UPDATE player SET class=? WHERE id=1`, class)
+	return err
 }
 
 // ─── Inventory ─────────────────────────────────────────────────────────────
@@ -2146,6 +2185,26 @@ func (g *GameDB) GetReputation(ctx context.Context, faction string) int {
 	var value int
 	g.sqliteDB.QueryRow(`SELECT value FROM player_reputation WHERE faction=?`, faction).Scan(&value) //nolint:errcheck
 	return value
+}
+
+// AdjustReputation adds an arbitrary signed delta to a faction's reputation.
+// Used by character creation, quest rewards, and any future reputation event.
+func (g *GameDB) AdjustReputation(ctx context.Context, faction string, delta int) error {
+	if g.pg != nil {
+		current := g.GetReputation(ctx, faction)
+		return g.pg.UpsertSharedReputation(ctx, pgq.UpsertSharedReputationParams{
+			AccountID: g.pgUUID(),
+			WorldID:   g.worldID,
+			Faction:   faction,
+			Value:     int32(current + delta),
+		})
+	}
+	_, err := g.sqliteDB.Exec(
+		`INSERT INTO player_reputation (faction, value) VALUES (?, ?)
+		 ON CONFLICT(faction) DO UPDATE SET value = value + excluded.value`,
+		faction, delta,
+	)
+	return err
 }
 
 // IncrementReputation adds 1 to a faction's reputation.

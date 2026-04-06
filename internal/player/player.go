@@ -18,6 +18,7 @@ type State struct {
 	MaxHP    int
 	World    string
 	Defense  int
+	Class    string
 }
 
 // Load reads the player state from the database, seeding defaults on first run.
@@ -30,10 +31,10 @@ func Load(gdb *gamedb.GameDB) (*State, error) {
 // world name and start room when no record exists yet.
 func LoadForWorld(gdb *gamedb.GameDB, worldName, startRoom string) (*State, error) {
 	ctx := context.Background()
-	roomID, hp, maxHP, world, err := gdb.GetPlayer(ctx)
+	roomID, hp, maxHP, world, class, err := gdb.GetPlayer(ctx)
 	if err == sql.ErrNoRows {
 		s := &State{Name: "hacker", RoomID: startRoom, HP: 100, MaxHP: 100, World: worldName}
-		if err := gdb.SeedPlayer(ctx, s.Name, s.RoomID, s.HP, s.MaxHP, s.World); err != nil {
+		if err := gdb.SeedPlayer(ctx, s.Name, s.RoomID, s.HP, s.MaxHP, s.World, s.Class); err != nil {
 			return nil, fmt.Errorf("player: seed: %w", err)
 		}
 		return s, nil
@@ -42,17 +43,18 @@ func LoadForWorld(gdb *gamedb.GameDB, worldName, startRoom string) (*State, erro
 		return nil, fmt.Errorf("player: load: %w", err)
 	}
 	return &State{
-		Name:  "hacker",
+		Name:   "hacker",
 		RoomID: roomID,
-		HP:    hp,
-		MaxHP: maxHP,
-		World: world,
+		HP:     hp,
+		MaxHP:  maxHP,
+		World:  world,
+		Class:  class,
 	}, nil
 }
 
 // Save persists the player state to the database.
 func Save(gdb *gamedb.GameDB, s *State) error {
-	return gdb.SavePlayer(context.Background(), s.RoomID, s.HP, s.MaxHP, s.World)
+	return gdb.SavePlayer(context.Background(), s.RoomID, s.HP, s.MaxHP, s.World, s.Class)
 }
 
 // InventoryItem is a carried item.
