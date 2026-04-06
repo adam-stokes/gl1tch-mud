@@ -20,6 +20,7 @@ interface StateUpdate {
   quests?: QuestInfo[];
   skills?: SkillInfo[];
   online_players?: OnlinePlayerInfo[];
+  equipped_armor?: EquippedArmorInfo;
 }
 
 interface InvItem {
@@ -102,6 +103,12 @@ interface MapRoomInfo {
 interface OnlinePlayerInfo {
   name: string;
   room_id: string;
+}
+
+interface EquippedArmorInfo {
+  item_id: string;
+  item_name: string;
+  defense: number;
 }
 
 // ── ANSI → HTML ──────────────────────────────────────────────────────────────
@@ -231,6 +238,11 @@ const DEFAULT_ACTIONS: ActionDef[] = WORLD_ACTIONS['cyberspace'];
 /** Returns the action button definitions for a given world name. Exported for testing. */
 export function getWorldActions(worldName: string): ActionDef[] {
   return WORLD_ACTIONS[worldName] ?? DEFAULT_ACTIONS;
+}
+
+/** Returns the DEF display string for the wasteland status line. Exported for testing. */
+export function getDefenseDisplay(armor: EquippedArmorInfo | undefined): string {
+  return `DEF: ${armor?.defense ?? 0}`;
 }
 
 // ── HP hearts ────────────────────────────────────────────────────────────────
@@ -1806,6 +1818,10 @@ export function initMUD() {
       : renderHearts(state.hp, state.maxHp);
     hpText.textContent    = `${state.hp}/${state.maxHp}`;
     creditsEl.textContent = `¢ ${state.credits}`;
+    if (_wastelandMode) {
+      const defEl = document.getElementById('wasteland-def');
+      if (defEl) defEl.textContent = getDefenseDisplay(state.equipped_armor);
+    }
     if (state.recipes) _recipes = state.recipes;
 
     if (_kidsMode) {

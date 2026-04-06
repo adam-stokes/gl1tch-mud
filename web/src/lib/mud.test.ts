@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildWsUrl, getWorldActions } from './mud';
+import { buildWsUrl, getWorldActions, getDefenseDisplay } from './mud';
 
 describe('buildWsUrl', () => {
   it('constructs ws:// URL with world param', () => {
@@ -40,5 +40,17 @@ describe('getWorldActions', () => {
     const actions = getWorldActions('blockhaven');
     const labels = actions.map(a => a.label);
     expect(labels).toContain('Forage');
+  });
+});
+
+describe('getDefenseDisplay', () => {
+  it('returns DEF: 0 when no armor equipped', () => {
+    const result = getDefenseDisplay(undefined);
+    expect(result).toBe('DEF: 0');
+  });
+
+  it('returns DEF: N when armor equipped', () => {
+    const result = getDefenseDisplay({ item_id: 'leather-armor', item_name: 'Leather Armor', defense: 3 });
+    expect(result).toBe('DEF: 3');
   });
 });
