@@ -226,4 +226,11 @@ CREATE TABLE IF NOT EXISTS chests (
 CREATE TABLE IF NOT EXISTS player_flags (
     flag TEXT PRIMARY KEY
 );
+
+CREATE TABLE IF NOT EXISTS equipped_armor (
+    id        INTEGER PRIMARY KEY CHECK(id = 1),
+    item_id   TEXT    NOT NULL,
+    item_name TEXT    NOT NULL,
+    defense   INTEGER NOT NULL DEFAULT 0
+);
 `
