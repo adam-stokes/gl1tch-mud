@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/adam-stokes/gl1tch-mud/internal/db/pgq"
@@ -21,10 +22,19 @@ func (gs *GameServer) respawnTicker() {
 			if !w.IsShared() {
 				continue
 			}
-			// Respawn NPCs whose respawn_at has passed
-			q.RespawnExpiredNPCs(ctx, name) //nolint:errcheck
-			// Respawn resources whose respawn_at has passed
-			q.RespawnExpiredResources(ctx, name) //nolint:errcheck
+			// Respawn NPCs whose respawn_at has passed.
+			if err := q.RespawnExpiredNPCs(ctx, name); err != nil {
+				log.Printf("respawn: NPCs in %s: %v", name, err)
+			}
+			// Respawn resources whose respawn_at has passed.
+			if err := q.RespawnExpiredResources(ctx, name); err != nil {
+				log.Printf("respawn: resources in %s: %v", name, err)
+			}
+		}
+
+		// Clean up expired auth sessions.
+		if err := q.DeleteExpiredSessions(ctx); err != nil {
+			log.Printf("respawn: delete expired sessions: %v", err)
 		}
 	}
 }

@@ -50,16 +50,20 @@ type ClientSession struct {
 // It opens the player's DB, loads state, and dispatches incoming messages.
 func (s *ClientSession) Handle(ctx context.Context) {
 	var err error
-	s.database, err = db.OpenForPlayer(s.accountID, s.worldName)
-	if err != nil {
-		_ = writeMsg(ctx, s.conn, ServerMsg{
-			Type:    "error",
-			Payload: ErrorPayload{Message: fmt.Sprintf("failed to open player db: %v", err)},
-		})
-		return
+	if s.world.IsShared() && s.pgPool != nil {
+		s.gdb = gamedb.NewPostgres(s.pgPool, s.accountID, s.worldName)
+	} else {
+		s.database, err = db.OpenForPlayer(s.accountID, s.worldName)
+		if err != nil {
+			_ = writeMsg(ctx, s.conn, ServerMsg{
+				Type:    "error",
+				Payload: ErrorPayload{Message: fmt.Sprintf("failed to open player db: %v", err)},
+			})
+			return
+		}
+		defer s.database.Close()
+		s.gdb = gamedb.NewSQLite(s.database)
 	}
-	defer s.database.Close()
-	s.gdb = gamedb.NewSQLite(s.database)
 	defer func() {
 		if s.state != nil {
 			_ = player.Save(s.gdb, s.state)
@@ -445,26 +449,38 @@ func (s *ClientSession) handleAdminAction(ctx context.Context, action *commands.
 // reopens the database for the new world, updates session fields, and notifies
 // the client with a world_meta message so the UI title updates immediately.
 func (s *ClientSession) switchWorld(ctx context.Context, targetName string) error {
-	if s.state != nil && s.database != nil {
+	// Save current state before switching.
+	if s.state != nil && s.gdb != nil {
 		_ = player.Save(s.gdb, s.state)
-		s.database.Close()
 	}
-
-	newDB, err := db.OpenForPlayer(s.accountID, targetName)
-	if err != nil {
-		return fmt.Errorf("open db: %w", err)
+	// Close SQLite DB if we had one (solo world).
+	if s.database != nil {
+		s.database.Close()
+		s.database = nil
 	}
 
 	newWorld, err := world.Load(targetName)
 	if err != nil {
-		newDB.Close()
 		return fmt.Errorf("load world: %w", err)
 	}
 
-	newGDB := gamedb.NewSQLite(newDB)
+	var newGDB *gamedb.GameDB
+	var newDB *sql.DB
+	if newWorld.IsShared() && s.pgPool != nil {
+		newGDB = gamedb.NewPostgres(s.pgPool, s.accountID, targetName)
+	} else {
+		newDB, err = db.OpenForPlayer(s.accountID, targetName)
+		if err != nil {
+			return fmt.Errorf("open db: %w", err)
+		}
+		newGDB = gamedb.NewSQLite(newDB)
+	}
+
 	newState, err := player.LoadForWorld(newGDB, targetName, newWorld.StartRoom)
 	if err != nil {
-		newDB.Close()
+		if newDB != nil {
+			newDB.Close()
+		}
 		return fmt.Errorf("load player: %w", err)
 	}
 	if newState.World != targetName || newWorld.Room(newState.RoomID) == nil {
