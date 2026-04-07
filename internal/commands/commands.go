@@ -137,6 +137,11 @@ var Registry = map[string]HandlerFunc{
 	"lift":     Lift,
 	"stim":     Stim,
 	"rad-feed": RadFeed,
+	// Consumables
+	"use":   Use,
+	"drink": Use,
+	"eat":   Use,
+	"apply": Use,
 }
 
 // Parse splits raw input into verb + args. Lowercases the verb.
