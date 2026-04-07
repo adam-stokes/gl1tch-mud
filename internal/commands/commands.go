@@ -652,14 +652,35 @@ func Inventory(gdb *gamedb.GameDB, s *player.State, w *world.World, args []strin
 	if err != nil || len(items) == 0 {
 		return Result{Output: "you are carrying nothing."}
 	}
-	var b strings.Builder
-	b.WriteString("carrying:\n")
+	// Group by item_id and preserve first-seen order so the display is stable.
+	type group struct {
+		Name  string
+		Tier  string
+		Count int
+	}
+	order := []string{}
+	groups := map[string]*group{}
 	for _, it := range items {
+		if g, ok := groups[it.ID]; ok {
+			g.Count++
+			continue
+		}
 		tier := ""
 		if wi := w.FindItem(it.ID); wi != nil && wi.SignalTier != "" {
 			tier = " [" + strings.ToUpper(wi.SignalTier) + "]"
 		}
-		b.WriteString(fmt.Sprintf("  - %s%s\n", it.Name, tier))
+		groups[it.ID] = &group{Name: it.Name, Tier: tier, Count: 1}
+		order = append(order, it.ID)
+	}
+	var b strings.Builder
+	b.WriteString("carrying:\n")
+	for _, id := range order {
+		g := groups[id]
+		if g.Count > 1 {
+			b.WriteString(fmt.Sprintf("  - %s x%d%s\n", g.Name, g.Count, g.Tier))
+		} else {
+			b.WriteString(fmt.Sprintf("  - %s%s\n", g.Name, g.Tier))
+		}
 	}
 	return Result{Output: strings.TrimRight(b.String(), "\n")}
 }

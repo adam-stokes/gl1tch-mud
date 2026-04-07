@@ -266,16 +266,28 @@ func (g *GameDB) ListInventory(ctx context.Context) ([]InventoryItem, error) {
 	return items, nil
 }
 
-// AddItem adds an item to inventory.
+// AddItem adds an item to inventory. Each call inserts a new row, so stackable
+// items (caps, ammo, consumables) accumulate as separate rows. The Inventory
+// display groups by item_id and shows a count.
 func (g *GameDB) AddItem(ctx context.Context, id, name, desc string) error {
 	if g.pg != nil {
-		return g.pg.AddSharedItem(ctx, pgq.AddSharedItemParams{
-			AccountID: g.pgUUID(),
-			WorldID:   g.worldID,
-			ItemID:    id,
-			ItemName:  name,
-			ItemDesc:  desc,
-		})
+		if g.pgPool == nil {
+			// Fall back to the sqlc path (which has ON CONFLICT DO NOTHING — only
+			// reachable in test setups without a raw pool).
+			return g.pg.AddSharedItem(ctx, pgq.AddSharedItemParams{
+				AccountID: g.pgUUID(),
+				WorldID:   g.worldID,
+				ItemID:    id,
+				ItemName:  name,
+				ItemDesc:  desc,
+			})
+		}
+		_, err := g.pgPool.Exec(ctx,
+			`INSERT INTO shared_inventory (account_id, world_id, item_id, item_name, item_desc)
+			 VALUES ($1, $2, $3, $4, $5)`,
+			g.pgUUID(), g.worldID, id, name, desc,
+		)
+		return err
 	}
 	return g.sqlite.AddItem(ctx, sqliteq.AddItemParams{
 		ItemID:   id,
