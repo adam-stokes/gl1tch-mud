@@ -70,6 +70,19 @@ factions:
     allies: []
     enemies: [ironclad]
 
+  - id: saltreach-syndicate
+    name: "The Saltreach Syndicate"
+    desc: |
+      A loose confederation of smugglers, fences, and freebooters running
+      Saltreach — the dead-sea port at the western edge of the wastes.
+      They take no side in the four-way faction war. They take everyone's
+      caps. The Syndicate is run by Captain Iri Vass, a former Ironclad
+      officer who walked away from the eagle and never looked back.
+    agenda: "Move goods. Take a cut. Owe nothing to nobody."
+    territory: [saltreach-0, saltreach-1, saltreach-2, saltreach-3, saltreach-4]
+    allies: []
+    enemies: []
+
 loot_tables:
   - id: settlement-loot
     entries:
@@ -379,6 +392,30 @@ loot_tables:
         probability: 1.0
         count_min: 1
         count_max: 1
+
+  - id: cave-crawler-loot
+    entries:
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "Caps swallowed by the Cave-Crawler."
+        probability: 1.0
+        count_min: 40
+        count_max: 90
+      - item_id: cave-crawler-hide
+        name: "Cave-Crawler Hide"
+        desc: "A thick chitinous plate, hard as steel."
+        tags: [component, armor-plating]
+        quality: refined
+        stat_mods: {damage_resist: 5}
+        probability: 1.0
+        count_min: 1
+        count_max: 1
+      - item_id: salt-crystal
+        name: "Salt Crystal"
+        desc: "Crystallized salt from the crawler's hide."
+        probability: 0.8
+        count_min: 2
+        count_max: 5
 
   - id: vault-loot
     entries:
@@ -1941,16 +1978,237 @@ rooms:
         name: "Cargo Crate"
         desc: "A reinforced military crate, stamped with the Vault-Tec eagle."
 
+  # ─── SALTREACH (5 rooms, new faction) ─────────────────────────────────────
+
+  - id: saltreach-0
+    name: "Saltreach Wharf"
+    desc: |
+      A long pier of weathered timber jutting into a cracked salt-pan that
+      was once an inland sea. Half a dozen ship hulls — some pre-war, some
+      improvised — sit on the dry seabed, repurposed into homes and stalls.
+      The air smells of brine and woodsmoke. A faded sign reads: WELCOME TO
+      SALTREACH — NO IRONCLAD COLORS PAST THIS POINT.
+    biome: settlement
+    exits:
+      east: plains-3
+      north: saltreach-1
+      south: saltreach-3
+      west: saltreach-2
+    npcs:
+      - id: dock-broker
+        name: "Pell the Dock Broker"
+        hp: 40
+        attack: 5
+        desc: "A trader in a pre-war captain's coat. He speaks fast and counts caps faster."
+        dialogue:
+          - trigger: always
+            text: "Welcome to Saltreach. Bring goods, leave with caps. Ironclad colors get you thrown in the salt. 'offers pell' for the menu."
+        trades:
+          - id: pell-trade-caps
+            wants: [{id: salt-crystal, count: 5}]
+            offers: [{id: caps, name: "Bottle Caps", desc: "Syndicate exchange.", count: 30}]
+          - id: pell-trade-relic
+            wants: [{id: glowing-relic, count: 1}]
+            offers: [{id: caps, name: "Bottle Caps", desc: "Pell pays well for old-world relics.", count: 80}]
+          - id: pell-trade-circuitry
+            wants: [{id: pre-war-circuitry, count: 2}]
+            offers: [{id: caps, name: "Bottle Caps", desc: "Smuggler-grade payout.", count: 120}]
+    items:
+      - id: wharf-notice
+        name: "Wharf Notice Board"
+        desc: "A weathered board pinned with notices and bounties."
+        readable: true
+        content: "SALTREACH WHARF NOTICES\n- Captain Vass holds court at the Long Tide. Bring caps.\n- The Cave-Crawler is in the salt caves. 200 caps to whoever brings its hide.\n- The Pale Lighthouse out east is haunted. Stay clear.\n- All Ironclad colors are forfeit at the dock."
+
+  - id: saltreach-1
+    name: "The Long Tide"
+    desc: |
+      A tavern hammered together from a beached pre-war yacht. The hull
+      forms one wall, the deck the floor. Lanterns made of jar-glass and
+      driftwood swing from the rafters. Half the tables are smugglers,
+      half are buyers, all of them watching every door. Captain Vass
+      sits at the head table, drinking something dark.
+    biome: settlement
+    exits:
+      south: saltreach-0
+      east: saltreach-4
+    npcs:
+      - id: captain-vass
+        name: "Captain Iri Vass"
+        hp: 100
+        attack: 16
+        desc: "A tall, weather-bitten woman in a faded Ironclad officer's coat with the eagle torn off. She runs Saltreach because she's the only one nobody wants to fight."
+        dialogue:
+          - trigger: "quest_not_active:vass-introduction"
+            text: "You walked into my town without a name. That's either ignorance or balls. I'll find out which. Run a job for me — bring me 5 pre-war circuits from the wastes — and we'll talk."
+            quest_id: vass-introduction
+          - trigger: "rep_gte:saltreach-syndicate:5"
+            text: "You've earned a chair at this table. The Syndicate doesn't forget. What can I do for you?"
+          - trigger: always
+            text: "Drink your drink. Don't stare at the merchandise."
+      - id: tavern-keeper
+        name: "Mama Quill"
+        hp: 50
+        attack: 6
+        desc: "The Long Tide's keeper. She sees everything and remembers everything and tells nobody anything."
+        dialogue:
+          - trigger: always
+            text: "Drinks are caps. Beds are caps. Information is more caps."
+        trades:
+          - id: quill-bed
+            wants: [{id: caps, count: 15}]
+            offers: [{id: bed-token, name: "Bed Token", desc: "Good for one full night's rest at the Long Tide.", count: 1}]
+          - id: quill-rumor
+            wants: [{id: caps, count: 25}]
+            offers: [{id: rumor-slip, name: "Smuggler's Rumor", desc: "A folded note from Mama Quill. The handwriting is precise.", count: 1}]
+    items:
+      - id: tide-bar
+        name: "Tide Bar"
+        desc: "A long bar made from a polished ship's helm. Caps stacks line one end."
+
+  - id: saltreach-2
+    name: "The Black Market"
+    desc: |
+      A warren of stalls under heavy tarps, lit by oil lamps. Goods here
+      are not asked about. Pre-war weapons in good condition. Vault-Tec
+      tech that was never meant to leave the facility. A man in a clean
+      coat watches the entrance with a notebook.
+    biome: settlement
+    exits:
+      east: saltreach-0
+    npcs:
+      - id: black-market-fence
+        name: "Linnet the Fence"
+        hp: 45
+        attack: 7
+        desc: "A small woman with sharp eyes and a sharper inventory. Linnet has every illegal thing for sale, if you can afford it."
+        dialogue:
+          - trigger: always
+            text: "Caps first. Questions never. 'offers linnet' if you're shopping."
+        trades:
+          - id: linnet-armor
+            wants: [{id: caps, count: 75}]
+            offers: [{id: armor-plate-refined, name: "Refined Armor Plate", desc: "Pre-war military, mint condition. +6 defense.", count: 1}]
+          - id: linnet-stim-bulk
+            wants: [{id: caps, count: 50}]
+            offers: [{id: stimpak, name: "Stimpak", desc: "Smuggler bulk-buy.", count: 5}]
+          - id: linnet-circuitry
+            wants: [{id: caps, count: 90}]
+            offers: [{id: pre-war-circuitry, name: "Pre-War Circuitry", desc: "Linnet's last one. Says she has more.", count: 1}]
+          - id: linnet-cryo-key
+            wants: [{id: caps, count: 250}, {id: rumor-slip, count: 1}]
+            offers: [{id: cryo-key, name: "Cryo-Key", desc: "A pre-war magnetic key marked PROJECT REVENANT. Linnet won't say where she got it.", count: 1}]
+      - id: weapons-dealer
+        name: "Tarn the Dealer"
+        hp: 55
+        attack: 9
+        desc: "A grizzled weapons dealer behind a counter of pre-war firearms in various states of repair."
+        dialogue:
+          - trigger: always
+            text: "Long iron, short iron, illegal iron. Tell me what you need."
+        trades:
+          - id: tarn-pre-war-rifle
+            wants: [{id: caps, count: 120}]
+            offers: [{id: pre-war-rifle, name: "Pre-War Combat Rifle", desc: "Mint condition. The kind of weapon that wins fights.", count: 1}]
+          - id: tarn-shotgun
+            wants: [{id: caps, count: 80}]
+            offers: [{id: combat-shotgun, name: "Combat Shotgun", desc: "12-gauge, semi-auto. Reliable.", count: 1}]
+    items:
+      - id: black-market-bulletin
+        name: "Black Market Bulletin"
+        desc: "A handwritten list of recent acquisitions and asking prices."
+        readable: true
+        content: "LINNET'S ACQUISITIONS — caps prices firm\n- Refined armor plate ............ 75\n- Stimpak (5-pack) .............. 50\n- Pre-war circuitry ............. 90\n- Cryo-key + Smuggler Rumor .... 250\n- Combat shotgun ................ 80\n- Combat rifle ................. 120"
+
+  - id: saltreach-3
+    name: "The Salt Caves"
+    desc: |
+      Natural caverns dissolved into the salt cliffs south of the wharf.
+      Salt formations glitter in the lamplight. The locals harvest pure
+      salt here — and avoid the deeper passages, where something larger
+      than a man has been hunting prospectors.
+    biome: ruins
+    exits:
+      north: saltreach-0
+    npcs:
+      - id: cave-crawler
+        name: "The Cave-Crawler"
+        hp: 130
+        attack: 19
+        desc: "A massive crustacean-thing that grew strange in the dark. Six legs, two snapping claws, and a hide like rusted plate."
+        loot_table_id: cave-crawler-loot
+      - id: salt-prospector-2
+        name: "Old Heris the Salt-Cutter"
+        hp: 35
+        attack: 4
+        desc: "An elderly prospector with calloused hands and a sack full of pure salt."
+        dialogue:
+          - trigger: "quest_not_active:cave-crawler-bounty"
+            text: "Brought down two of my friends. Two-hundred caps if you bring me its hide. The Wharf board has the bounty. The Cave-Crawler's down the south passage. Mind your back."
+            quest_id: cave-crawler-bounty
+          - trigger: always
+            text: "Stay near the lamps. The dark in here isn't just dark."
+    items: []
+    resources:
+      - id: salt-cave-harvest
+        type: harvest
+        respawn_actions: 5
+        yields:
+          - item_id: salt-crystal
+            name: "Salt Crystal"
+            desc: "Pure cave-salt. Trades well at the wharf."
+            probability: 0.9
+            count_min: 1
+            count_max: 4
+          - item_id: cave-glow-fungus
+            name: "Cave Glow Fungus"
+            desc: "Bioluminescent fungus. Doc Saw might want it."
+            probability: 0.3
+            count_min: 1
+            count_max: 2
+
+  - id: saltreach-4
+    name: "Captain's Quarters"
+    desc: |
+      Captain Vass's private quarters, carved into the upper deck of the
+      pre-war yacht that became the Long Tide. The walls are lined with
+      old maps, faction insignia (most defaced), and a single framed
+      Ironclad commendation with the eagle scratched out. A heavy chest
+      sits at the foot of her cot.
+    biome: settlement
+    exits:
+      west: saltreach-1
+    locks:
+      - id: vass-chest
+        exit: chest
+        difficulty: 4
+        keys: [vass-key]
+    npcs: []
+    items:
+      - id: vass-commendation
+        name: "Defaced Ironclad Commendation"
+        desc: "A pre-war military commendation with the eagle insignia gouged out."
+        readable: true
+        content: "ORDER OF THE IRONCLAD\nFor distinguished service: Captain Iri Vass.\n[The eagle has been scratched out with a knife. Below, in Vass's hand, is written: 'I left because they were going to wake her without authorization. The general doesn't belong to them. She doesn't belong to anyone.']"
+      - id: vass-letter
+        name: "Sealed Letter"
+        desc: "A sealed letter addressed to 'whoever wakes her.'"
+        readable: true
+        content: "TO WHOEVER WAKES HER\n\nGeneral Voss is not a weapon. She is a witness. The Ironclad want her to validate their claim to pre-war command. The Ghoul Collective want her left frozen because she remembers the bombing orders. The Settlers don't even know she exists.\n\nIf you find this letter, you have a choice. Make it slowly.\n\n— Iri Vass"
+
   - id: plains-3
     name: "Lone Mesa"
     desc: |
       A solitary mesa rising from the plains, weathered red rock against
       a bone-grey sky. A goat path winds up to the top. From the summit
       you can see for miles in every direction — Dusthaven smoke to the
-      east, the Vault skyline north, the chemical plant glow south.
+      east, the Vault skyline north, the chemical plant glow south, and
+      to the far west, the glint of dead seawater and the smoke of a town
+      called Saltreach.
     biome: wasteland
     exits:
       south: plains-0
+      west: saltreach-0
     npcs:
       - id: hermit-seer
         name: "The Mesa Seer"
@@ -1958,8 +2216,11 @@ rooms:
         attack: 5
         desc: "A blind ghoul-kin elder, ancient beyond reckoning. They sit at the summit and watch with eyes that can no longer see."
         dialogue:
+          - trigger: "quest_not_active:revenant-1-fragments"
+            text: "I see four hands reaching for the same buried thing. Yours is one of them. The cryo-pod in the Vault's Heart is real, and the general inside is real. To wake her you need three vault-key-fragments first. Find them in the deep ruins."
+            quest_id: revenant-1-fragments
           - trigger: always
-            text: "I see four hands reaching for the same buried thing. Yours is one of them. Choose carefully who you stand with — the Vault remembers. *They tilt their head toward you.* The cryo-pod is real. The general inside is real. What you wake will reshape the wastes."
+            text: "Walk the path. The Vault remembers."
         trades:
           - id: seer-vision
             wants: [{id: caps, count: 50}]
@@ -2191,3 +2452,86 @@ quests:
     reward_xp_amount: 100
     reward_rep_faction: ghoul-collective
     reward_rep_delta: 10
+
+  # ─── Saltreach Syndicate quests ───────────────────────────────────────────
+
+  - id: vass-introduction
+    title: "Earn the Chair"
+    description: "Captain Vass wants 5 pre-war circuits delivered to her at the Long Tide."
+    giver_npc_id: captain-vass
+    giver_faction: saltreach-syndicate
+    min_rep: 0
+    obj_type: retrieve
+    obj_target: pre-war-circuitry
+    obj_count: 5
+    reward_credits: 200
+    reward_xp_skill: trading
+    reward_xp_amount: 60
+    reward_rep_faction: saltreach-syndicate
+    reward_rep_delta: 5
+
+  - id: cave-crawler-bounty
+    title: "The Cave-Crawler"
+    description: "Old Heris wants the Cave-Crawler dead. Find it in the south passage of the Salt Caves."
+    giver_npc_id: salt-prospector-2
+    giver_faction: saltreach-syndicate
+    min_rep: 0
+    obj_type: kill
+    obj_target: cave-crawler
+    obj_count: 1
+    reward_credits: 200
+    reward_xp_skill: combat
+    reward_xp_amount: 110
+    reward_rep_faction: saltreach-syndicate
+    reward_rep_delta: 5
+
+  # ─── Project Revenant story arc (4 quests, ending with the cryo-pod) ──────
+
+  - id: revenant-1-fragments
+    title: "Project Revenant: Three Keys"
+    description: "Whoever wakes the general at the heart of the Vault needs three vault-key-fragments. Search the deep ruins."
+    giver_npc_id: hermit-seer
+    obj_type: retrieve
+    obj_target: vault-key-fragment
+    obj_count: 3
+    reward_credits: 100
+    reward_xp_skill: scavenging
+    reward_xp_amount: 60
+    next_quest_id: revenant-2-cryo-key
+
+  - id: revenant-2-cryo-key
+    title: "Project Revenant: The Cryo-Key"
+    description: "The Mesa Seer says the cryo-pod requires a magnetic key marked PROJECT REVENANT. Linnet at the Saltreach Black Market is rumored to have one — for a price."
+    giver_npc_id: hermit-seer
+    obj_type: retrieve
+    obj_target: cryo-key
+    obj_count: 1
+    reward_credits: 100
+    reward_xp_skill: trading
+    reward_xp_amount: 60
+    next_quest_id: revenant-3-vass-letter
+
+  - id: revenant-3-vass-letter
+    title: "Project Revenant: Vass Knew"
+    description: "Captain Vass left the Ironclad over what they were going to do to General Voss. Read her sealed letter in her quarters at the Long Tide before you wake the cryo-pod."
+    giver_npc_id: hermit-seer
+    obj_type: retrieve
+    obj_target: vass-letter
+    obj_count: 1
+    reward_credits: 50
+    reward_xp_skill: survival
+    reward_xp_amount: 40
+    next_quest_id: revenant-4-wake
+
+  - id: revenant-4-wake
+    title: "Project Revenant: Wake Her"
+    description: "Use the cryo-key on the Heart of the Vault. Whatever General Voss decides — or whatever you decide for her — will reshape the wastes."
+    giver_npc_id: hermit-seer
+    obj_type: unlock
+    obj_target: cryo-pod-seal
+    obj_count: 1
+    reward_credits: 500
+    reward_xp_skill: combat
+    reward_xp_amount: 250
+    reward_rep_faction: saltreach-syndicate
+    reward_rep_delta: 5
