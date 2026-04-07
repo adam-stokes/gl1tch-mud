@@ -146,6 +146,30 @@ func handleKitCommand(gdb *gamedb.GameDB, s *player.State, cmd string, args []st
 		return Result{Output: "type 'kit list', 'kit add <id>', 'kit remove <id>', or 'kit done'."}
 	}
 
+	// matchKit returns the KitItem matching a user-typed ID or name.
+	// Accepts exact id ("worn-revolver"), name with spaces ("worn revolver"),
+	// or a unique prefix match. Case-insensitive.
+	matchKit := func(input string) *classes.KitItem {
+		norm := strings.ToLower(strings.TrimSpace(input))
+		normDash := strings.ReplaceAll(norm, " ", "-")
+		// Exact match first.
+		for i := range c.Kit {
+			k := &c.Kit[i]
+			if strings.ToLower(k.ID) == normDash || strings.ToLower(k.Name) == norm {
+				return k
+			}
+		}
+		// Fall back to prefix match on id or name.
+		for i := range c.Kit {
+			k := &c.Kit[i]
+			if strings.HasPrefix(strings.ToLower(k.ID), normDash) ||
+				strings.HasPrefix(strings.ToLower(k.Name), norm) {
+				return k
+			}
+		}
+		return nil
+	}
+
 	if len(args) == 0 || args[0] == "list" {
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("KIT — %d/%d points spent\n\n", spent(), classes.KitBudget))
@@ -154,37 +178,34 @@ func handleKitCommand(gdb *gamedb.GameDB, s *player.State, cmd string, args []st
 			if isPicked(k.ID) {
 				marker = "[x]"
 			}
-			b.WriteString(fmt.Sprintf("  %s %dpt  %-25s — %s\n", marker, k.Cost, k.Name, k.Desc))
+			b.WriteString(fmt.Sprintf("  %s %dpt  %-22s  %-25s — %s\n", marker, k.Cost, k.ID, k.Name, k.Desc))
 		}
-		b.WriteString("\ntype 'kit add <id>', 'kit remove <id>', or 'kit done'.\n")
+		b.WriteString("\ntype 'kit add <id-or-name>', 'kit remove <id-or-name>', or 'kit done'.\n")
 		return Result{Output: b.String()}
 	}
 
 	if args[0] == "add" && len(args) >= 2 {
-		id := args[1]
-		for _, k := range c.Kit {
-			if k.ID != id {
-				continue
-			}
-			if isPicked(id) {
-				return Result{Output: "already picked."}
-			}
-			if spent()+k.Cost > classes.KitBudget {
-				return Result{Output: fmt.Sprintf("not enough kit points (%d/%d).", spent(), classes.KitBudget)}
-			}
-			_ = gdb.SetPlayerFlag(ctx, "kit:"+id)
-			return Result{Output: fmt.Sprintf("added %s. %d/%d points spent.", k.Name, spent()+k.Cost, classes.KitBudget)}
+		k := matchKit(strings.Join(args[1:], " "))
+		if k == nil {
+			return Result{Output: "no such kit item. type 'kit list' to see options."}
 		}
-		return Result{Output: "no such kit item."}
+		if isPicked(k.ID) {
+			return Result{Output: "already picked."}
+		}
+		if spent()+k.Cost > classes.KitBudget {
+			return Result{Output: fmt.Sprintf("not enough kit points (%d/%d).", spent(), classes.KitBudget)}
+		}
+		_ = gdb.SetPlayerFlag(ctx, "kit:"+k.ID)
+		return Result{Output: fmt.Sprintf("added %s. %d/%d points spent.", k.Name, spent()+k.Cost, classes.KitBudget)}
 	}
 
 	if args[0] == "remove" && len(args) >= 2 {
-		id := args[1]
-		if !isPicked(id) {
+		k := matchKit(strings.Join(args[1:], " "))
+		if k == nil || !isPicked(k.ID) {
 			return Result{Output: "not in your kit."}
 		}
-		_ = gdb.DeletePlayerFlag(ctx, "kit:"+id)
-		return Result{Output: fmt.Sprintf("removed. %d/%d points spent.", spent(), classes.KitBudget)}
+		_ = gdb.DeletePlayerFlag(ctx, "kit:"+k.ID)
+		return Result{Output: fmt.Sprintf("removed %s. %d/%d points spent.", k.Name, spent(), classes.KitBudget)}
 	}
 
 	if args[0] == "done" {
