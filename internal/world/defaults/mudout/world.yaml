@@ -36,7 +36,7 @@ factions:
       Survivors who pooled resources to build Dusthaven. They want walls,
       clean water, and to be left alone.
     agenda: "Fortify the settlement, push raiders out of the Barrens."
-    territory: [dusthaven-0, dusthaven-1, dusthaven-2, dusthaven-3]
+    territory: [dusthaven-0, dusthaven-1, dusthaven-2, dusthaven-3, dusthaven-5, dusthaven-6, dusthaven-7]
     allies: [ironclad]
     enemies: [ash-raiders]
 
@@ -46,7 +46,7 @@ factions:
       Nomadic scavengers who claim the Barrens by force.
       They don't build — they take.
     agenda: "Raid Dusthaven, control the Crater, burn the Vault."
-    territory: [barrens-0, barrens-1]
+    territory: [barrens-0, barrens-1, barrens-4, barrens-5]
     allies: []
     enemies: [settlers, ironclad]
 
@@ -56,7 +56,7 @@ factions:
       Ex-military remnant, obsessed with reclaiming pre-war tech from the Vault.
       Rigid, disciplined, ruthless.
     agenda: "Open the Vault, recover the pre-war weapons cache, establish martial law."
-    territory: [barrens-2, ruins-0, ruins-1, ruins-2]
+    territory: [barrens-2, ruins-0, ruins-1, ruins-2, flats-0, flats-1]
     allies: [settlers]
     enemies: [ash-raiders, ghoul-collective]
 
@@ -66,7 +66,7 @@ factions:
       Irradiated survivors living in the deep ruins. Misunderstood, ancient,
       and sitting on secrets. ruins-1 and ruins-2 are contested with the Ironclad.
     agenda: "Keep outsiders out of the Vault — it's not a weapons cache, it's their home."
-    territory: [ruins-1, ruins-2]
+    territory: [ruins-1, ruins-2, flats-2]
     allies: []
     enemies: [ironclad]
 
@@ -241,6 +241,63 @@ loot_tables:
         probability: 0.1
         count_min: 1
         count_max: 1
+
+  - id: raider-chief-loot
+    entries:
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "The Chief's purse."
+        probability: 1.0
+        count_min: 50
+        count_max: 100
+      - item_id: stimpak
+        name: "Stimpak"
+        desc: "Pre-war auto-injector."
+        probability: 0.8
+        count_min: 1
+        count_max: 3
+      - item_id: bandage
+        name: "Bandage"
+        desc: "Clean cloth."
+        probability: 0.9
+        count_min: 2
+        count_max: 4
+      - item_id: pre-war-circuitry
+        name: "Pre-War Circuitry"
+        desc: "Looted from somewhere worse."
+        tags: [component, gun-receiver]
+        quality: refined
+        stat_mods: {damage: 4, accuracy: 2}
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: caravan-key
+        name: "Caravan Key"
+        desc: "A worn brass key. The Chief took it from the caravan driver."
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+
+  - id: ghoul-chem-loot
+    entries:
+      - item_id: radaway
+        name: "RadAway"
+        desc: "Recovered from the corpse."
+        probability: 0.6
+        count_min: 1
+        count_max: 2
+      - item_id: glowing-relic
+        name: "Glowing Relic"
+        desc: "A pre-war ceramic shard, faintly luminescent."
+        probability: 0.15
+        count_min: 1
+        count_max: 1
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "Caps fused into the ghoul's shirt pocket."
+        probability: 0.7
+        count_min: 8
+        count_max: 25
 
 crafting_recipes:
   - id: pipe-pistol
@@ -511,6 +568,7 @@ rooms:
       north: dusthaven-1
       east: dusthaven-3
       south: barrens-0
+      west: dusthaven-7
     npcs:
       - id: settler-recruiter
         name: "Marta (Settlers)"
@@ -534,6 +592,96 @@ rooms:
         readable: true
         content: "DUSTHAVEN RULES\n1. No shooting inside the gate.\n2. No stealing from settlers.\n3. Violators get thrown over the wall.\n\n— The Settlers Council"
 
+  - id: dusthaven-6
+    name: "The Market"
+    desc: |
+      A loose ring of stalls under tarp awnings. Tradespeople hawk salvaged
+      goods, ammo, food, and gossip. The smell of grilled meat fights with
+      the smell of unwashed humanity. Caps change hands fast.
+    biome: settlement
+    exits:
+      east: dusthaven-1
+    npcs:
+      - id: ammo-vendor
+        name: "Crick the Ammo-Hand"
+        hp: 40
+        attack: 5
+        desc: "A nervous man with too many fingers and not enough teeth. Sells brass."
+        dialogue:
+          - trigger: always
+            text: "Brass for caps. Caps for brass. That's the trade. 'offers crick' for the menu."
+        trades:
+          - id: crick-ammo
+            wants: [{id: caps, count: 8}]
+            offers: [{id: ammo-casing, name: "Ammo Casing", desc: "Spent brass. Reloadable.", count: 5}]
+          - id: crick-bulk-ammo
+            wants: [{id: caps, count: 20}]
+            offers: [{id: ammo-casing, name: "Ammo Casing", desc: "Spent brass. Reloadable.", count: 15}]
+      - id: food-vendor
+        name: "Tila the Cook"
+        hp: 35
+        attack: 4
+        desc: "Sun-weathered woman with an iron grill and a permanent frown."
+        dialogue:
+          - trigger: always
+            text: "Food's hot. Caps are cold. Trade fast."
+        trades:
+          - id: tila-trail
+            wants: [{id: caps, count: 6}]
+            offers: [{id: trail-rations, name: "Trail Rations", desc: "Heal 5 HP. Travel-tested.", count: 3}]
+          - id: tila-canned
+            wants: [{id: caps, count: 4}]
+            offers: [{id: canned-food, name: "Canned Food", desc: "Pre-war canned goods. Heals 5 HP.", count: 2}]
+      - id: junk-vendor
+        name: "Gren the Junker"
+        hp: 38
+        attack: 6
+        desc: "A burly man with a satchel full of suspicious tech."
+        dialogue:
+          - trigger: always
+            text: "I take junk. I sell tools. Bring me scrap."
+        trades:
+          - id: gren-toolkit
+            wants: [{id: scrap-metal, count: 10}, {id: caps, count: 15}]
+            offers: [{id: toolkit, name: "Toolkit", desc: "Required for hotwiring advanced systems.", count: 1}]
+          - id: gren-scrap-to-caps
+            wants: [{id: scrap-metal, count: 5}]
+            offers: [{id: caps, name: "Bottle Caps", desc: "Currency of the wastes.", count: 8}]
+    items:
+      - id: market-bulletin
+        name: "Market Bulletin"
+        desc: "A pinboard tacked with notices and bounties."
+        readable: true
+        content: "DUSTHAVEN MARKET BULLETIN\n- Doc Saw is buying clean cloth.\n- Bounty: Raider Chief in the Camp. 200 caps.\n- The Clinic needs medical runners.\n- Old gas station to the west — power's out, paying for a fix."
+
+  - id: dusthaven-7
+    name: "Settlers Hall"
+    desc: |
+      A long room with a council table at one end and a faded Settlers
+      banner above it. Maps of the Barrens are pinned to every wall, marked
+      with raider movements and patrol routes. The air smells of strong tea.
+    biome: settlement
+    exits:
+      east: dusthaven-0
+    npcs:
+      - id: settler-elder
+        name: "Elder Voss"
+        hp: 65
+        attack: 7
+        desc: "Grey-bearded, leans on a cane. Eyes that have measured every horizon."
+        dialogue:
+          - trigger: "quest_not_active:hall-bounty"
+            text: "Raider Chief's been hitting our supply runs. There's a bounty on his head — 200 caps. He's holed up in the camp east of the Burnt Overpass."
+            quest_id: hall-bounty
+          - trigger: always
+            text: "We hold the gate. We hold the road. That's all we promise."
+    items:
+      - id: settlers-charter
+        name: "Settlers Charter"
+        desc: "The founding agreement of Dusthaven."
+        readable: true
+        content: "THE SETTLERS CHARTER\n1. We share water.\n2. We share walls.\n3. We share watch.\n4. We do not share with raiders."
+
   - id: dusthaven-1
     name: "The Scrapyard"
     desc: |
@@ -545,6 +693,7 @@ rooms:
     exits:
       south: dusthaven-0
       east: dusthaven-2
+      west: dusthaven-6
     npcs:
       - id: scrapper-npc
         name: "Dex the Scrapper"
@@ -607,6 +756,7 @@ rooms:
 
   - id: dusthaven-3
     name: "The Saloon"
+    # Note: east exit added to dusthaven-5 (Clinic)
     desc: |
       The Rusty Nail does a roaring trade in flat beer and hot gossip. Faded
       pre-war posters compete with hand-drawn maps on the walls. A bartender
@@ -616,6 +766,7 @@ rooms:
     biome: settlement
     exits:
       west: dusthaven-0
+      east: dusthaven-5
     npcs:
       - id: bartender-npc
         name: "Hank the Bartender"
@@ -670,6 +821,57 @@ rooms:
     npcs: []
     items: []
 
+  - id: dusthaven-5
+    name: "The Clinic"
+    desc: |
+      A whitewashed shack with a hand-painted red cross on the door. Inside
+      smells of bleach and old blood. Cots line one wall, all of them in use.
+      A wall of pre-war pharmaceuticals — most empty bottles — looms behind
+      the front desk.
+    biome: settlement
+    exits:
+      west: dusthaven-3
+    npcs:
+      - id: nurse-aldis
+        name: "Nurse Aldis"
+        hp: 45
+        attack: 4
+        desc: "Sleeves rolled to the elbow, hair tied back. Hands that have stitched a thousand wounds."
+        dialogue:
+          - trigger: "quest_not_active:clinic-supplies"
+            text: "We're out of clean cloth — bring me 5 cloth strips and I'll pay you in stims. People are dying for bandages here."
+            quest_id: clinic-supplies
+          - trigger: always
+            text: "Rest if you need to. The cot in the corner's free."
+        trades:
+          - id: aldis-stim
+            wants: [{id: caps, count: 12}]
+            offers: [{id: stimpak, name: "Stimpak", desc: "Heals 25 HP.", count: 1}]
+          - id: aldis-bandage-bulk
+            wants: [{id: caps, count: 8}]
+            offers: [{id: bandage, name: "Bandage", desc: "Heals 10 HP.", count: 3}]
+          - id: aldis-radaway
+            wants: [{id: caps, count: 18}]
+            offers: [{id: radaway, name: "RadAway", desc: "Flushes radiation.", count: 1}]
+      - id: doctor-meren
+        name: "Doctor Meren"
+        hp: 50
+        attack: 5
+        desc: "Older, calmer than Aldis. A stethoscope hangs around her neck — pre-war, working."
+        dialogue:
+          - trigger: always
+            text: "Pay the desk for full healing. 30 caps and we'll patch you to full HP."
+        trades:
+          - id: meren-full-heal
+            wants: [{id: caps, count: 30}]
+            offers: [{id: clinic-receipt, name: "Clinic Receipt", desc: "Use this token at the cot to fully heal.", count: 1}]
+    items:
+      - id: clinic-poster
+        name: "Clinic Poster"
+        desc: "WASH HANDS. EAT FOOD. WEAR ARMOR. — Clinic Survival Tips"
+        readable: true
+        content: "DUSTHAVEN CLINIC — SURVIVAL TIPS\n1. Wash hands before eating.\n2. Boil water from the Crater.\n3. Wear armor in the ruins.\n4. Don't trust ghouls. (Doctor Meren disagrees.)"
+
   - id: barrens-0
     name: "The Ashfield"
     desc: |
@@ -682,6 +884,7 @@ rooms:
       north: dusthaven-0
       east: barrens-1
       west: barrens-2
+      south: barrens-5
     npcs:
       - id: raider-scout
         name: "Raider Scout"
@@ -719,6 +922,7 @@ rooms:
       west: barrens-0
       east: ruins-0
       south: barrens-3
+      north: barrens-4
     npcs:
       - id: raider-heavy
         name: "Ash Raider"
@@ -760,6 +964,8 @@ rooms:
     biome: wasteland
     exits:
       east: barrens-0
+      west: barrens-6
+      north: flats-0
     npcs:
       - id: ironclad-sentry
         name: "Ironclad Sentry"
@@ -816,6 +1022,133 @@ rooms:
         desc: "COMBAT ZONE: Team deathmatch. Caps paid to survivors."
         readable: true
         content: "COMBAT ZONE — TDM\nKill all five Ash Raiders before they kill you.\nReward: 200 caps. Type 'arena' to begin."
+
+  - id: barrens-4
+    name: "Raider Camp"
+    desc: |
+      A ring of beat-up trucks circled around a bonfire. Severed signposts
+      and salvaged tarps form lean-tos. The smell of woodsmoke and rotting
+      meat. The Raider Chief holds court at the fire, surrounded by his
+      lieutenants. They see you the moment you enter.
+    biome: wasteland
+    exits:
+      south: barrens-1
+    npcs:
+      - id: raider-chief
+        name: "Karth the Raider Chief"
+        hp: 120
+        attack: 18
+        desc: "Bigger than any raider you've seen. Half his face is scar tissue. He carries a rebar club like it's a toy."
+        loot_table_id: raider-chief-loot
+        dialogue:
+          - trigger: always
+            text: "Another bounty hunter. The Settlers must be paying well this week. *spits*"
+      - id: raider-lieutenant
+        name: "Raider Lieutenant"
+        hp: 70
+        attack: 14
+        desc: "Karth's enforcer. War paint and a sawn-off."
+        loot_table_id: raider-loot
+    items: []
+
+  - id: barrens-5
+    name: "Derelict Caravan"
+    desc: |
+      A pre-war supply caravan, run aground in the dust years ago. The cab
+      is collapsed but the trailer is intact. Someone has been picking it
+      over — but they didn't get the locked footlocker bolted to the floor.
+      A nervous trader and his guard pace nearby, eyeing you.
+    biome: wasteland
+    exits:
+      north: barrens-0
+    locks:
+      - id: caravan-footlocker
+        exit: locker
+        difficulty: 3
+        keys: [caravan-key]
+    npcs:
+      - id: caravan-trader
+        name: "Skel the Wandering Trader"
+        hp: 35
+        attack: 4
+        desc: "Wiry, twitchy, eyes that calculate every angle. Carries a sawn-off and a bag of bottle caps."
+        dialogue:
+          - trigger: always
+            text: "I don't sell to strangers. *Skel's hand drifts toward his shotgun.*"
+        trades:
+          - id: skel-stim-pack
+            wants: [{id: caps, count: 35}]
+            offers: [{id: stimpak, name: "Stimpak", desc: "Heals 25 HP.", count: 2}]
+          - id: skel-mystery
+            wants: [{id: caps, count: 50}]
+            offers: [{id: mystery-bundle, name: "Mystery Bundle", desc: "Skel won't say what's inside. Worth a roll.", count: 1}]
+      - id: caravan-guard
+        name: "Caravan Guard"
+        hp: 60
+        attack: 13
+        desc: "A hired gun. Cheap leather armor, expensive rifle."
+        loot_table_id: wasteland-loot
+    items:
+      - id: caravan-manifest
+        name: "Caravan Manifest"
+        desc: "A waybill listing the caravan's original cargo. Most of it is missing."
+        readable: true
+        content: "CARAVAN MANIFEST — pre-war supply run\n- 12x Stimpak\n- 6x RadAway\n- 1x Pre-War Circuitry\n- 1x Footlocker key (in driver's pocket)"
+
+  - id: barrens-6
+    name: "Old Gas Station"
+    desc: |
+      A pre-war filling station, the awning collapsed, pumps rusted in place.
+      A neon sign — long dead — still reads VAULT-TEC FUEL. The pumps look
+      hotwirable. Wires dangle from the breaker box. Useful tech if you can
+      coax it back to life.
+    biome: wasteland
+    exits:
+      east: barrens-2
+    locks:
+      - id: gas-pump-power
+        exit: pump
+        difficulty: 2
+        keys: [gas-station-fuse]
+    npcs:
+      - id: station-mechanic
+        name: "Bo the Wrench"
+        hp: 50
+        attack: 6
+        desc: "A grease-stained wanderer trying to get the station running. Wears a faded VAULT-TEC FUEL hat."
+        dialogue:
+          - trigger: "quest_not_active:gas-station-power"
+            text: "I can't get the breaker to throw. If you can hotwire the panel, I'll cut you in. 75 caps and a toolkit's worth of parts."
+            quest_id: gas-station-power
+          - trigger: always
+            text: "You hotwire that panel and we're both rich. Try the breaker, friend."
+    items:
+      - id: gas-station-breaker
+        name: "Breaker Panel"
+        desc: "A pre-war power panel, casing cracked. Wires inviting a crossover."
+      - id: gas-station-fuse
+        name: "Spare Fuse"
+        desc: "A spare ceramic fuse. Bo dropped it under the pump."
+    resources:
+      - id: gas-station-salvage
+        type: harvest
+        respawn_actions: 6
+        yields:
+          - item_id: copper-wire
+            name: "Copper Wire"
+            desc: "Salvaged from the pumps."
+            tags: [component, gun-receiver]
+            quality: crude
+            stat_mods: {damage: 1}
+            probability: 0.7
+            count_min: 1
+            count_max: 2
+          - item_id: spare-battery
+            name: "Spare Battery"
+            desc: "Pre-war D-cell. Still holds a charge."
+            probability: 0.3
+            count_min: 1
+            count_max: 1
 
   - id: ruins-0
     name: "Collapsed Mall"
@@ -951,6 +1284,160 @@ rooms:
         readable: true
         content: "TOWER DEFENSE\nSurvive 3 waves of Ash Raiders.\nYour dusthaven-4 base turrets auto-fire each wave.\nReward: 300 caps + Pre-War Circuitry. Type 'arena' to begin."
 
+  - id: flats-0
+    name: "The Salt Flats"
+    desc: |
+      A blinding white expanse of cracked salt stretching to a wavering horizon.
+      The wind here is constant and dry. Pre-war wreckage juts from the salt
+      like the bones of some forgotten leviathan. To the north, the dark spire
+      of an Ironclad outpost. To the east, the skeletal silhouette of a
+      chemical plant.
+    biome: wasteland
+    exits:
+      south: barrens-2
+      north: flats-1
+      east: flats-2
+    npcs:
+      - id: salt-prospector
+        name: "Old Mira the Prospector"
+        hp: 40
+        attack: 5
+        desc: "Sun-blackened skin, white hair, eyes like a hawk. She's been walking the flats for thirty years."
+        dialogue:
+          - trigger: always
+            text: "The flats look empty. They aren't. Watch your step out east — chemical fog can drop you fast. And the Ironclad north don't take kindly to drifters."
+        trades:
+          - id: mira-water
+            wants: [{id: caps, count: 6}]
+            offers: [{id: clean-water, name: "Clean Water", desc: "Filtered rain water. Heals 8 HP.", count: 2}]
+    items: []
+    resources:
+      - id: salt-harvest
+        type: harvest
+        respawn_actions: 5
+        yields:
+          - item_id: salt-crystal
+            name: "Salt Crystal"
+            desc: "A dense crystal of pure salt. Trades well in town."
+            probability: 0.8
+            count_min: 1
+            count_max: 3
+
+  - id: flats-1
+    name: "Ironclad Outpost"
+    desc: |
+      A pre-war military checkpoint, retrofitted with corrugated walls and
+      a tower-mounted heavy gun. Ironclad sentries patrol the perimeter.
+      A quartermaster runs a small commissary inside. Ironclad-aligned
+      runners are welcome; everyone else gets a long, hostile look.
+    biome: wasteland
+    exits:
+      south: flats-0
+    npcs:
+      - id: ironclad-quartermaster
+        name: "Quartermaster Cole"
+        hp: 70
+        attack: 12
+        desc: "Square jaw, square shoulders, square uniform. The kind of soldier who ironed his fatigues this morning."
+        dialogue:
+          - trigger: "rep_gte:ironclad:0"
+            text: "State your purpose. The commissary is open if you've got caps. We don't barter with scavengers."
+          - trigger: always
+            text: "You're not on the roster. Walk away."
+        trades:
+          - id: cole-armor-plate
+            wants: [{id: caps, count: 40}]
+            offers: [{id: armor-plate-standard, name: "Armor Plate", desc: "Pre-war pressed steel.", count: 1}]
+          - id: cole-stimpak-mil
+            wants: [{id: caps, count: 20}]
+            offers: [{id: stimpak, name: "Stimpak", desc: "Military-grade. Heals 25 HP.", count: 1}]
+          - id: cole-ammo
+            wants: [{id: caps, count: 25}]
+            offers: [{id: ammo-casing, name: "Mil-Spec Ammo", desc: "Better than scrapper brass.", count: 20}]
+      - id: ironclad-recruiter
+        name: "Sergeant Vex"
+        hp: 75
+        attack: 14
+        desc: "A scarred recruiter looking for runners willing to do dirty work. Ironclad eagle on her chest."
+        dialogue:
+          - trigger: "quest_not_active:ironclad-trial"
+            text: "We need someone unaffiliated for a delicate job. Bring me 3 vault-key-fragments from the ruins. We pay in stimpaks and rep."
+            quest_id: ironclad-trial
+          - trigger: always
+            text: "Talk to the Quartermaster if you've got caps. Otherwise, get clear of the gate."
+    items:
+      - id: ironclad-recruitment-poster
+        name: "Ironclad Recruitment Poster"
+        desc: "STAND TALL. STAND IRONCLAD. — Recruitment standing always open."
+        readable: true
+        content: "THE IRONCLAD\nWe were the army before the bombs.\nWe will be the order after them.\nJoin us. Carry our colors. Reclaim what was lost."
+
+  - id: flats-2
+    name: "Chemical Plant"
+    desc: |
+      The skeleton of a pre-war chemical plant. Twisted pipes, ruptured
+      tanks, and a green chemical fog clinging to the floor. It smells
+      of rot and rust and something sharper, sweeter, wrong. RadAway
+      and pre-war chems are scattered in the wreckage — if you're
+      brave enough to take them.
+    biome: ruins
+    exits:
+      west: flats-0
+    npcs:
+      - id: chem-feral
+        name: "Chem-Sick Ghoul"
+        hp: 55
+        attack: 13
+        desc: "An irradiated ghoul too far gone to speak. Glowing veins under translucent skin."
+        loot_table_id: ghoul-chem-loot
+      - id: rogue-chemist
+        name: "Vex the Rogue Chemist"
+        hp: 50
+        attack: 8
+        desc: "A surviving pre-war chemist gone half-feral. Wears a cracked respirator. Sells what she can synthesize."
+        dialogue:
+          - trigger: always
+            text: "Caps for chems. No questions, no refunds. *coughs into her sleeve*"
+        trades:
+          - id: vex-buffout
+            wants: [{id: caps, count: 22}]
+            offers: [{id: buffout, name: "Buffout", desc: "Pre-war combat stim.", count: 1}]
+          - id: vex-medx
+            wants: [{id: caps, count: 18}]
+            offers: [{id: med-x, name: "Med-X", desc: "Pre-war painkiller. Heals 15 HP.", count: 1}]
+          - id: vex-radaway
+            wants: [{id: caps, count: 14}]
+            offers: [{id: radaway, name: "RadAway", desc: "Flushes radiation.", count: 1}]
+    items:
+      - id: warning-placard
+        name: "Hazard Placard"
+        desc: "DANGER — TOXIC ATMOSPHERE — RESPIRATORS REQUIRED"
+        readable: true
+        content: "VAULT-TEC CHEMICAL PLANT 7\nDANGER: Toxic atmosphere. Respirators required.\nAuthorized personnel only.\n[The sign is faded. Nobody is authorized anymore.]"
+    resources:
+      - id: chem-salvage
+        type: harvest
+        respawn_actions: 7
+        yields:
+          - item_id: radaway
+            name: "RadAway"
+            desc: "Recovered chem pack."
+            probability: 0.4
+            count_min: 1
+            count_max: 1
+          - item_id: empty-syringes-5
+            name: "Empty Syringes"
+            desc: "Reusable injectors. Crafting reagent."
+            probability: 0.5
+            count_min: 1
+            count_max: 1
+          - item_id: glowing-relic
+            name: "Glowing Relic"
+            desc: "A pre-war ceramic shard, faintly luminescent."
+            probability: 0.1
+            count_min: 1
+            count_max: 1
+
 quests:
   - id: settlers-intro
     title: "Prove Yourself"
@@ -993,3 +1480,61 @@ quests:
     reward_xp_amount: 25
     reward_rep_faction: ghoul-collective
     reward_rep_delta: 5
+
+  - id: clinic-supplies
+    title: "Clean Cloth"
+    description: "Nurse Aldis at the Dusthaven Clinic needs 5 cloth strips for bandages. Find them in the wasteland or buy from the market."
+    giver_npc_id: nurse-aldis
+    giver_faction: settlers
+    min_rep: 0
+    obj_type: retrieve
+    obj_target: cloth-strip
+    obj_count: 5
+    reward_credits: 75
+    reward_xp_skill: survival
+    reward_xp_amount: 30
+    reward_rep_faction: settlers
+    reward_rep_delta: 3
+
+  - id: hall-bounty
+    title: "The Raider Chief"
+    description: "Elder Voss wants Karth the Raider Chief dead. Find him at the Raider Camp north of the Burnt Overpass."
+    giver_npc_id: settler-elder
+    giver_faction: settlers
+    min_rep: 0
+    obj_type: kill
+    obj_target: raider-chief
+    obj_count: 1
+    reward_credits: 200
+    reward_xp_skill: combat
+    reward_xp_amount: 100
+    reward_rep_faction: settlers
+    reward_rep_delta: 10
+
+  - id: gas-station-power
+    title: "Power to the Pumps"
+    description: "Bo the Wrench needs the gas station breaker hotwired. Use the 'hotwire' verb (or pick the lock) on the breaker panel at the Old Gas Station."
+    giver_npc_id: station-mechanic
+    giver_faction: settlers
+    min_rep: 0
+    obj_type: unlock
+    obj_target: gas-pump-power
+    obj_count: 1
+    reward_credits: 75
+    reward_xp_skill: crafting
+    reward_xp_amount: 50
+
+  - id: ironclad-trial
+    title: "Ironclad Trial"
+    description: "Sergeant Vex wants 3 vault-key-fragments brought to the Ironclad Outpost. Find them in the deep ruins."
+    giver_npc_id: ironclad-recruiter
+    giver_faction: ironclad
+    min_rep: 0
+    obj_type: retrieve
+    obj_target: vault-key-fragment
+    obj_count: 3
+    reward_credits: 150
+    reward_xp_skill: combat
+    reward_xp_amount: 75
+    reward_rep_faction: ironclad
+    reward_rep_delta: 10
