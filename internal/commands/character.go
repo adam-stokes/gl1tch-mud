@@ -196,7 +196,7 @@ func handleKitCommand(gdb *gamedb.GameDB, s *player.State, cmd string, args []st
 			return Result{Output: fmt.Sprintf("not enough kit points (%d/%d).", spent(), classes.KitBudget)}
 		}
 		_ = gdb.SetPlayerFlag(ctx, "kit:"+k.ID)
-		return Result{Output: fmt.Sprintf("added %s. %d/%d points spent.", k.Name, spent()+k.Cost, classes.KitBudget)}
+		return Result{Output: fmt.Sprintf("added %s. %d/%d points spent.", k.Name, spent(), classes.KitBudget)}
 	}
 
 	if args[0] == "remove" && len(args) >= 2 {
