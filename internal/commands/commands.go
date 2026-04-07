@@ -1003,19 +1003,32 @@ func Unlock(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) 
 // Offers lists what an NPC in the current room will trade.
 func Offers(gdb *gamedb.GameDB, s *player.State, w *world.World, args []string) Result {
 	if len(args) == 0 {
-		return Result{Output: "offers <npc-id> — list what an NPC will trade"}
+		return Result{Output: "offers <npc> — list what an NPC will trade (id, name, or partial name)"}
 	}
-	npcID := args[0]
+	query := strings.ToLower(strings.Join(args, " "))
 	room := w.Room(s.RoomID)
 	if room == nil {
 		return Result{Output: "nobody here."}
 	}
 
-	npc := trading.FindNPCInRoom(room, npcID)
-	if npc == nil {
-		return Result{Output: fmt.Sprintf("no NPC %q here.", npcID)}
+	// Match by exact id, then by name substring (same UX as 'attack' / 'talk').
+	var npc *world.NPC
+	if found := trading.FindNPCInRoom(room, query); found != nil {
+		npc = found
+	} else {
+		for i := range room.NPCs {
+			n := &room.NPCs[i]
+			if strings.Contains(strings.ToLower(n.Name), query) ||
+				strings.Contains(strings.ToLower(n.ID), query) {
+				npc = n
+				break
+			}
+		}
 	}
-	if !player.NPCAlive(gdb, s.RoomID, npcID) {
+	if npc == nil {
+		return Result{Output: fmt.Sprintf("no NPC matching %q here.", query)}
+	}
+	if !player.NPCAlive(gdb, s.RoomID, npc.ID) {
 		return Result{Output: fmt.Sprintf("%s is dead.", npc.Name)}
 	}
 

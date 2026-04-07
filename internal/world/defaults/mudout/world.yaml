@@ -229,6 +229,18 @@ loot_tables:
         probability: 0.4
         count_min: 1
         count_max: 1
+      - item_id: bandage
+        name: "Bandage"
+        desc: "A roll of clean cloth. Heals 10 HP."
+        probability: 0.35
+        count_min: 1
+        count_max: 1
+      - item_id: stimpak
+        name: "Stimpak"
+        desc: "A pre-war auto-injector. Heals 25 HP."
+        probability: 0.1
+        count_min: 1
+        count_max: 1
 
 crafting_recipes:
   - id: pipe-pistol
@@ -599,6 +611,8 @@ rooms:
       The Rusty Nail does a roaring trade in flat beer and hot gossip. Faded
       pre-war posters compete with hand-drawn maps on the walls. A bartender
       who's seen everything keeps the peace with a sawn-off under the bar.
+      A back-corner table has been claimed by a wasteland medic with a chipped
+      enamel sign reading "PATCH JOB — WE DON'T ASK QUESTIONS."
     biome: settlement
     exits:
       west: dusthaven-0
@@ -616,7 +630,31 @@ rooms:
         trades:
           - id: hank-trade-1
             wants: [{id: caps, count: 10}]
-            offers: [{id: canned-food, name: "Canned Food", desc: "Pre-war canned goods.", count: 2}]
+            offers: [{id: canned-food, name: "Canned Food", desc: "Pre-war canned goods. Heals 5 HP.", count: 2}]
+          - id: hank-trade-2
+            wants: [{id: caps, count: 5}]
+            offers: [{id: whiskey-flask, name: "Whiskey Flask", desc: "Heal 10 HP.", count: 1}]
+      - id: doc-saw
+        name: "Doc Saw"
+        hp: 50
+        attack: 6
+        desc: "A wiry medic with steady hands and tired eyes. Trade-tools laid out on the table: bandages, syringes, a single brown bottle of Buffout."
+        dialogue:
+          - trigger: always
+            text: "Cash on the table, friend. I patch you up, you don't tell anyone where you got it. 'offers doc-saw' to see what I've got."
+        trades:
+          - id: doc-saw-bandages
+            wants: [{id: caps, count: 5}]
+            offers: [{id: bandage, name: "Bandage", desc: "A roll of clean cloth. Heals 10 HP.", count: 2}]
+          - id: doc-saw-stim
+            wants: [{id: caps, count: 15}]
+            offers: [{id: stimpak, name: "Stimpak", desc: "A pre-war auto-injector. Heals 25 HP.", count: 1}]
+          - id: doc-saw-stim-bulk
+            wants: [{id: caps, count: 40}]
+            offers: [{id: stimpak, name: "Stimpak", desc: "A pre-war auto-injector. Heals 25 HP.", count: 3}]
+          - id: doc-saw-buffout
+            wants: [{id: caps, count: 25}]
+            offers: [{id: buffout, name: "Buffout", desc: "Pre-war combat stim. +20 max HP buff (when consumed).", count: 1}]
     items: []
 
   - id: dusthaven-4

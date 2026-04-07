@@ -33,6 +33,8 @@ var consumables = map[string]consumable{
 	"canned-food": {HealHP: 5, Verb: "eat"},
 	"stimpak":     {HealHP: 25, Verb: "jab"},
 	"bandage":     {HealHP: 10, Verb: "wrap"},
+	"buffout":     {HealHP: 20, Verb: "pop"},
+	"med-x":       {HealHP: 15, Verb: "inject"},
 }
 
 // Use consumes an inventory item and applies its effect.
