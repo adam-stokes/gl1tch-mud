@@ -501,8 +501,8 @@ func TestMudoutWorldLoads(t *testing.T) {
 	if w.StartRoom != "wakeup-camp" {
 		t.Errorf("start_room: got %q want %q", w.StartRoom, "wakeup-camp")
 	}
-	if len(w.Rooms) != 23 {
-		t.Errorf("rooms: got %d want 23", len(w.Rooms))
+	if len(w.Rooms) != 37 {
+		t.Errorf("rooms: got %d want 37", len(w.Rooms))
 	}
 	if len(w.Factions) != 4 {
 		t.Errorf("factions: got %d want 4", len(w.Factions))
@@ -519,7 +519,7 @@ func TestMudoutWorldLoads(t *testing.T) {
 	if len(w.CraftingRecipes) < 2 {
 		t.Errorf("crafting_recipes: got %d want >=2", len(w.CraftingRecipes))
 	}
-	if len(w.LootTables) != 6 {
-		t.Errorf("loot_tables: got %d want 6", len(w.LootTables))
+	if len(w.LootTables) != 10 {
+		t.Errorf("loot_tables: got %d want 10", len(w.LootTables))
 	}
 }

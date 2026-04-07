@@ -299,6 +299,111 @@ loot_tables:
         count_min: 8
         count_max: 25
 
+  - id: sewer-loot
+    entries:
+      - item_id: sewer-pipe-fragment
+        name: "Pipe Fragment"
+        desc: "A length of brass pipe, still threaded."
+        probability: 0.7
+        count_min: 1
+        count_max: 2
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "Caps from a long-dead pocket."
+        probability: 0.4
+        count_min: 1
+        count_max: 5
+      - item_id: cloth-strip
+        name: "Cloth Strip"
+        desc: "Damp but salvageable."
+        probability: 0.3
+        count_min: 1
+        count_max: 1
+
+  - id: sewer-boss-loot
+    entries:
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "Caps fused into the horror's hide."
+        probability: 1.0
+        count_min: 30
+        count_max: 80
+      - item_id: clean-water
+        name: "Clean Water"
+        desc: "Pure reservoir water."
+        probability: 1.0
+        count_min: 3
+        count_max: 5
+      - item_id: pre-war-circuitry
+        name: "Pre-War Circuitry"
+        desc: "Pulled from a swallowed corpse."
+        tags: [component, gun-receiver]
+        quality: refined
+        stat_mods: {damage: 4, accuracy: 2}
+        probability: 0.6
+        count_min: 1
+        count_max: 1
+
+  - id: raider-warlord-loot
+    entries:
+      - item_id: caps
+        name: "Bottle Caps"
+        desc: "The warlord's purse."
+        probability: 1.0
+        count_min: 150
+        count_max: 250
+      - item_id: stimpak
+        name: "Stimpak"
+        desc: "Pristine. Untouched."
+        probability: 1.0
+        count_min: 3
+        count_max: 5
+      - item_id: armor-plate-standard
+        name: "Armor Plate"
+        desc: "Pre-war pressed steel."
+        tags: [component, armor-plating]
+        quality: standard
+        stat_mods: {damage_resist: 4}
+        probability: 0.8
+        count_min: 1
+        count_max: 2
+      - item_id: pen-key
+        name: "Slaver Pen Key"
+        desc: "A heavy iron key on a leather thong."
+        probability: 1.0
+        count_min: 1
+        count_max: 1
+      - item_id: warlord-banner
+        name: "Warlord's Banner"
+        desc: "Tharn's black-sun banner. Proof of the kill."
+        probability: 1.0
+        count_min: 1
+        count_max: 1
+
+  - id: vault-loot
+    entries:
+      - item_id: pre-war-circuitry
+        name: "Pre-War Circuitry"
+        desc: "Pulled from a robot chassis."
+        tags: [component, gun-receiver]
+        quality: refined
+        stat_mods: {damage: 4, accuracy: 2}
+        probability: 0.5
+        count_min: 1
+        count_max: 1
+      - item_id: vault-key-fragment
+        name: "Vault Key Fragment"
+        desc: "A shard of magnetic keycard."
+        probability: 0.4
+        count_min: 1
+        count_max: 1
+      - item_id: spare-battery
+        name: "Spare Battery"
+        desc: "Pre-war fusion cell. Still hot."
+        probability: 0.6
+        count_min: 1
+        count_max: 2
+
 crafting_recipes:
   - id: pipe-pistol
     name: "Pipe Pistol"
@@ -827,10 +932,11 @@ rooms:
       A whitewashed shack with a hand-painted red cross on the door. Inside
       smells of bleach and old blood. Cots line one wall, all of them in use.
       A wall of pre-war pharmaceuticals — most empty bottles — looms behind
-      the front desk.
+      the front desk. A grate in the back leads down to the maintenance level.
     biome: settlement
     exits:
       west: dusthaven-3
+      down: sewers-0
     npcs:
       - id: nurse-aldis
         name: "Nurse Aldis"
@@ -961,11 +1067,13 @@ rooms:
       A bomb crater the size of a city block, ringed by radiation warning signs
       that nobody reads anymore. The walls of the crater are rich with exposed
       ore. Ironclad sentinels control the rim — they tax anyone who mines here.
+      A faint trail leads west into open wasteland — the Howling Plains.
     biome: wasteland
     exits:
       east: barrens-0
       west: barrens-6
       north: flats-0
+      southwest: plains-0
     npcs:
       - id: ironclad-sentry
         name: "Ironclad Sentry"
@@ -1029,10 +1137,12 @@ rooms:
       A ring of beat-up trucks circled around a bonfire. Severed signposts
       and salvaged tarps form lean-tos. The smell of woodsmoke and rotting
       meat. The Raider Chief holds court at the fire, surrounded by his
-      lieutenants. They see you the moment you enter.
+      lieutenants. They see you the moment you enter. A rough trail leads
+      north along a road of bones.
     biome: wasteland
     exits:
       south: barrens-1
+      north: raider-0
     npcs:
       - id: raider-chief
         name: "Karth the Raider Chief"
@@ -1245,11 +1355,13 @@ rooms:
     desc: |
       The Vault opens onto a long corridor lit by failing fluorescent tubes.
       Pre-war murals line the walls — families, sunshine, promises never kept.
-      Deep in the Vault, the Ghoul Collective has built a home. Whatever
-      resolution comes here will echo across the wastes.
+      Deep in the Vault, the Ghoul Collective has built a home. A reinforced
+      bulkhead at the far end leads down to deeper sub-levels nobody has
+      reached in living memory.
     biome: ruins
     exits:
       south: ruins-1
+      down: vault-0
     npcs:
       - id: vault-dweller
         name: "Vault Dweller"
@@ -1371,6 +1483,491 @@ rooms:
         desc: "STAND TALL. STAND IRONCLAD. — Recruitment standing always open."
         readable: true
         content: "THE IRONCLAD\nWe were the army before the bombs.\nWe will be the order after them.\nJoin us. Carry our colors. Reclaim what was lost."
+
+  # ─── DUSTHAVEN SEWERS (3 rooms) ───────────────────────────────────────────
+
+  - id: sewers-0
+    name: "The Drain"
+    desc: |
+      A pre-war drainage shaft, half-flooded with brackish water. The grate
+      from the Clinic rattles overhead. Old service ladders descend further
+      into the dark. Something splashes in the corner — could be a rat, could
+      be worse.
+    biome: ruins
+    exits:
+      up: dusthaven-5
+      north: sewers-1
+    npcs:
+      - id: sewer-rat
+        name: "Glowmaw Rat"
+        hp: 25
+        attack: 7
+        desc: "A radiation-bloated rat the size of a dog. Its teeth glow faintly green."
+        loot_table_id: sewer-loot
+    items:
+      - id: sewer-pipe-fragment
+        name: "Pipe Fragment"
+        desc: "A length of brass pipe, still threaded."
+    resources:
+      - id: drain-salvage
+        type: harvest
+        respawn_actions: 5
+        yields:
+          - item_id: copper-wire
+            name: "Copper Wire"
+            desc: "Pulled from the drain conduits."
+            tags: [component, gun-receiver]
+            quality: crude
+            stat_mods: {damage: 1}
+            probability: 0.6
+            count_min: 1
+            count_max: 2
+
+  - id: sewers-1
+    name: "Maintenance Tunnels"
+    desc: |
+      Cramped concrete tunnels lined with cable trays and burst pipes.
+      Graffiti from a hundred squatters covers the walls — most of it
+      warnings. The air is thick with the smell of mildew and rust.
+      A heavy door to the east is marked RESERVOIR — KEEP CLOSED.
+    biome: ruins
+    exits:
+      south: sewers-0
+      east: sewers-2
+    npcs:
+      - id: sewer-scavenger
+        name: "Mole the Scavenger"
+        hp: 40
+        attack: 6
+        desc: "A scavenger who has lived under Dusthaven for years. Pale skin, headlamp, distrustful eyes."
+        dialogue:
+          - trigger: "quest_not_active:reservoir-clear"
+            text: "Something nests in the reservoir. Killed two of my friends. Clear it out and I'll pay you."
+            quest_id: reservoir-clear
+          - trigger: always
+            text: "Mind the puddles. Half of them aren't water."
+        trades:
+          - id: mole-trade-1
+            wants: [{id: sewer-pipe-fragment, count: 3}]
+            offers: [{id: caps, name: "Bottle Caps", desc: "Mole's stash.", count: 20}]
+    items: []
+
+  - id: sewers-2
+    name: "The Reservoir"
+    desc: |
+      A vast underground cistern, half full of dark water. Pre-war pumps
+      hang silent from the ceiling. The water is cleaner than anything
+      on the surface — clean enough to fight over. Something massive
+      moves beneath the surface.
+    biome: ruins
+    exits:
+      west: sewers-1
+    npcs:
+      - id: reservoir-horror
+        name: "Reservoir Horror"
+        hp: 110
+        attack: 17
+        desc: "A mass of mutated flesh and grasping limbs that lives beneath the water. The Sewer Scavengers tell stories about it."
+        loot_table_id: sewer-boss-loot
+    items: []
+    resources:
+      - id: clean-water-source
+        type: harvest
+        respawn_actions: 6
+        yields:
+          - item_id: clean-water
+            name: "Clean Water"
+            desc: "Filtered through pre-war pumps. Heals 8 HP."
+            probability: 0.9
+            count_min: 1
+            count_max: 2
+
+  # ─── ASH RAIDER STRONGHOLD (4 rooms) ──────────────────────────────────────
+
+  - id: raider-0
+    name: "The Bone Road"
+    desc: |
+      A dirt track marked at intervals by skeletons lashed to wooden poles —
+      both human and otherwise. The Ash Raiders' way of saying "this far,
+      no further." A guard tower looms to the north, and beyond it, the
+      sounds of a working camp.
+    biome: wasteland
+    exits:
+      south: barrens-4
+      north: raider-1
+    npcs:
+      - id: raider-watchman
+        name: "Raider Watchman"
+        hp: 60
+        attack: 13
+        desc: "Perched on a watchtower with a hunting rifle and a brass spyglass."
+        loot_table_id: raider-loot
+    items:
+      - id: bone-marker
+        name: "Bone Marker"
+        desc: "A wooden post with a skull lashed to it. The skull has names carved into the bone."
+        readable: true
+        content: "Names carved into the bone:\n  KARTH — chief\n  RUNE — pit master\n  THARN — warlord\n  ASH — the first"
+
+  - id: raider-1
+    name: "The Pit"
+    desc: |
+      A rough fighting pit dug into the earth, surrounded by tiered seating
+      made of crates and old tires. Raiders cheer for whatever is bleeding
+      in the bottom. The pit master, Rune, takes bets at the rim.
+    biome: wasteland
+    exits:
+      south: raider-0
+      north: raider-2
+      east: raider-3
+    npcs:
+      - id: raider-pit-master
+        name: "Rune the Pit Master"
+        hp: 80
+        attack: 14
+        desc: "A bare-chested raider with a tally of kill marks tattooed across his chest."
+        loot_table_id: raider-loot
+        dialogue:
+          - trigger: "quest_not_active:pit-champion"
+            text: "Want to fight in the pit? Three rounds. You win, you walk out with caps. You lose, we feed your bones to the dogs."
+            quest_id: pit-champion
+          - trigger: always
+            text: "Bets close in five minutes. Place your caps."
+        trades:
+          - id: rune-bet
+            wants: [{id: caps, count: 10}]
+            offers: [{id: pit-token, name: "Pit Token", desc: "A bone disc carved with the pit symbol. Wager-marker.", count: 1}]
+    items: []
+
+  - id: raider-2
+    name: "Warlord's Throne"
+    desc: |
+      A tarpaulin-covered platform built atop the largest truck wreck in
+      the camp. Warlord Tharn sits on a throne assembled from rebar and
+      a salvaged office chair. Her warriors are everywhere. The smell of
+      blood and gun oil is overpowering.
+    biome: wasteland
+    exits:
+      south: raider-1
+    npcs:
+      - id: raider-warlord
+        name: "Warlord Tharn"
+        hp: 180
+        attack: 22
+        desc: "Tall, lean, terrifying. Half her face is a metal mask welded to bone. The Ash Raiders' founder and absolute ruler."
+        loot_table_id: raider-warlord-loot
+        dialogue:
+          - trigger: always
+            text: "Settler. Ironclad dog. Or just stupid? Whichever. You won't leave the camp alive."
+      - id: raider-bodyguard
+        name: "Tharn's Bodyguard"
+        hp: 90
+        attack: 16
+        desc: "A massive raider in scrap-plate armor, carrying a rebar maul."
+        loot_table_id: raider-loot
+    items:
+      - id: warlord-banner
+        name: "Warlord's Banner"
+        desc: "A tattered banner painted with a black sun. Symbol of Tharn's rule."
+
+  - id: raider-3
+    name: "The Slaver Pen"
+    desc: |
+      A wire-fenced pen where the Ash Raiders keep prisoners — captured
+      caravan guards, settlers, anyone the warband decides is worth ransoming.
+      Three captives huddle in the corner. A single raider stands guard,
+      bored and dangerous.
+    biome: wasteland
+    exits:
+      west: raider-1
+    locks:
+      - id: slaver-pen-gate
+        exit: pen
+        difficulty: 2
+        keys: [pen-key]
+    npcs:
+      - id: raider-jailer
+        name: "Raider Jailer"
+        hp: 65
+        attack: 12
+        desc: "A bored raider with a key ring and a cattle prod."
+        loot_table_id: raider-loot
+      - id: captive-settler
+        name: "Captive Settler"
+        hp: 20
+        attack: 0
+        desc: "A captured settler, hands bound, eyes desperate."
+        dialogue:
+          - trigger: "quest_not_active:free-the-captives"
+            text: "Please. Get the key from the jailer. There are three of us. Dusthaven will pay you."
+            quest_id: free-the-captives
+          - trigger: always
+            text: "Hurry. Tharn's people come at sundown."
+    items: []
+
+  # ─── VAULT SUB-LEVELS (3 rooms) ───────────────────────────────────────────
+
+  - id: vault-0
+    name: "Sub-Level B"
+    desc: |
+      Below the inhabited Vault, the air gets colder and the lights flicker.
+      Pre-war signage points deeper: REACTOR / COMMAND. The Ghoul Collective
+      doesn't come down here — they say the deep levels are haunted. They
+      may be right.
+    biome: ruins
+    exits:
+      up: ruins-2
+      north: vault-1
+      east: vault-2
+    npcs:
+      - id: vault-protectron
+        name: "Maintenance Protectron"
+        hp: 80
+        attack: 14
+        desc: "A pre-war service robot, still walking its patrol after two centuries. Its targeting array no longer recognizes friend from foe."
+        loot_table_id: vault-loot
+    items:
+      - id: vault-terminal
+        name: "Vault Terminal"
+        desc: "A pre-war terminal, screen flickering. Logs scroll past too fast to read."
+        readable: true
+        content: "VAULT-TEC LOG — fragment\n[CORRUPTED] ... reactor stable ... CORE BREACH WARNING ... evacuation order ... [END FRAGMENT]"
+
+  - id: vault-1
+    name: "The Reactor"
+    desc: |
+      A massive pre-war fusion reactor, still humming. The chamber is
+      bathed in sickly blue light from the containment cells. Radiation
+      counters in the corner click furiously. The reactor is failing —
+      slowly — and someone with the skill could either fix it or finish it.
+    biome: ruins
+    exits:
+      south: vault-0
+    locks:
+      - id: reactor-control
+        exit: control
+        difficulty: 4
+        keys: [reactor-key]
+    npcs:
+      - id: vault-mechanic
+        name: "Sister Pneuma"
+        hp: 55
+        attack: 6
+        desc: "A ghoul with mechanic's grease on her hands. She's been keeping the reactor running for sixty years. Alone."
+        dialogue:
+          - trigger: "quest_not_active:stabilize-reactor"
+            text: "The reactor is dying. I can't fix it alone. If you can hotwire the secondary control panel, I can route around the failure. The Vault stays alive another decade."
+            quest_id: stabilize-reactor
+          - trigger: always
+            text: "Sixty years I've kept it running. Sixty years and it still hums."
+    items:
+      - id: reactor-core-shard
+        name: "Reactor Core Shard"
+        desc: "A fragment of the failing reactor core. Glows. Probably lethal to carry long."
+    resources:
+      - id: reactor-salvage
+        type: harvest
+        respawn_actions: 10
+        yields:
+          - item_id: pre-war-circuitry
+            name: "Pre-War Circuitry"
+            desc: "Pulled from the reactor casing."
+            tags: [component, gun-receiver]
+            quality: refined
+            stat_mods: {damage: 4, accuracy: 2}
+            probability: 0.5
+            count_min: 1
+            count_max: 1
+          - item_id: radiation-crystal
+            name: "Radiation Crystal"
+            desc: "Crystallized fallout from the reactor housing."
+            probability: 0.3
+            count_min: 1
+            count_max: 1
+
+  - id: vault-2
+    name: "The Heart"
+    desc: |
+      The deepest chamber of the Vault. A circular room, ringed with
+      pre-war seals. At the center, a sealed cryo-pod — frosted glass,
+      faint blue light, a single human silhouette inside. A nameplate
+      reads: VAULT-TEC PROJECT REVENANT. SUBJECT 001.
+    biome: ruins
+    exits:
+      west: vault-0
+    locks:
+      - id: cryo-pod-seal
+        exit: pod
+        difficulty: 5
+        keys: [cryo-key]
+    npcs: []
+    items:
+      - id: cryo-pod
+        name: "Cryo-Pod"
+        desc: "A sealed pre-war cryo-pod containing a single, sleeping human. The seal is intact. The display reads: STABLE."
+      - id: revenant-dossier
+        name: "Project Revenant Dossier"
+        desc: "A pre-war dossier sealed with a Vault-Tec stamp."
+        readable: true
+        content: "VAULT-TEC PROJECT REVENANT — confidential\n\nSubject 001: General Ada Voss, US Army (Ret.)\nObjective: Cryogenic preservation of strategic personnel for post-conflict reconstruction.\nStatus: STABLE. Awaiting authorized recovery code.\n\n[Note: the recovery code is encoded in three vault-key-fragments distributed across the facility.]"
+
+  # ─── THE HOWLING PLAINS (4 rooms) ─────────────────────────────────────────
+
+  - id: plains-0
+    name: "The Howl"
+    desc: |
+      An open plain of cracked clay and brown grass. The wind here is
+      constant and loud — hence the name. The horizon goes on forever.
+      Pre-war fence posts march across the landscape, leading to whatever
+      is left out here.
+    biome: wasteland
+    exits:
+      northeast: barrens-2
+      west: plains-1
+      north: plains-3
+      south: plains-2
+    npcs:
+      - id: plains-wanderer
+        name: "The Wanderer"
+        hp: 50
+        attack: 8
+        desc: "A solitary figure in a long coat. They've been walking the plains for as long as anyone remembers. They never give a name."
+        dialogue:
+          - trigger: always
+            text: "I walked east once. Took me three years to come back. There's nothing out there but the Howl. *They turn back to the horizon.*"
+        trades:
+          - id: wanderer-charm
+            wants: [{id: caps, count: 30}]
+            offers: [{id: wanderer-charm, name: "Wanderer's Charm", desc: "A bone disc on a leather thong. Old Mira swears it brings luck.", count: 1}]
+    items: []
+    resources:
+      - id: plains-forage
+        type: harvest
+        respawn_actions: 4
+        yields:
+          - item_id: brown-grass
+            name: "Brown Grass"
+            desc: "Tough, fibrous grass. Burns hot."
+            probability: 0.8
+            count_min: 1
+            count_max: 3
+          - item_id: cloth-strip
+            name: "Cloth Strip"
+            desc: "Torn from an old fence-flag."
+            probability: 0.3
+            count_min: 1
+            count_max: 1
+
+  - id: plains-1
+    name: "Burned Homestead"
+    desc: |
+      The collapsed remains of a pre-war farmhouse, blackened by fire.
+      A cellar door stands open, untouched. Nobody has lived here in
+      generations — but somebody died here recently. Crows circle.
+    biome: wasteland
+    exits:
+      east: plains-0
+    npcs:
+      - id: feral-dog
+        name: "Feral Dog"
+        hp: 30
+        attack: 9
+        desc: "A wasteland dog, mangy and starved. It growls but doesn't run."
+        loot_table_id: wasteland-loot
+    items:
+      - id: family-photo
+        name: "Family Photo"
+        desc: "A scorched photograph. Two children, a dog, a porch."
+        readable: true
+        content: "On the back, in faded pencil:\n'Ada, Sam, Daisy — last summer before deployment.'"
+      - id: hidden-cellar-key
+        name: "Cellar Key"
+        desc: "A small brass key. Maybe for the cellar door."
+    resources:
+      - id: homestead-cellar
+        type: harvest
+        respawn_actions: 12
+        yields:
+          - item_id: canned-food
+            name: "Canned Food"
+            desc: "Pre-war preserve, miraculously sealed."
+            probability: 0.7
+            count_min: 1
+            count_max: 3
+          - item_id: clean-water
+            name: "Clean Water"
+            desc: "Sealed in a pre-war jar."
+            probability: 0.5
+            count_min: 1
+            count_max: 2
+          - item_id: stimpak
+            name: "Stimpak"
+            desc: "Old but still good."
+            probability: 0.2
+            count_min: 1
+            count_max: 1
+
+  - id: plains-2
+    name: "Crashed Aircraft"
+    desc: |
+      The fuselage of a pre-war military transport, half-buried in the
+      clay. The ramp is jammed open. Inside, the remains of a squad —
+      and the cargo they were carrying. Vault-Tec markings on the crates.
+    biome: wasteland
+    exits:
+      north: plains-0
+    locks:
+      - id: cargo-crate
+        exit: crate
+        difficulty: 4
+        keys: [cargo-key]
+    npcs:
+      - id: scavver-rival
+        name: "Tess the Picker"
+        hp: 60
+        attack: 11
+        desc: "A rival scavver who got here first. She's not happy to share."
+        loot_table_id: raider-loot
+        dialogue:
+          - trigger: always
+            text: "Find your own crash. This one's mine. *She levels her shotgun.*"
+    items:
+      - id: pilot-log
+        name: "Pilot's Log"
+        desc: "A leather-bound flight log."
+        readable: true
+        content: "PILOT'S LOG — last entry\n'Cargo: Project Revenant components. Routing to Vault 7. Reactor parts and one cryo-key.\nGroundfire from below. Losing altitude. Going down west of the Crater. May god—'\n[the entry ends]"
+      - id: crash-cargo
+        name: "Cargo Crate"
+        desc: "A reinforced military crate, stamped with the Vault-Tec eagle."
+
+  - id: plains-3
+    name: "Lone Mesa"
+    desc: |
+      A solitary mesa rising from the plains, weathered red rock against
+      a bone-grey sky. A goat path winds up to the top. From the summit
+      you can see for miles in every direction — Dusthaven smoke to the
+      east, the Vault skyline north, the chemical plant glow south.
+    biome: wasteland
+    exits:
+      south: plains-0
+    npcs:
+      - id: hermit-seer
+        name: "The Mesa Seer"
+        hp: 45
+        attack: 5
+        desc: "A blind ghoul-kin elder, ancient beyond reckoning. They sit at the summit and watch with eyes that can no longer see."
+        dialogue:
+          - trigger: always
+            text: "I see four hands reaching for the same buried thing. Yours is one of them. Choose carefully who you stand with — the Vault remembers. *They tilt their head toward you.* The cryo-pod is real. The general inside is real. What you wake will reshape the wastes."
+        trades:
+          - id: seer-vision
+            wants: [{id: caps, count: 50}]
+            offers: [{id: seer-token, name: "Seer's Token", desc: "A polished river stone. The Seer says it sees what you cannot.", count: 1}]
+    items:
+      - id: mesa-cairn
+        name: "Stone Cairn"
+        desc: "A waist-high cairn of stones, each one carved with a name. Some names are recent."
 
   - id: flats-2
     name: "Chemical Plant"
@@ -1537,4 +2134,60 @@ quests:
     reward_xp_skill: combat
     reward_xp_amount: 75
     reward_rep_faction: ironclad
+    reward_rep_delta: 10
+
+  - id: reservoir-clear
+    title: "Clear the Reservoir"
+    description: "Mole the Sewer Scavenger wants the Reservoir Horror killed. Find it in the deepest sewer chamber."
+    giver_npc_id: sewer-scavenger
+    giver_faction: settlers
+    min_rep: 0
+    obj_type: kill
+    obj_target: reservoir-horror
+    obj_count: 1
+    reward_credits: 175
+    reward_xp_skill: combat
+    reward_xp_amount: 90
+    reward_rep_faction: settlers
+    reward_rep_delta: 5
+
+  - id: pit-champion
+    title: "Pit Champion"
+    description: "Rune the Pit Master wants to see if you can survive his fighting pit. Win three rounds. (Type 'arena' at the Pit to begin.)"
+    giver_npc_id: raider-pit-master
+    obj_type: kill
+    obj_target: raider-bodyguard
+    obj_count: 3
+    reward_credits: 250
+    reward_xp_skill: combat
+    reward_xp_amount: 120
+
+  - id: free-the-captives
+    title: "Free the Captives"
+    description: "A captive settler in the Ash Raider stronghold begs for rescue. Kill the jailer, take the key, free them."
+    giver_npc_id: captive-settler
+    giver_faction: settlers
+    min_rep: 0
+    obj_type: kill
+    obj_target: raider-jailer
+    obj_count: 1
+    reward_credits: 150
+    reward_xp_skill: combat
+    reward_xp_amount: 75
+    reward_rep_faction: settlers
+    reward_rep_delta: 8
+
+  - id: stabilize-reactor
+    title: "Stabilize the Reactor"
+    description: "Sister Pneuma needs the Vault reactor stabilized. Hotwire (or pick) the secondary control panel — vault-1."
+    giver_npc_id: vault-mechanic
+    giver_faction: ghoul-collective
+    min_rep: 0
+    obj_type: unlock
+    obj_target: reactor-control
+    obj_count: 1
+    reward_credits: 200
+    reward_xp_skill: crafting
+    reward_xp_amount: 100
+    reward_rep_faction: ghoul-collective
     reward_rep_delta: 10
